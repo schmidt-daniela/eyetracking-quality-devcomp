@@ -2,8 +2,8 @@
 # data/raw/
 
 # Raw data folder (keep folder, ignore contents)
-data/raw/*
-!data/raw/.gitkeep
+exp1/data/raw/*
+!exp1/data/raw/.gitkeep
 
 # macOS Finder files
 .DS_Store

@@ -1,5 +1,13 @@
 # Raw data folders
-data/raw/
+# data/raw/
+
+# Raw data folder (keep folder, ignore contents)
+data/raw/*
+!data/raw/.gitkeep
+
+# macOS Finder files
+.DS_Store
+**/.DS_Store
 
 # History files
 .Rhistory

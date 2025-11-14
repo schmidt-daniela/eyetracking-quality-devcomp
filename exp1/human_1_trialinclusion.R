@@ -1,7 +1,7 @@
 ## This script excludes invalid trials.
 ## A trial is not valid, if an individual didn't look in the stimulus AOI for at least one fixation. 
-## Furthermore, trials with latencies shorter than 100 ms (only applies for infants) and more than 3 SD
-## of the individual mean will be excluded from the latency analyses (Daum & Gredebäck, 2011).
+## Furthermore, trials with latencies shorter than 100 ms (only applies for human infants) and more than 3 SD
+## of the individual mean will be excluded from the latency analyses (only applied for humans) (Daum & Gredebäck, 2011).
 ## Nov 14 – Daniela Schmidt
 
 # General -----------------------------------------------------------------
@@ -12,11 +12,11 @@ library(here)
 library(tidyverse)
 
 # Set Parameters ----------------------------------------------------------
-age_group <- "4m" # "4m", "6m", "9m", "18m", or "adult"
+age_group <- "18m" # "4m", "6m", "9m", "18m", "adults"
 sample_size <- 32
+buffer <- 40 # 40px (1°) in humans and 120px (3°) in chimps
 
 # Define AOIs -------------------------------------------------------------
-buffer <- 80 # in px, 40 px = 1 visd
 
 # Objects
 topobject_x_topleft <- 870 - buffer
@@ -151,7 +151,7 @@ for(i in c(1:sample_size)){
     as.numeric()
   
   # Add exclusion information about latencies <100ms (except for adults)
-  if(age_group == "adult"){
+  if(age_group %in% c("adult", "chimps")){
     excluded_trials_100ms <- NULL
     }
   
@@ -167,6 +167,10 @@ for(i in c(1:sample_size)){
     filter(latency > mean_latency + twosd_latency | latency < mean_latency - twosd_latency) |>
     pull(trial) |> 
     as.numeric()
+  
+  if(age_group == "chimps"){
+    excluded_trials_threesd <- NULL
+  }
   
   df$excluded_3sd <- "included"
   df[df$trial %in% excluded_trials_threesd & df$stimulus != "at", "excluded_3sd"] <- "excluded"

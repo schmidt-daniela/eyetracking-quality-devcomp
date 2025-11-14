@@ -12,9 +12,9 @@ library(here)
 library(tidyverse)
 
 # Set Parameters ----------------------------------------------------------
-age_group <- "18m" # "4m", "6m", "9m", "18m", "adults"
+folder <- "4m" # "4m", "6m", "9m", "18m", or "adults"
 sample_size <- 32
-buffer <- 40 # 40px (1°) in humans and 120px (3°) in chimps
+buffer <- 40 # 40px (1°) in humans
 
 # Define AOIs -------------------------------------------------------------
 
@@ -71,16 +71,16 @@ mark_aoi <- function(df, name, x_min, x_max, y_min, y_max, stimuli) {
   df
 }
 
-# Magical Loop ------------------------------------------------------------
+# Trial Exclusion ---------------------------------------------------------
 for(i in c(1:sample_size)){
   
   # Select file
-  filenames <- list.files(path = here("exp1", "data", "raw_anon", age_group))
+  filenames <- list.files(path = here("exp1", "data", "raw_anon", folder))
   n <- i
   filename <- filenames[n]
   
   # Read file
-  raw <- read.table(here("exp1", "data", "raw_anon", age_group, filename), header = T, sep = "\t")
+  raw <- read.table(here("exp1", "data", "raw_anon", folder, filename), header = T, sep = "\t")
   df <- raw
   
   # Prepare stimulus information
@@ -151,7 +151,7 @@ for(i in c(1:sample_size)){
     as.numeric()
   
   # Add exclusion information about latencies <100ms (except for adults)
-  if(age_group %in% c("adult", "chimps")){
+  if(folder == "adult"){
     excluded_trials_100ms <- NULL
     }
   
@@ -167,10 +167,6 @@ for(i in c(1:sample_size)){
     filter(latency > mean_latency + twosd_latency | latency < mean_latency - twosd_latency) |>
     pull(trial) |> 
     as.numeric()
-  
-  if(age_group == "chimps"){
-    excluded_trials_threesd <- NULL
-  }
   
   df$excluded_3sd <- "included"
   df[df$trial %in% excluded_trials_threesd & df$stimulus != "at", "excluded_3sd"] <- "excluded"
@@ -220,7 +216,7 @@ for(i in c(1:sample_size)){
               by = c("Recording.timestamp", "Computer.timestamp", "Event", "Presented.Stimulus.name"))
   
   # Write data
-  write.table(dat_fin, here("exp1", "data", "raw_anon_exclude", age_group, paste0(sub("\\.tsv$", "", filename), ".txt")), 
+  write.table(dat_fin, here("exp1", "data", "raw_anon_exclude", folder, paste0(sub("\\.tsv$", "", filename), ".txt")), 
             row.names = F, quote = F, sep = "\t", dec = ".")
   print(i)
 }

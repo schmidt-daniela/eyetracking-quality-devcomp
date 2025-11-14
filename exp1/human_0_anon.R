@@ -28,18 +28,6 @@ anonymize_file <- function(file, id, rec_col  = "Recording.name", part_col = "Pa
 for(i in list.files(here("exp1", "data", "raw"))){
   files <- list.files(here("exp1", "data", "raw", i))
   
-  if(i == "chimps"){ # chimp files are not anonymized
-    for(j in files){
-    dat_temp <- read.table(here("exp1", "data", "raw", i, j), header = T, sep = "\t")
-    write.table(dat_temp, here("exp1", "data", "raw_public", i, j),
-                row.names = F, quote = F, sep = "\t", dec = ".")
-    rm(dat_temp)
-    
-    message("Done: ", j)
-    }
-  }
-  
-  if(i != "chimps"){
   for(j in files){
     dat_temp <- anonymize_file(file = here("exp1", "data", "raw", i, j), id = which(files == j), 
                                rec_col  = "Recording.name", part_col = "Participant.name",
@@ -47,6 +35,6 @@ for(i in list.files(here("exp1", "data", "raw"))){
     write.table(dat_temp, here("exp1", "data", "raw_public", i, paste0(i, "_", which(files == j), ".tsv")),
                 row.names = F, quote = F, sep = "\t", dec = ".")
     rm(dat_temp)
-  }}
+  }
   message("Done folder: ", i)
 }

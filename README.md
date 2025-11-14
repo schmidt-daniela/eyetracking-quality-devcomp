@@ -3,7 +3,7 @@
 ⚠️ **Status:** This project is a work in progress.
 
 ## General information
-This project investigates eye-tracking data quality in developmental and comparative research 👶🐒
+This project investigates eye-tracking data quality in developmental and comparative research. 👶🐒  
 To this end, we ran three experiments (`exp1`, `exp2`, `exp3`). For each experiment, we provide
 - anonymized raw data (`expn/data/raw_anon/...`)
 - preprocessed data in the (`expn/data/tbc/...`)

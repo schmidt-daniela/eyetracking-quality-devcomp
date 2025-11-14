@@ -6,7 +6,7 @@
 This project investigates eye-tracking data quality in developmental and comparative research. 👶🐒  
 To this end, we ran three experiments (`exp1`, `exp2`, `exp3`). For each experiment, we provide
 - anonymized raw data (`expn/data/raw_anon/...`)
-- preprocessed data in the (`expn/data/tbc/...`)
+- preprocessed data (`expn/data/tbc/...`)
 - (tbc)
 
 The full R package environment (including version numbers) is recorded in `renv.lock`.

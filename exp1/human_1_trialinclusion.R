@@ -2,6 +2,7 @@
 ## A trial is not valid, if an individual didn't look in the stimulus AOI for at least one fixation. 
 ## Furthermore, trials with latencies shorter than 100 ms (only applies for infants) and more than 3 SD
 ## of the individual mean will be excluded from the latency analyses (Daum & Gredebäck, 2011).
+## Nov 14 – Daniela Schmidt
 
 # General -----------------------------------------------------------------
 rm(list = ls())
@@ -11,7 +12,7 @@ library(here)
 library(tidyverse)
 
 # Set Parameters ----------------------------------------------------------
-age_group <- "adult" # "4m", "6m", "9m", "18m", or "adult"
+age_group <- "4m" # "4m", "6m", "9m", "18m", or "adult"
 sample_size <- 32
 
 # Define AOIs -------------------------------------------------------------
@@ -74,12 +75,12 @@ mark_aoi <- function(df, name, x_min, x_max, y_min, y_max, stimuli) {
 for(i in c(1:sample_size)){
   
   # Select file
-  filenames <- list.files(path = here("data", "raw_anon", age_group))
+  filenames <- list.files(path = here("exp1", "data", "raw_anon", age_group))
   n <- i
   filename <- filenames[n]
   
   # Read file
-  raw <- read.table(here("data", "raw_anon", age_group, filename), header = T, sep = "\t")
+  raw <- read.table(here("exp1", "data", "raw_anon", age_group, filename), header = T, sep = "\t")
   df <- raw
   
   # Prepare stimulus information
@@ -101,45 +102,24 @@ for(i in c(1:sample_size)){
   # Define AOIs
   df$aoi <- "not_in_aoi"
 
-  topleftflake <- which(df$fix_x >= (topleftflake_x_topleft) & df$fix_x <= (topleftflake_x_botright) & 
-                        df$fix_y >= (topleftflake_y_topleft) & df$fix_y <= (topleftflake_y_botright) &
-                        df$stimulus %in% c("checkflake"))
-  df[topleftflake,"aoi"] <- "top_left"
-  
-  botleftflake <- which(df$fix_x >= (botleftflake_x_topleft) & df$fix_x <= (botleftflake_x_botright) & 
-                        df$fix_y >= (botleftflake_y_topleft) & df$fix_y <= (botleftflake_y_botright) &
-                        df$stimulus %in% c("checkflake"))
-  df[botleftflake,"aoi"] <- "bot_left"
-  
-  toprightflake <- which(df$fix_x >= (toprightflake_x_topleft) & df$fix_x <= (toprightflake_x_botright) & 
-                         df$fix_y >= (toprightflake_y_topleft) & df$fix_y <= (toprightflake_y_botright) &
-                         df$stimulus %in% c("checkflake"))
-  df[toprightflake,"aoi"] <- "top_right"
-  
-  botrightflake <- which(df$fix_x >= (botrightflake_x_topleft) & df$fix_x <= (botrightflake_x_botright) & 
-                         df$fix_y >= (botrightflake_y_topleft) & df$fix_y <= (botrightflake_y_botright) &
-                         df$stimulus %in% c("checkflake"))
-  df[botrightflake,"aoi"] <- "bot_right"
-  
-  centralflake <- which(df$fix_x >= (centralflake_x_topleft) & df$fix_x <= (centralflake_x_botright) & 
-                        df$fix_y >= (centralflake_y_topleft) & df$fix_y <= (centralflake_y_botright) &
-                        df$stimulus %in% c("checkflake"))
-  df[centralflake,"aoi"] <- "center_center"
-  
-  at <- which(df$fix_x >= (at_x_topleft) & df$fix_x <= (at_x_botright) & 
-              df$fix_y >= (at_y_topleft) & df$fix_y <= (at_y_botright) &
-              df$stimulus %in% c("at"))
-  df[at,"aoi"] <- "at"
-  
-  top_object <- which(df$fix_x >= (topobject_x_topleft) & df$fix_x <= (topobject_x_botright) & 
-                      df$fix_y >= (topobject_y_topleft) & df$fix_y <= (topobject_y_botright) &
-                      df$stimulus %in% c("move", "still"))
-  df[top_object,"aoi"] <- "top"
-  
-  bot_object <- which(df$fix_x >= (botobject_x_topleft) & df$fix_x <= (botobject_x_botright) & 
-                      df$fix_y >= (botobject_y_topleft) & df$fix_y <= (botobject_y_botright) &
-                      df$stimulus %in% c("move", "still"))
-  df[bot_object,"aoi"] <- "bottom"
+  df <- df |>
+    mutate(aoi = "not_in_aoi") |>
+    mark_aoi("top_left", topleftflake_x_topleft, topleftflake_x_botright,
+             topleftflake_y_topleft, topleftflake_y_botright, stimuli = "checkflake") |>
+    mark_aoi("bot_left", botleftflake_x_topleft, botleftflake_x_botright,
+             botleftflake_y_topleft, botleftflake_y_botright, stimuli = "checkflake") |>
+    mark_aoi("top_right", toprightflake_x_topleft, toprightflake_x_botright,
+             toprightflake_y_topleft, toprightflake_y_botright, stimuli = "checkflake") |>
+    mark_aoi("bot_right",  botrightflake_x_topleft, botrightflake_x_botright,
+             botrightflake_y_topleft,  botrightflake_y_botright, stimuli = "checkflake") |>
+    mark_aoi("center_center", centralflake_x_topleft, centralflake_x_botright,
+             centralflake_y_topleft,  centralflake_y_botright, stimuli = "checkflake") |>
+    mark_aoi("at", at_x_topleft, at_x_botright, at_y_topleft, at_y_botright,
+             stimuli = "at") |>
+    mark_aoi("top", topobject_x_topleft, topobject_x_botright,
+             topobject_y_topleft, topobject_y_botright, stimuli = c("move", "still")) |>
+    mark_aoi("bottom", botobject_x_topleft, botobject_x_botright,
+             botobject_y_topleft, botobject_y_botright, stimuli = c("move", "still"))
   
   # Identify latencies <100ms (based on gaze samples)
   latencies_top <- df |> 
@@ -232,11 +212,11 @@ for(i in c(1:sample_size)){
   
   # Merge data
   dat_fin <- raw |> 
-    left_join(df |> ungroup() |> select(Presented.Stimulus.name, excluded_100ms, excluded_3sd, excluded_fixation) |> distinct(), 
-              by = "Presented.Stimulus.name")
+    left_join(df |> ungroup() |> select(Presented.Stimulus.name, Computer.timestamp, Recording.timestamp, Event, aoi, excluded_100ms, excluded_3sd, excluded_fixation), 
+              by = c("Recording.timestamp", "Computer.timestamp", "Event", "Presented.Stimulus.name"))
   
   # Write data
-  write.table(dat_fin, here("data", "raw_anon_exclude", age_group, paste0(sub("\\.tsv$", "", filename), ".txt")), 
+  write.table(dat_fin, here("exp1", "data", "raw_anon_exclude", age_group, paste0(sub("\\.tsv$", "", filename), ".txt")), 
             row.names = F, quote = F, sep = "\t", dec = ".")
   print(i)
 }

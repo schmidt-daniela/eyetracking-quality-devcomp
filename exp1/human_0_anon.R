@@ -1,5 +1,5 @@
 ## This script anonymizes eye-tracking data from exp1/data/raw.
-## It requires data located in the "raw" folder,
+## It requires data located in the "raw_private" folder,
 ## which is not included in the GitHub repository for data protection reasons.
 ## Nov 14 – Daniela Schmidt
 
@@ -32,7 +32,7 @@ for(i in list.files(here("exp1", "data", "raw"))){
     dat_temp <- anonymize_file(file = here("exp1", "data", "raw", i, j), id = which(files == j), 
                                rec_col  = "Recording.name", part_col = "Participant.name",
                                drop_cols = c("Export.date", "Recording.date.UTC", "Recording.start.time", "Recording.start.time.UTC", "Recording.date", "Recording.Time"))
-    write.table(dat_temp, here("exp1", "data", "raw_anon", i, paste0(i, "_", which(files == j), ".tsv")),
+    write.table(dat_temp, here("exp1", "data", "raw_public", i, paste0(i, "_", which(files == j), ".tsv")),
                 row.names = F, quote = F, sep = "\t", dec = ".")
     rm(dat_temp)
   }

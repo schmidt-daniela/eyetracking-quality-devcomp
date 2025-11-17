@@ -27,7 +27,7 @@ anonymize_file <- function(file, id, rec_col  = "Recording.name", part_col = "Pa
 # Anonymization -----------------------------------------------------------
 for(i in list.files(here("exp1", "data", "raw"))){
   files <- list.files(here("exp1", "data", "raw", i))
-  
+
   for(j in files){
     dat_temp <- anonymize_file(file = here("exp1", "data", "raw", i, j), id = which(files == j), 
                                rec_col  = "Recording.name", part_col = "Participant.name",

@@ -1,9 +1,7 @@
-# Raw data folders
-# data/raw/
-
 # Raw data folder (keep folder, ignore contents)
-exp1/data/raw/*
-!exp1/data/raw/.gitkeep
+# Large/raw data (not tracked)
+exp1/data/raw_private/
+exp1/data/raw_public/
 
 # macOS Finder files
 .DS_Store

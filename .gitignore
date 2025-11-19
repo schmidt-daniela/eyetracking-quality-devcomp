@@ -1,6 +1,3 @@
-# Raw data folders
-# data/raw/
-
 # Raw data folder (keep folder, ignore contents)
 exp1/data/raw/*
 !exp1/data/raw/.gitkeep

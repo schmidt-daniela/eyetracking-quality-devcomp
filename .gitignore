@@ -1,5 +1,8 @@
-# Raw data folder (keep folder, ignore contents)
-# Large/raw data (not tracked)
+# Local scripts 
+exp1/human_0_anonymize_data.R
+exp1/chimp_0_merge_session.R
+
+# Raw data folder
 exp1/data/raw_private/
 exp1/data/raw_public/
 

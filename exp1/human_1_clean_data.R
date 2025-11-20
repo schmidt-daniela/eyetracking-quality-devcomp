@@ -76,6 +76,8 @@ for(i in c(1:sample_size)){
   raw <- read.table(here("exp1", "data", "raw_public", folder, filename), header = T, sep = "\t")
   df <- raw
   
+  
+  
   # Prepare stimulus information
   df <- suppressWarnings(df |> 
     separate(Presented.Stimulus.name, 

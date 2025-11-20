@@ -3,8 +3,8 @@ exp1/human_0_anonymize_data.R
 exp1/chimp_0_merge_sessions.R
 
 # Raw data folder
-exp1/data/raw_private/
-exp1/data/raw_public/
+exp1/data/raw_1/
+exp1/data/raw_2/
 
 # macOS Finder files
 .DS_Store

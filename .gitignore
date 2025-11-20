@@ -1,6 +1,6 @@
 # Local scripts 
 exp1/human_0_anonymize_data.R
-exp1/chimp_0_merge_session.R
+exp1/chimp_0_merge_sessions.R
 
 # Raw data folder
 exp1/data/raw_private/

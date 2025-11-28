@@ -6,6 +6,9 @@ exp1/chimp_0_merge_sessions.R
 exp1/data/raw_1/
 exp1/data/raw_2/
 
+# Local files
+exp1/doc/protocol_decoded.xlsx
+
 # macOS Finder files
 .DS_Store
 **/.DS_Store

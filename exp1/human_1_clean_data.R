@@ -10,6 +10,9 @@ rm(list = ls())
 # Packages ----------------------------------------------------------------
 library(here)
 library(tidyverse)
+library(readxl)
+# remotes::install_github("dmirman/gazer")
+library(gazer)
 
 # Set Parameters ----------------------------------------------------------
 folder <- "adults" # "4m", "6m", "9m", "18m", or "adults"
@@ -18,6 +21,9 @@ buffer <- 40 # 40px (1°) in humans
 
 # Functions ---------------------------------------------------------------
 source(here("exp1", "R", "cleaning.R"))
+
+# Load Sample Data --------------------------------------------------------
+protocol <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = folder)
 
 # Define AOIs -------------------------------------------------------------
 
@@ -68,72 +74,157 @@ at_y_botright <- 637 + buffer
 for(i in c(1:sample_size)){
   
   # Select file
-  filenames <- list.files(path = here("exp1", "data", "raw_public", folder))
+  filenames <- list.files(path = here("exp1", "data", "raw_2", folder))
   n <- i
   filename <- filenames[n]
   
   # Read file
-  raw <- read.table(here("exp1", "data", "raw_public", folder, filename), header = T, sep = "\t")
+  raw <- read.table(here("exp1", "data", "raw_2", folder, filename), header = T, sep = "\t")
   df <- raw
-  
-  
-  
-  # Prepare stimulus information
-  df <- suppressWarnings(df |> 
-    separate(Presented.Stimulus.name, 
-             into = c("trial", "task", "stimulus", "cond_both", "cond_jointness", "cue_direction",
-                      "cond_congruence", "actor", "object_identity", "object_location", "cond_party"), 
-             remove = F) |> 
-    rename(fix_x = Fixation.point.X, fix_y = Fixation.point.Y))
   
   # Add gaze-sample duration
   df$gaze_sample_duration <- c(diff(df$Recording.timestamp), NA) / 1000
   
+  # Tidy column names
+  df <- df |>  
+    rename_with(~ .x |> 
+                  str_replace_all("[^A-Za-z0-9]+", "_") |>  # replace everything that's not a number or a letter with _
+                  str_remove("^_+") |>  # remove one or more _ at the beginning of a string
+                  str_remove("_+$") |>  # remove one or more _ at the end of a string
+                  str_to_lower()) # make all letters lowercase
+  
+  # Remove columns that are not of interest and/or not informative
+  df <- df |> 
+    select(-c(ungrouped, client_area_position_x_dacspx, client_area_position_y_dacspx, viewport_position_x, # variables with NA only
+              viewport_position_y, viewport_width, viewport_height, full_page_width, full_page_height, # variables with NA only
+              mouse_position_x,mouse_position_y)) # variable not of interest
+  
+  # # Remove rows that are not of interest
+  # df <- df |> 
+  #   filter(presented_stimulus_name != "Eyetracker Calibration")
+
+  # Prepare stimulus information
+  df <- df |>
+    separate(presented_stimulus_name,
+             into = c("trial", "delete1", "stimulus", "stimulus_duration", "checkflake_location1", 
+                      "checkflake_location2", "delete2", "delete3", "object_identity", "object_location", "delete4"), 
+               remove = FALSE, sep = "_") |>
+      select(-c(delete1, delete2, delete3, delete4)) |> 
+    suppressWarnings()
+  
+  # Set up trial and stimulus information
+  df <- df |> 
+    mutate(stimulus_duration = case_when(
+      stimulus == "move"  ~ "gaze_contingent",
+      stimulus == "still" ~ "1s",
+      stimulus == "at"    ~ "experimenter-controlled",
+      stimulus_duration %in% c("Kalei1","Kalei2","Kalei3","Kalei4") ~ "4s",
+      TRUE ~ stimulus_duration)) |> 
+    mutate(stimulus = case_when(
+      stimulus %in% c("move","still") ~ "object",
+      stimulus == "x"                 ~ "kalei",
+      TRUE                            ~ stimulus)) |> 
+    mutate(position = case_when(
+      stimulus == "checkflake" & checkflake_location1 == "center" & checkflake_location2 == "center" ~ "center",
+      stimulus == "checkflake" ~ paste(checkflake_location1, checkflake_location2, sep = "_"),
+      stimulus == "object" ~ object_location,
+      stimulus == "at" ~ "center",
+      TRUE ~ object_location)) |> 
+    unite("stimulus_position", c("stimulus", "position"), sep = "_", remove = F)
+  
+  df[which(df$stimulus == "cueing"), "stimulus"] <- NA
+  df[which(df$stimulus |> str_detect("Kalei")), "stimulus"] <- NA
+  
+  df <- df |> select(-object_location) # redundant, information is in position
+
+  df <- df |> 
+    mutate(trial = make_trial_num(stimulus, stimulus_position),
+           trial = na_if(trial, 0L))
+
+  df[is.na(df$stimulus),"trial"] <- NA
+  
   # Add cumulative duration per stimulus
   df <- df |> 
-    group_by(trial, stimulus) |> 
-    mutate(timeline = cumsum(gaze_sample_duration))
+    group_by(trial, stimulus_duration) |> 
+    mutate(timeline = cumsum(gaze_sample_duration)) |> 
+    ungroup()
   
-  # Define AOIs
-  df$aoi <- "not_in_aoi"
+  # Define AOIs (based on fixations)
+  df$aoi_fixation <- "not_in_aoi"
   
   df <- df |>
-    mutate(aoi = "not_in_aoi") |>
-    mark_aoi("top_left", topleftflake_x_topleft, topleftflake_x_botright,
-             topleftflake_y_topleft, topleftflake_y_botright, stimuli = "checkflake") |>
-    mark_aoi("bot_left", botleftflake_x_topleft, botleftflake_x_botright,
-             botleftflake_y_topleft, botleftflake_y_botright, stimuli = "checkflake") |>
-    mark_aoi("top_right", toprightflake_x_topleft, toprightflake_x_botright,
-             toprightflake_y_topleft, toprightflake_y_botright, stimuli = "checkflake") |>
-    mark_aoi("bot_right",  botrightflake_x_topleft, botrightflake_x_botright,
-             botrightflake_y_topleft,  botrightflake_y_botright, stimuli = "checkflake") |>
-    mark_aoi("center_center", centralflake_x_topleft, centralflake_x_botright,
-             centralflake_y_topleft,  centralflake_y_botright, stimuli = "checkflake") |>
+    mutate(aoi_fixation = "not_in_aoi") |>
+    mark_aoi("top_left", topleftflake_x_topleft, topleftflake_x_botright, topleftflake_y_topleft, topleftflake_y_botright,
+             stimulus_name = "checkflake", position_name = "top_left", x_col = "fixation_point_x", y_col = "fixation_point_y",
+             aoi_col = "aoi_fixation") |>
+    mark_aoi("bot_left", botleftflake_x_topleft, botleftflake_x_botright, botleftflake_y_topleft, botleftflake_y_botright,
+             stimulus_name = "checkflake", position_name = "bot_left", x_col = "fixation_point_x", y_col = "fixation_point_y",
+             aoi_col = "aoi_fixation") |>
+    mark_aoi("top_right", toprightflake_x_topleft, toprightflake_x_botright, toprightflake_y_topleft, toprightflake_y_botright, 
+             stimulus_name = "checkflake", position_name = "top_right", x_col = "fixation_point_x", y_col = "fixation_point_y",
+             aoi_col = "aoi_fixation") |>
+    mark_aoi("bot_right",  botrightflake_x_topleft, botrightflake_x_botright, botrightflake_y_topleft,  botrightflake_y_botright, 
+             stimulus_name = "checkflake", position_name = "bot_right", x_col = "fixation_point_x", y_col = "fixation_point_y",
+             aoi_col = "aoi_fixation") |>
+    mark_aoi("center_center", centralflake_x_topleft, centralflake_x_botright, centralflake_y_topleft,  centralflake_y_botright, 
+             stimulus_name = "checkflake", position_name = "center", x_col = "fixation_point_x", y_col = "fixation_point_y",
+             aoi_col = "aoi_fixation") |>
     mark_aoi("at", at_x_topleft, at_x_botright, at_y_topleft, at_y_botright,
-             stimuli = "at") |>
-    mark_aoi("top", topobject_x_topleft, topobject_x_botright,
-             topobject_y_topleft, topobject_y_botright, stimuli = c("move", "still")) |>
-    mark_aoi("bottom", botobject_x_topleft, botobject_x_botright,
-             botobject_y_topleft, botobject_y_botright, stimuli = c("move", "still"))
+             stimulus_name = "at", position_name = "center", x_col = "fixation_point_x", y_col = "fixation_point_y",
+             aoi_col = "aoi_fixation") |>
+    mark_aoi("top", topobject_x_topleft, topobject_x_botright, topobject_y_topleft, topobject_y_botright, 
+             stimulus_name = "object", position_name = "top", x_col = "fixation_point_x", y_col = "fixation_point_y",
+             aoi_col = "aoi_fixation") |>
+    mark_aoi("bottom", botobject_x_topleft, botobject_x_botright, botobject_y_topleft, botobject_y_botright, 
+             stimulus_name = "object", position_name = "bottom", x_col = "fixation_point_x", y_col = "fixation_point_y",
+             aoi_col = "aoi_fixation")
   
-  # Identify latencies <100ms (based on gaze samples)
+  # Define AOIs (based on gaze samples)
+  df$aoi_samples <- "not_in_aoi"
+  
+  df <- df |>
+    mutate(aoi_samples = "not_in_aoi") |>
+    mark_aoi("top_left", topleftflake_x_topleft, topleftflake_x_botright, topleftflake_y_topleft, topleftflake_y_botright,
+             stimulus_name = "checkflake", position_name = "top_left", x_col = "gaze_point_x", y_col = "gaze_point_y",
+             aoi_col = "aoi_samples") |>
+    mark_aoi("bot_left", botleftflake_x_topleft, botleftflake_x_botright, botleftflake_y_topleft, botleftflake_y_botright,
+             stimulus_name = "checkflake", position_name = "bot_left", x_col = "gaze_point_x", y_col = "gaze_point_y",
+             aoi_col = "aoi_samples") |>
+    mark_aoi("top_right", toprightflake_x_topleft, toprightflake_x_botright, toprightflake_y_topleft, toprightflake_y_botright, 
+             stimulus_name = "checkflake", position_name = "top_right", x_col = "gaze_point_x", y_col = "gaze_point_y",
+             aoi_col = "aoi_samples") |>
+    mark_aoi("bot_right",  botrightflake_x_topleft, botrightflake_x_botright, botrightflake_y_topleft,  botrightflake_y_botright, 
+             stimulus_name = "checkflake", position_name = "bot_right", x_col = "gaze_point_x", y_col = "gaze_point_y",
+             aoi_col = "aoi_samples") |>
+    mark_aoi("center_center", centralflake_x_topleft, centralflake_x_botright, centralflake_y_topleft,  centralflake_y_botright, 
+             stimulus_name = "checkflake", position_name = "center", x_col = "gaze_point_x", y_col = "gaze_point_y",
+             aoi_col = "aoi_samples") |>
+    mark_aoi("at", at_x_topleft, at_x_botright, at_y_topleft, at_y_botright,
+             stimulus_name = "at", position_name = "center", x_col = "gaze_point_x", y_col = "gaze_point_y",
+             aoi_col = "aoi_samples") |>
+    mark_aoi("top", topobject_x_topleft, topobject_x_botright, topobject_y_topleft, topobject_y_botright, 
+             stimulus_name = "object", position_name = "top", x_col = "gaze_point_x", y_col = "gaze_point_y",
+             aoi_col = "aoi_samples") |>
+    mark_aoi("bottom", botobject_x_topleft, botobject_x_botright, botobject_y_topleft, botobject_y_botright, 
+             stimulus_name = "object", position_name = "bottom", x_col = "gaze_point_x", y_col = "gaze_point_y",
+             aoi_col = "aoi_samples")
+  
+  # Trial exclusion: Latencies <100ms (based on gaze samples)
   latencies_top <- df |> 
-    ungroup() |> 
-    filter(stimulus %in% c("move", "still")) |> 
-    filter(object_location == "top" & aoi == "top") |>
-    select(Gaze.point.X, Gaze.point.Y, fix_x, fix_y, Validity.left, Validity.right, 
-           Presented.Stimulus.name, Eye.movement.type, trial, gaze_sample_duration, timeline, aoi) |> 
+    filter(stimulus == "object") |> 
+    filter(position == "top" & aoi_samples == "top") |>
+    select(gaze_point_x, gaze_point_y, fixation_point_x, fixation_point_y, 
+           stimulus, position, eye_movement_type, trial, gaze_sample_duration, timeline, aoi_samples) |> 
     group_by(trial) |> 
     slice(1) |> 
     ungroup() |> 
     mutate(latency = timeline)
   
   latencies_bottom <- df |> 
-    ungroup() |> 
-    filter(stimulus %in% c("move", "still")) |> 
-    filter(object_location == "bottom" & aoi == "bottom") |>
-    select(Gaze.point.X, Gaze.point.Y, Validity.left, Validity.right, 
-           Presented.Stimulus.name, Eye.movement.type, trial, gaze_sample_duration, timeline, aoi) |> 
+    filter(stimulus == "object") |> 
+    filter(position == "bottom" & aoi_samples == "bottom") |>
+    select(gaze_point_x, gaze_point_y, fixation_point_x, fixation_point_y, 
+           stimulus, position, eye_movement_type, trial, gaze_sample_duration, timeline, aoi_samples) |> 
     group_by(trial) |> 
     slice(1) |> 
     ungroup() |> 
@@ -145,15 +236,16 @@ for(i in c(1:sample_size)){
     pull(trial) |> 
     as.numeric()
   
-  # Add exclusion information about latencies <100ms (except for adults)
   if(folder == "adult"){
     excluded_trials_100ms <- NULL
   }
   
   df$excluded_100ms <- "included"
-  df[df$trial %in% excluded_trials_100ms & df$stimulus != "at", "excluded_100ms"] <- "excluded"
+  df[df$trial %in% excluded_trials_100ms & df$stimulus == "object", "excluded_100ms"] <- "excluded"
   
-  # Add exclusion information about latencies deviating more than 3 standard deviations of each individual mean
+  # Trial exclusion: Latencies deviating more than 3 standard deviations of each individual mean
+  if(folder != "adults"){latencies_top <- latencies_top |> filter(latency >= 100)}
+  if(folder != "adults"){latencies_bottom <- latencies_bottom |> filter(latency >= 100)}
   mean_latency <- c(latencies_top$latency, latencies_bottom$latency) |> mean(na.rm = T)
   twosd_latency <- c(latencies_top$latency, latencies_bottom$latency) |> sd(na.rm = T) * 3
   
@@ -164,55 +256,48 @@ for(i in c(1:sample_size)){
     as.numeric()
   
   df$excluded_3sd <- "included"
-  df[df$trial %in% excluded_trials_threesd & df$stimulus != "at", "excluded_3sd"] <- "excluded"
+  df[df$trial %in% excluded_trials_threesd & df$stimulus == "object", "excluded_3sd"] <- "excluded"
   
-  # Identify whether at least one fixation within AOI
-  df <- df |> 
-    unite("condition", cond_jointness:cue_direction, remove = F) |> 
-    mutate(stimulus_location = NA)
-  
-  df[df$condition == "top_left","stimulus_location"] <- "top_left"
-  df[df$condition == "top_right","stimulus_location"] <- "top_right"
-  df[df$condition == "bot_left","stimulus_location"] <- "bot_left"
-  df[df$condition == "bot_right","stimulus_location"] <- "bot_right"
-  df[df$condition == "center_center","stimulus_location"] <- "center_center"
-  df <- df |> replace_na(list(object_location = "0"))
-  df[df$object_location == "top","stimulus_location"] <- "top"
-  df[df$object_location == "bottom","stimulus_location"] <- "bottom"
-  df <- df |> replace_na(list(stimulus = "0"))
-  df[df$stimulus == "at","stimulus_location"] <- "at"
-  
+  # Trial exclusion: At least one fixation within AOI
   included_fixation <- df |> 
-    ungroup() |> 
     drop_na(stimulus) |> 
-    select(trial, stimulus, cond_jointness, cue_direction, object_location, aoi, Eye.movement.type, stimulus_location) |> 
-    filter(Eye.movement.type == "Fixation") |> 
-    filter(aoi != "not_in_aoi") |> 
+    select(trial, stimulus, position, aoi_fixation, eye_movement_type) |> 
+    filter(eye_movement_type == "Fixation") |> 
+    filter(aoi_fixation != "not_in_aoi") |> 
     distinct() |> 
-    unite("condition", cond_jointness:cue_direction)
-  
-  included_fixation_2 <- included_fixation |> 
-    filter(aoi == stimulus_location) |> 
-    select(stimulus_location, aoi, trial) |>
-    distinct() |> 
-    unite("trial_stimulus_location", c(trial, stimulus_location), remove = F) |> 
-    pull(trial_stimulus_location)
-  
-  df <- df |> 
-    unite("trial_stimulus_location", c(trial, stimulus_location), remove = F)
-  
-  # Add exclusion information about whether at least one fixation within AOI
+    pull(trial)
+
   df$excluded_fixation <- "excluded"
-  df[df$trial_stimulus_location %in% included_fixation_2, "excluded_fixation"] <- "included"
+  df[df$trial %in% included_fixation, "excluded_fixation"] <- "included"
   
-  # Merge data
-  dat_fin <- raw |> 
-    left_join(df |> ungroup() |> select(Presented.Stimulus.name, Computer.timestamp, Recording.timestamp, Event, Sensor, aoi, excluded_100ms, excluded_3sd, excluded_fixation), 
-              by = c("Recording.timestamp", "Computer.timestamp", "Event", "Presented.Stimulus.name", "Sensor")) # Added sensor because there was at least one case where 
-                                                                                                                 # two rows had the same timestamp and were only distinguishable by sensor (Mouse versus Eyetracker)
+  # Detect blinks
+  # 1) If tracker already gives a blink flag
+  df <- df |>
+    mutate(pupil_diameter_filtered = ifelse(blink, NA, pupil_diameter_filtered)) |>
+    group_by(subject, trial) |>
+    mutate(extendpupil = extend_blinks(pupil,
+                                       fillback   = 100,   # ms before
+                                       fillforward = 100,   # ms after
+                                       hz         = 120)) |>
+    ungroup()
   
+  # 2) Interpolate & smooth over those gaps
+  dat_interp <- smooth_interpolate_pupil(
+    dat,
+    pupil       = "pupil",
+    extendpupil = "extendpupil",
+    extendblinks= TRUE,
+    type        = "linear",   # or "cubic"
+    maxgap      = Inf,
+    hz          = 250,
+    n           = 5           # moving-average window
+  )
+  
+  # Add data information about age, experimenter, gender
+  # Interpolate blinks
+
   # Write data
-  write.table(dat_fin, here("exp1", "data", "raw_public_exclude", folder, paste0(sub("\\.tsv$", "", filename), ".txt")), 
+  write.table(dat_fin, here("exp1", "data", "raw_2_exclude", folder, paste0(sub("\\.tsv$", "", filename), ".txt")), 
               row.names = F, quote = F, sep = "\t", dec = ".")
   print(i)
 }

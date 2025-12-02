@@ -99,3 +99,56 @@ mark_aoi <- function(df, name, x_min, x_max, y_min, y_max, stimulus_name, positi
   df[[aoi_col]][idx] <- name
   df
 }
+
+#' Standardize session names in a recording column
+#'
+#' Converts e.g. "session1" to "session01", analogously up to "session9"
+#' → "session09". In contrast to `correct_export_mistakes()`, this function
+#' is potentially reusable in other projects.
+#'
+#' @param df            Data frame with a column that contains session names.
+#' @param recording_col Name of that column as a string (default: "Recording.name").
+#' @return Data frame with standardized session labels.
+correct_session_name <- function(df, recording_col = "Recording.name") {
+  col_sym <- rlang::sym(recording_col)
+  
+  df |>
+    dplyr::mutate(
+      !!col_sym := stringr::str_replace(!!col_sym, "\\bsession1\\b", "session01"),
+      !!col_sym := stringr::str_replace(!!col_sym, "\\bsession2\\b", "session02"),
+      !!col_sym := stringr::str_replace(!!col_sym, "\\bsession3\\b", "session03"),
+      !!col_sym := stringr::str_replace(!!col_sym, "\\bsession4\\b", "session04"),
+      !!col_sym := stringr::str_replace(!!col_sym, "\\bsession5\\b", "session05"),
+      !!col_sym := stringr::str_replace(!!col_sym, "\\bsession6\\b", "session06"),
+      !!col_sym := stringr::str_replace(!!col_sym, "\\bsession7\\b", "session07"),
+      !!col_sym := stringr::str_replace(!!col_sym, "\\bsession8\\b", "session08"),
+      !!col_sym := stringr::str_replace(!!col_sym, "\\bsession9\\b", "session09")
+    )
+}
+
+# TODO: Delete from exp 1, insert to exp 2
+#' Project-specific fix for export/naming mistakes
+#'
+#' NOTE: This function is NOT meant to be reusable across projects.
+#' It implements a very specific fix for THIS project only:
+#' - For the file "alex.tsv", one particular recording should be removed.
+#' - For that same file, "session" should be renamed to "session2".
+#'
+#' @param df        Data frame containing a column `Recording.name`.
+#' @param j File name as a string, e.g., "alex.tsv".
+#' @return Data frame with project-specific corrections applied.
+# correct_export_mistakes <- function(df, j) {
+#   if (identical(j, "carolatsv")) {
+#     df <- df |>
+#       dplyr::filter(Recording.name != "session1_carola_alex") |>
+#       dplyr::mutate(
+#         Recording.name = stringr::str_replace(
+#           Recording.name,
+#           "\\bsession\\b",
+#           "session2"
+#         )
+#       ) |>
+#       dplyr::arrange(Recording.name)
+#   }
+#   df
+# }

@@ -13,7 +13,7 @@ library(Hmisc)
 library(ggtext)
 
 # Functions ---------------------------------------------------------------
-source(here("fun", "descriptives.R"))
+source(here("exp1", "R", "descriptives.R"))
 
 # Read Data ---------------------------------------------------------------
 ## 2p ----
@@ -34,53 +34,6 @@ for(i in 1:length(filenames)){
   rm(df_temp)
 }
 df_tot_chimps_2p <- df_tot_chimps_2p |> distinct()
-
-## 5p ----
-filenames <- list.files(path = here("data", "preproc_included_2", "chimps_5p"))
-df_tot_chimps_5p <- data.frame()
-for(i in 1:length(filenames)){
-  filename <- filenames[i]
-  
-  df_temp <- read.table(here("data", "preproc_included_2", "chimps_5p", filename), header = T, sep = "\t") |> 
-    mutate(age_group = "apes (5-point alex calibration)")
-  
-  df_temp_etoutcome <- read.table(here("data", "preproc_included_2", "chimps_5p", filename), header = T, sep = "\t") |> 
-    mutate(age_group = "apes (5-point alex calibration)")
-  
-  df_tot_chimps_5p <- df_tot_chimps_5p |> 
-    bind_rows(df_temp)
-  
-  rm(df_temp)
-}
-df_tot_chimps_5p <- df_tot_chimps_5p |> distinct()
-
-## 9p ----
-filenames <- list.files(path = here("data", "preproc_included_2", "chimps_9p"))
-df_tot_chimps_9p <- data.frame()
-for(i in 1:length(filenames)){
-  filename <- filenames[i]
-  
-  df_temp <- read.table(here("data", "preproc_included_2", "chimps_9p", filename), header = T, sep = "\t") |> 
-    mutate(age_group = "apes (9-point human calibration)")
-  
-  df_tot_chimps_9p <- df_tot_chimps_9p |> 
-    bind_rows(df_temp)
-  
-  rm(df_temp)
-}
-df_tot_chimps_9p <- df_tot_chimps_9p |> distinct() |> separate("session", c("session", "delete"), remove = T) |> select(-delete)
-
-df_tot_chimps <- df_tot_chimps_2p |> bind_rows(df_tot_chimps_5p, df_tot_chimps_9p)
-
-# df_tot_chimps <- df_tot_chimps |> 
-#   select(filename, accuracy, acc_visd, stimulus, position, trial, age_group, session, date,
-#          abs_gaze_in_aoi_duration,  rel_gaze_in_aoi, abs_fix_in_aoi_duration, rel_fix_in_aoi) |> 
-#   drop_na(acc_visd) |> 
-#   full_join(df_tot_chimps |> select(filename, stimulus, position, trial, age_group, precrms, precrms_visd, session, date,
-#                                     abs_gaze_in_aoi_duration,  rel_gaze_in_aoi, abs_fix_in_aoi_duration, rel_fix_in_aoi) |> drop_na(precrms_visd), 
-#             by = c("filename", "stimulus", "position", "trial", "age_group", "session", "date",
-#                    "abs_gaze_in_aoi_duration",  "rel_gaze_in_aoi", "abs_fix_in_aoi_duration", "rel_fix_in_aoi"))
-
 df_tot_human <- data.frame()
 for(i in c("4","6","9","18","adult")){
   for(j in c(1:32)){

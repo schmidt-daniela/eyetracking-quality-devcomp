@@ -1,7 +1,5 @@
 ## This script excludes invalid trials.
 ## A trial is not valid, if an individual didn't look in the stimulus AOI for at least one fixation. 
-## Furthermore, trials with latencies shorter than 100 ms (only applies for human infants) and more than 3 SD
-## of the individual mean will be excluded from the latency analyses (only applied for humans) (Daum & Gredebäck, 2011).
 ## Dec 01 2025 – Daniela Schmidt
 
 # General -----------------------------------------------------------------
@@ -10,23 +8,14 @@ rm(list = ls())
 # Packages ----------------------------------------------------------------
 library(here)
 library(tidyverse)
-library(readxl)
-# remotes::install_github("dmirman/gazer")
-library(gazer)
-# install.packages("remotes")   # only once, if you don't have it yet
-# remotes::install_github("tmalsburg/saccades/saccades", dependencies = TRUE)
-library(saccades)
 
 # Set Parameters ----------------------------------------------------------
-folder <- "4m" # "4m", "6m", "9m", "18m", or "adults"
-sample_size <- 32
-buffer <- 40 # 40px (1°) in humans
+folder <- "chimps"
+sample_size <- 17
+buffer <- 120 # 120px (3°) in chimps
 
 # Functions ---------------------------------------------------------------
 source(here("exp1", "R", "cleaning.R"))
-
-# Load Sample Data --------------------------------------------------------
-protocol <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = folder)
 
 # Define AOIs -------------------------------------------------------------
 
@@ -105,31 +94,37 @@ for(i in c(1:sample_size)){
   # # Remove rows that are not of interest
   # df <- df |> 
   #   filter(presented_stimulus_name != "Eyetracker Calibration")
-
+  
   # Prepare stimulus information
   df <- df |>
     separate(presented_stimulus_name,
-             into = c("trial", "delete1", "stimulus", "stimulus_duration", "checkflake_location1", 
+             into = c("session", "trial", "delete1", "stimulus", "stimulus_duration", "checkflake_location1", 
                       "checkflake_location2", "delete2", "delete3", "object_identity", "object_location", "delete4"), 
-               remove = FALSE, sep = "_") |>
-      select(-c(delete1, delete2, delete3, delete4)) |> 
+             remove = FALSE, sep = "_") |>
+    select(-c(delete1, delete2, delete3, delete4)) |> 
     suppressWarnings()
   
+  df <- df |>
+    mutate(object_location = if_else(stimulus %in% c("move", "still"), checkflake_location2, object_location))
+
   # Set up trial and stimulus information
   df <- df |> 
     mutate(stimulus_duration = case_when(
       stimulus == "move"  ~ "gaze_contingent",
       stimulus == "still" ~ "1s",
-      stimulus == "at"    ~ "experimenter-controlled",
-      stimulus_duration %in% c("Kalei1","Kalei2","Kalei3","Kalei4") ~ "4s",
+      stimulus == "at1"  ~ "gaze_contingent",
+      stimulus == "at2" ~ "1s",
+      stimulus_duration == "20s" ~ "gaze_contingent",
       TRUE ~ stimulus_duration)) |> 
     mutate(stimulus = case_when(
       stimulus %in% c("move","still") ~ "object",
-      stimulus == "x"                 ~ "kalei",
+      stimulus %in% c("at1","at2") ~ "at",
       TRUE                            ~ stimulus)) |> 
     mutate(position = case_when(
       stimulus == "checkflake" & checkflake_location1 == "center" & checkflake_location2 == "center" ~ "center",
       stimulus == "checkflake" ~ paste(checkflake_location1, checkflake_location2, sep = "_"),
+      object_location == "up" ~ "top",
+      object_location == "down" ~ "bottom",
       stimulus == "object" ~ object_location,
       stimulus == "at" ~ "center",
       TRUE ~ object_location)) |> 
@@ -138,17 +133,19 @@ for(i in c(1:sample_size)){
   df[which(df$stimulus == "cueing"), "stimulus"] <- NA
   df[which(df$stimulus |> str_detect("Kalei")), "stimulus"] <- NA
   
-  df <- df |> select(-object_location) # redundant, information is in position
-
+  df <- df |> select(-object_location, checkflake_location1, checkflake_location2) # redundant information
+  
   df <- df |> 
+    group_by(session, recording_name) |> 
     mutate(trial = make_trial_num(stimulus, stimulus_position),
-           trial = na_if(trial, 0L))
-
+           trial = na_if(trial, 0L)) |> 
+    ungroup()
+  
   df[is.na(df$stimulus),"trial"] <- NA
   
   # Add cumulative duration per stimulus
   df <- df |> 
-    group_by(trial, stimulus_duration) |> 
+    group_by(recording_name, trial, stimulus_duration) |> 
     mutate(timeline = cumsum(gaze_sample_duration)) |> 
     ungroup()
   
@@ -212,103 +209,29 @@ for(i in c(1:sample_size)){
              stimulus_name = "object", position_name = "bottom", x_col = "gaze_point_x", y_col = "gaze_point_y",
              aoi_col = "aoi_samples")
   
-  # Trial exclusion: Latencies <100ms (based on gaze samples)
-  latencies_top <- df |> 
-    filter(stimulus == "object") |> 
-    filter(position == "top" & aoi_samples == "top") |>
-    select(gaze_point_x, gaze_point_y, fixation_point_x, fixation_point_y, 
-           stimulus, position, eye_movement_type, trial, gaze_sample_duration, timeline, aoi_samples) |> 
-    group_by(trial) |> 
-    slice(1) |> 
-    ungroup() |> 
-    mutate(latency = timeline)
-  
-  latencies_bottom <- df |> 
-    filter(stimulus == "object") |> 
-    filter(position == "bottom" & aoi_samples == "bottom") |>
-    select(gaze_point_x, gaze_point_y, fixation_point_x, fixation_point_y, 
-           stimulus, position, eye_movement_type, trial, gaze_sample_duration, timeline, aoi_samples) |> 
-    group_by(trial) |> 
-    slice(1) |> 
-    ungroup() |> 
-    mutate(latency = timeline)
-  
-  excluded_trials_100ms <- latencies_top |> 
-    bind_rows(latencies_bottom) |> 
-    filter(latency < 100) |>
-    pull(trial) |> 
-    as.numeric()
-  
-  if(folder == "adult"){
-    excluded_trials_100ms <- NULL
-  }
-  
-  df$excluded_100ms <- "included"
-  df[df$trial %in% excluded_trials_100ms & df$stimulus == "object", "excluded_100ms"] <- "excluded"
-  
-  # Trial exclusion: Latencies deviating more than 3 standard deviations of each individual mean
-  if(folder != "adults"){latencies_top <- latencies_top |> filter(latency >= 100)}
-  if(folder != "adults"){latencies_bottom <- latencies_bottom |> filter(latency >= 100)}
-  mean_latency <- c(latencies_top$latency, latencies_bottom$latency) |> mean(na.rm = T)
-  twosd_latency <- c(latencies_top$latency, latencies_bottom$latency) |> sd(na.rm = T) * 3
-  
-  excluded_trials_threesd <- latencies_top |>
-    bind_rows(latencies_bottom) |>
-    filter(latency > mean_latency + twosd_latency | latency < mean_latency - twosd_latency) |>
-    pull(trial) |> 
-    as.numeric()
-  
-  df$excluded_3sd <- "included"
-  df[df$trial %in% excluded_trials_threesd & df$stimulus == "object", "excluded_3sd"] <- "excluded"
-  
-  # Trial exclusion: At least one fixation within AOI
-  included_fixation <- df |> 
-    drop_na(stimulus) |> 
-    select(trial, stimulus, position, aoi_fixation, eye_movement_type) |> 
-    filter(eye_movement_type == "Fixation") |> 
-    filter(aoi_fixation != "not_in_aoi") |> 
-    distinct() |> 
-    pull(trial)
-
-  df$excluded_fixation <- "excluded"
-  df[df$trial %in% included_fixation, "excluded_fixation"] <- "included"
-  
-  
-  # continue here
+  ## continue here
+  # trial exclusion
+  # blink detection
+  # Remove delay after contingency was elicted
+  # maybe save calibration results in extra file
   # add time per session (independent of trial, cum not per trial)
-  # # Detect blinks
-  # # 1) If tracker already gives a blink flag
-  # blink_detect(df$pupil_diameter_filtered)
+  
+  # # Identify whether at least one fixation within AOI
+  # fixation_in_aoi <- df |> 
+  #   drop_na(stimulus) |> 
+  #   filter(Eye.movement.type == "Fixation") |>
+  #   select(Recording.name, Presented.Stimulus.name, aoi, stimulus) |> 
+  #   filter(aoi != "not_in_aoi") |> 
+  #   distinct() |> 
+  #   select(Recording.name, Presented.Stimulus.name) |> 
+  #   mutate(excluded_fixation = "included")
   # 
-  # df_proc <- df |>
-  #   mutate(pupil = pupil_diameter_filtered,
-  #          blink = pupil == 0 | is.na(pupil), # pupil == 0 or missing -> blink
-  #          pupil = if_else(blink, NA_real_, pupil)) |>  # set blink samples to NA
-  #   group_by(trial) |>
-  #   mutate(extendpupil = extend_blinks(pupil,
-  #                                      fillback   = 100,  # ms before
-  #                                      fillforward = 100, # ms after
-  #                                      hz = 120)) |>
-  #   ungroup()
-  # 
-  # 
-  # # 2) Interpolate & smooth over those gaps
-  # dat_interp <- smooth_interpolate_pupil(
-  #   dat,
-  #   pupil       = "pupil",
-  #   extendpupil = "extendpupil",
-  #   extendblinks= TRUE,
-  #   type        = "linear",   # or "cubic"
-  #   maxgap      = Inf,
-  #   hz          = 250,
-  #   n           = 5           # moving-average window
-  # )
-  # 
-  # # Add data information about age, experimenter, gender
-  # # Interpolate blinks
-
+  # df <- df |> 
+  #   left_join(fixation_in_aoi, by = c("Recording.name", "Presented.Stimulus.name")) |> 
+  #   mutate(excluded_fixation = replace_na(excluded_fixation, "excluded"))
+  
   # Write data
-  write.table(dat_fin, here("exp1", "data", "raw_2_exclude", folder, paste0(sub("\\.tsv$", "", filename), ".txt")), 
+  write.table(df, here("exp1", "data", "raw_clean", folder, paste0(sub("\\.tsv$", "", filename), ".txt")), 
               row.names = F, quote = F, sep = "\t", dec = ".")
   print(i)
 }

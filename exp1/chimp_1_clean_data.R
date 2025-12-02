@@ -146,7 +146,7 @@ for(i in c(1:sample_size)){
   # Add cumulative duration per stimulus
   df <- df |> 
     group_by(recording_name, trial, stimulus_duration) |> 
-    mutate(timeline = cumsum(gaze_sample_duration)) |> 
+    mutate(timeline_trial = cumsum(gaze_sample_duration)) |> 
     ungroup()
   
   # Define AOIs (based on fixations)
@@ -166,7 +166,7 @@ for(i in c(1:sample_size)){
     mark_aoi("bot_right",  botrightflake_x_topleft, botrightflake_x_botright, botrightflake_y_topleft,  botrightflake_y_botright, 
              stimulus_name = "checkflake", position_name = "bot_right", x_col = "fixation_point_x", y_col = "fixation_point_y",
              aoi_col = "aoi_fixation") |>
-    mark_aoi("center_center", centralflake_x_topleft, centralflake_x_botright, centralflake_y_topleft,  centralflake_y_botright, 
+    mark_aoi("center", centralflake_x_topleft, centralflake_x_botright, centralflake_y_topleft,  centralflake_y_botright, 
              stimulus_name = "checkflake", position_name = "center", x_col = "fixation_point_x", y_col = "fixation_point_y",
              aoi_col = "aoi_fixation") |>
     mark_aoi("at", at_x_topleft, at_x_botright, at_y_topleft, at_y_botright,
@@ -196,7 +196,7 @@ for(i in c(1:sample_size)){
     mark_aoi("bot_right",  botrightflake_x_topleft, botrightflake_x_botright, botrightflake_y_topleft,  botrightflake_y_botright, 
              stimulus_name = "checkflake", position_name = "bot_right", x_col = "gaze_point_x", y_col = "gaze_point_y",
              aoi_col = "aoi_samples") |>
-    mark_aoi("center_center", centralflake_x_topleft, centralflake_x_botright, centralflake_y_topleft,  centralflake_y_botright, 
+    mark_aoi("center", centralflake_x_topleft, centralflake_x_botright, centralflake_y_topleft,  centralflake_y_botright, 
              stimulus_name = "checkflake", position_name = "center", x_col = "gaze_point_x", y_col = "gaze_point_y",
              aoi_col = "aoi_samples") |>
     mark_aoi("at", at_x_topleft, at_x_botright, at_y_topleft, at_y_botright,
@@ -209,27 +209,31 @@ for(i in c(1:sample_size)){
              stimulus_name = "object", position_name = "bottom", x_col = "gaze_point_x", y_col = "gaze_point_y",
              aoi_col = "aoi_samples")
   
+  # Identify whether at least one fixation within AOI
+  fixation_in_aoi <- df |>
+    drop_na(stimulus) |>
+    filter(eye_movement_type == "Fixation") |>
+    select(recording_name, trial, stimulus_position, aoi_fixation) |>
+    filter(aoi_fixation != "not_in_aoi") |>
+    distinct() |>
+    select(recording_name, trial, stimulus_position) |>
+    mutate(excluded_fixation = "included")
+
+  df <- df |>
+    left_join(fixation_in_aoi, by = c("recording_name", "trial", "stimulus_position")) |>
+    mutate(excluded_fixation = replace_na(excluded_fixation, "excluded"))
+  
+  # Time within session
+  df <- df |> 
+    group_by(recording_name) |> 
+    mutate(timeline_experiment = cumsum(gaze_sample_duration)) |> 
+    ungroup()
+  
   ## continue here
-  # trial exclusion
   # blink detection
-  # Remove delay after contingency was elicted
-  # maybe save calibration results in extra file
   # add time per session (independent of trial, cum not per trial)
   
-  # # Identify whether at least one fixation within AOI
-  # fixation_in_aoi <- df |> 
-  #   drop_na(stimulus) |> 
-  #   filter(Eye.movement.type == "Fixation") |>
-  #   select(Recording.name, Presented.Stimulus.name, aoi, stimulus) |> 
-  #   filter(aoi != "not_in_aoi") |> 
-  #   distinct() |> 
-  #   select(Recording.name, Presented.Stimulus.name) |> 
-  #   mutate(excluded_fixation = "included")
-  # 
-  # df <- df |> 
-  #   left_join(fixation_in_aoi, by = c("Recording.name", "Presented.Stimulus.name")) |> 
-  #   mutate(excluded_fixation = replace_na(excluded_fixation, "excluded"))
-  
+
   # Write data
   write.table(df, here("exp1", "data", "raw_clean", folder, paste0(sub("\\.tsv$", "", filename), ".txt")), 
               row.names = F, quote = F, sep = "\t", dec = ".")

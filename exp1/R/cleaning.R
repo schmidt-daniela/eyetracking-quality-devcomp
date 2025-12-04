@@ -126,29 +126,77 @@ correct_session_name <- function(df, recording_col = "Recording.name") {
     )
 }
 
-# TODO: Delete from exp 1, insert to exp 2
-#' Project-specific fix for export/naming mistakes
+#' Detect and interpolate blinks in pupil data
 #'
-#' NOTE: This function is NOT meant to be reusable across projects.
-#' It implements a very specific fix for THIS project only:
-#' - For the file "alex.tsv", one particular recording should be removed.
-#' - For that same file, "session" should be renamed to "session2".
+#' @param df A data frame with at least the columns:
+#'   `recording_name`, `trial`, `timeline_trial`, `pupil_diameter_filtered`.
+#' @param neg_velocity_thresh Negative velocity threshold for blink onset.
+#' @param pos_velocity_thresh Positive velocity threshold for blink offset.
+#' @param fillback Number of samples to extend the blink backwards.
+#' @param fillforward Number of samples to extend the blink forwards.
+#' @param hz Sampling rate in Hz (passed to extend_blinks()).
 #'
-#' @param df        Data frame containing a column `Recording.name`.
-#' @param j File name as a string, e.g., "alex.tsv".
-#' @return Data frame with project-specific corrections applied.
-# correct_export_mistakes <- function(df, j) {
-#   if (identical(j, "carolatsv")) {
-#     df <- df |>
-#       dplyr::filter(Recording.name != "session1_carola_alex") |>
-#       dplyr::mutate(
-#         Recording.name = stringr::str_replace(
-#           Recording.name,
-#           "\\bsession\\b",
-#           "session2"
-#         )
-#       ) |>
-#       dplyr::arrange(Recording.name)
-#   }
-#   df
-# }
+#' @return The original data frame plus:
+#'   `smooth_pupil`, `velocity_pupil`, `blinks_onset_offset`,
+#'   `blinks_pupil`, `extendpupil`, `interp`.
+#'
+#' @details
+#' Requires the packages `dplyr`, `zoo`, and `gazer`.
+#' Uses `gazer::moving_average_pupil()` and `gazer::extend_blinks()`.
+blink_velocity_adj <- function(df, neg_velocity_thresh = -5, pos_velocity_thresh = 5,
+                               fillback = 0, fillforward = 0, hz = 120) {
+  
+  # Dependency check
+  required_pkgs <- c("dplyr", "zoo", "gazer")
+  
+  for (pkg in required_pkgs) {
+    if (!requireNamespace(pkg, quietly = TRUE)) {
+      if (pkg == "gazer") {
+        stop(
+          "Package 'gazer' is required but not installed.\n",
+          "Please install it first, e.g.:\n",
+          "  install.packages('remotes')\n",
+          "  remotes::install_github('dmirman/gazer')\n",
+          call. = FALSE
+        )
+      } else {
+        stop(
+          "Package '", pkg, "' is required but not installed.\n",
+          "Please install it, e.g.: install.packages('", pkg, "')",
+          call. = FALSE
+        )
+      }
+    }
+  }
+  
+  # Blink detection and interpolation
+  pupil_blink_algo <- df |>
+    dplyr::group_by(recording_name, trial) |>
+    dplyr::mutate(dp = pupil_diameter_filtered - dplyr::lag(pupil_diameter_filtered),
+                  dt = timeline_trial - dplyr::lag(timeline_trial),
+                  velocity_pupil = dplyr::case_when(is.na(dp) | is.na(dt) ~ NA_real_, dt == 0 ~ NA_real_, TRUE ~ dp / dt),
+                  blinks_onset_offset = ifelse(!is.na(velocity_pupil) & (velocity_pupil <= neg_velocity_thresh | velocity_pupil >= pos_velocity_thresh), 1L, 0L),
+                  blinks_pupil = ifelse(blinks_onset_offset == 1L, NA_real_, pupil_diameter_filtered)) |>
+    dplyr::ungroup() |>
+    dplyr::select(-dp, -dt)
+  
+  pup_extend <- pupil_blink_algo |>
+    dplyr::group_by(recording_name, trial) |>
+    dplyr::mutate(
+      extendpupil = gazer::extend_blinks(
+        blinks_pupil,
+        fillback   = fillback,
+        fillforward = fillforward,
+        hz         = hz
+      ),
+      interp = zoo::na.approx(
+        extendpupil,
+        na.rm = FALSE,
+        rule  = 2
+      )
+    ) |>
+    dplyr::ungroup()
+  
+  return(pup_extend)
+}
+

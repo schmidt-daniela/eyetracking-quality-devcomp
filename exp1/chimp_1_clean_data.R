@@ -8,6 +8,8 @@ rm(list = ls())
 # Packages ----------------------------------------------------------------
 library(here)
 library(tidyverse)
+# remotes::install_github("dmirman/gazer")
+library(gazer)
 
 # Set Parameters ----------------------------------------------------------
 folder <- "chimps"
@@ -229,9 +231,34 @@ for(i in c(1:sample_size)){
     mutate(timeline_experiment = cumsum(gaze_sample_duration)) |> 
     ungroup()
   
+  # Blink Detection (velocity-based)
+  # next: make this a functoin in the R folder
+  # next: create plots before an after to find the perfect velocity threshold
+  # next: check whether chatgpt debug makes sense
+  blink_velocity_adj <- function(df, neg_velocity_thresh = -5, pos_velocity_thresh = 5, fillback = 0, fillforward = 0, hz = 120) {
+    pupil_blink_algo <- df |> 
+      group_by(recording_name, trial) |>
+      mutate(smooth_pupil = moving_average_pupil(pupil_diameter_filtered, n = 10)) |> 
+      mutate(velocity_pupil = c(diff(smooth_pupil)/diff(timeline_trial), NA)) |> 
+      mutate(blinks_onset_offset = ifelse(velocity_pupil <= neg_velocity_thresh | velocity_pupil >= pos_velocity_thresh, 1, 0)) |> 
+      #mutate(blinks_pupil = ifelse(blinks_onset_offset == 1, is.na(pupil_diameter_filtered), pupil_diameter_filtered)) |> 
+      mutate(blinks_pupil = ifelse(blinks_onset_offset == 1, NA_real_, pupil_diameter_filtered)) |> 
+      ungroup()
+    
+    pup_extend <- pupil_blink_algo |> 
+      group_by(recording_name, trial) |> 
+      mutate(extendpupil = extend_blinks(blinks_pupil, fillback = fillback, fillforward = fillforward, hz = hz)) |> 
+      dplyr::mutate(interp = zoo::na.approx(extendpupil, na.rm = FALSE, rule = 2))
+    return(pup_extend)
+  }
+  
+  blink_velocity_adj(df, neg_velocity_thresh = -5, pos_velocity_thresh = 5, fillback = 0, fillforward = 0, hz = 120)
+
+  
+  
   ## continue here
   # blink detection
-  # add time per session (independent of trial, cum not per trial)
+
   
 
   # Write data

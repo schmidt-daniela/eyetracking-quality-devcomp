@@ -2,10 +2,13 @@
 exp1/human_0_anonymize_data.R
 exp1/chimp_0_merge_sessions.R
 
-# Raw data folder
+# Data folder
 exp1/data/raw_1/
 exp1/data/raw_2/
 exp1/data/raw_clean/chimps/
+
+# Doc folder
+exp1/doc/blink_check/
 
 # Local files
 exp1/doc/protocol_decoded.xlsx

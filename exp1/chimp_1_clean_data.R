@@ -318,5 +318,5 @@ for(i in c(1:sample_size)){
   out_rds <- here("exp1", "data", "raw_clean", folder, paste0(fname_base, ".rds"))
   saveRDS(pupil_with_blinks, out_rds, compress = "xz")
 
-  print(i)
+  print(pupil_with_blinks$recording_name |> unique())
 }

@@ -126,77 +126,187 @@ correct_session_name <- function(df, recording_col = "Recording.name") {
     )
 }
 
-#' Detect and interpolate blinks in pupil data
+#' Detect blink-related samples and blink events in pupil data
 #'
 #' @param df A data frame with at least the columns:
-#'   `recording_name`, `trial`, `timeline_trial`, `pupil_diameter_filtered`.
-#' @param neg_velocity_thresh Negative velocity threshold for blink onset.
-#' @param pos_velocity_thresh Positive velocity threshold for blink offset.
-#' @param fillback Number of samples to extend the blink backwards.
-#' @param fillforward Number of samples to extend the blink forwards.
-#' @param hz Sampling rate in Hz (passed to extend_blinks()).
+#'   `recording_name`, `trial`, `timeline_trial`, `pupil_diameter_average`.
+#' @param nxmedian_neg_velocity_thresh Multiplier for the dataset-wide median
+#'   absolute velocity to define the negative velocity threshold
+#'   (threshold = -nxmedian_neg_velocity_thresh * median(|velocity|)).
+#' @param nxmedian_pos_velocity_thresh Multiplier for the dataset-wide median
+#'   absolute velocity to define the positive velocity threshold
+#'   (threshold =  nxmedian_pos_velocity_thresh * median(|velocity|)).
+#' @param max_blink_dur Maximum allowed blink duration, operationalised as
+#'   the duration of the NA block in `pupil_diameter_average`, in the same
+#'   time unit as `timeline_trial` (e.g., 0.25 = 250 ms if in seconds).
+#' @param min_blink_dur Minimum blink duration (duration of the NA block)
+#'   in the same time unit as `timeline_trial`
+#'   (e.g., 0.01 = 10 ms if in seconds).
+#' @param n_window Integer. Number of samples directly before and after an
+#'   NA block within which velocity must cross the negative (onset) and
+#'   positive (offset) thresholds for the NA block to be classified as a blink.
 #'
 #' @return The original data frame plus:
-#'   `smooth_pupil`, `velocity_pupil`, `blinks_onset_offset`,
-#'   `blinks_pupil`, `extendpupil`, `interp`.
+#'   `velocity_pupil`, `blinks_onset_offset`, `blink_detected`.
 #'
 #' @details
-#' Requires the packages `dplyr`, `zoo`, and `gazer`.
-#' Uses `gazer::moving_average_pupil()` and `gazer::extend_blinks()`.
-blink_velocity_adj <- function(df, neg_velocity_thresh = -5, pos_velocity_thresh = 5,
-                               fillback = 0, fillforward = 0, hz = 120) {
+#' Requires the package `dplyr`.
+#' Velocity thresholds are computed data-driven as multiples of the
+#' median absolute velocity over the entire input data frame.
+annotate_blinks <- function(df,
+                            nxmedian_neg_velocity_thresh,
+                            nxmedian_pos_velocity_thresh,
+                            max_blink_dur = 272,
+                            min_blink_dur = 10,
+                            n_window = 5) {
   
   # Dependency check
-  required_pkgs <- c("dplyr", "zoo", "gazer")
-  
+  required_pkgs <- c("dplyr")
   for (pkg in required_pkgs) {
     if (!requireNamespace(pkg, quietly = TRUE)) {
-      if (pkg == "gazer") {
-        stop(
-          "Package 'gazer' is required but not installed.\n",
-          "Please install it first, e.g.:\n",
-          "  install.packages('remotes')\n",
-          "  remotes::install_github('dmirman/gazer')\n",
-          call. = FALSE
-        )
-      } else {
-        stop(
-          "Package '", pkg, "' is required but not installed.\n",
-          "Please install it, e.g.: install.packages('", pkg, "')",
-          call. = FALSE
-        )
-      }
+      stop(
+        "Package '", pkg, "' is required but not installed.\n",
+        "Please install it, e.g.: install.packages('", pkg, "')",
+        call. = FALSE
+      )
     }
   }
   
-  # Blink detection and interpolation
-  pupil_blink_algo <- df |>
-    dplyr::group_by(recording_name, trial) |>
-    dplyr::mutate(dp = pupil_diameter_filtered - dplyr::lag(pupil_diameter_filtered),
-                  dt = timeline_trial - dplyr::lag(timeline_trial),
-                  velocity_pupil = dplyr::case_when(is.na(dp) | is.na(dt) ~ NA_real_, dt == 0 ~ NA_real_, TRUE ~ dp / dt),
-                  blinks_onset_offset = ifelse(!is.na(velocity_pupil) & (velocity_pupil <= neg_velocity_thresh | velocity_pupil >= pos_velocity_thresh), 1L, 0L),
-                  blinks_pupil = ifelse(blinks_onset_offset == 1L, NA_real_, pupil_diameter_filtered)) |>
-    dplyr::ungroup() |>
-    dplyr::select(-dp, -dt)
-  
-  pup_extend <- pupil_blink_algo |>
+  # 1) Velocity (no blink flag yet)
+  pupil_blink_base <- df |>
     dplyr::group_by(recording_name, trial) |>
     dplyr::mutate(
-      extendpupil = gazer::extend_blinks(
-        blinks_pupil,
-        fillback   = fillback,
-        fillforward = fillforward,
-        hz         = hz
-      ),
-      interp = zoo::na.approx(
-        extendpupil,
-        na.rm = FALSE,
-        rule  = 2
+      dp = pupil_diameter_average - dplyr::lag(pupil_diameter_average),
+      dt = timeline_trial       - dplyr::lag(timeline_trial),
+      velocity_pupil = dplyr::case_when(
+        is.na(dp) | is.na(dt) ~ NA_real_,
+        dt == 0               ~ NA_real_,
+        TRUE                  ~ dp / dt
       )
     ) |>
     dplyr::ungroup()
   
-  return(pup_extend)
-}
+  # 2) Data-driven thresholds
+  vel_abs_median <- stats::median(abs(pupil_blink_base$velocity_pupil),
+                                  na.rm = TRUE)
+  
+  message("Threshold for ", pupil_blink_base$participant_name |> unique(), ": ", nxmedian_neg_velocity_thresh * vel_abs_median)
 
+  if (is.na(vel_abs_median) || vel_abs_median == 0) {
+    stop(
+      "Cannot compute median absolute velocity (all NA or zero); ",
+      "data-driven thresholds unavailable."
+    )
+  }
+  
+  neg_velocity_thresh <- -nxmedian_neg_velocity_thresh * vel_abs_median
+  pos_velocity_thresh <-  nxmedian_pos_velocity_thresh * vel_abs_median
+  
+  # 3) Mark large |velocity| samples (diagnostic only)
+  pupil_blink_base <- pupil_blink_base |>
+    dplyr::mutate(
+      blinks_onset_offset = ifelse(
+        !is.na(velocity_pupil) &
+          (velocity_pupil <= neg_velocity_thresh |
+             velocity_pupil >= pos_velocity_thresh),
+        1L, 0L
+      )
+    ) |>
+    dplyr::select(-dp, -dt)
+  
+  # 4) Blink event detection, per recording_name × trial
+  detect_blinks_in_group <- function(df_grp,
+                                     max_blink_dur,
+                                     min_blink_dur,
+                                     neg_velocity_thresh,
+                                     pos_velocity_thresh,
+                                     n_window) {
+    n <- nrow(df_grp)
+    blink_detected <- rep("no", n)
+    
+    i <- 1
+    while (i <= n) {
+      
+      if (is.na(df_grp$pupil_diameter_average[i])) {
+        # start of an NA block
+        first_na <- i
+        last_na  <- i
+        while (last_na + 1 <= n &&
+               is.na(df_grp$pupil_diameter_average[last_na + 1])) {
+          last_na <- last_na + 1
+        }
+        
+        # --- look BACK n_window samples for NEGATIVE velocity ---
+        pre_from <- max(1, first_na - n_window)
+        pre_to   <- first_na - 1
+        
+        has_neg_peak <- FALSE
+        if (pre_from <= pre_to) {
+          idx_pre <- pre_from:pre_to
+          has_neg_peak <- any(
+            !is.na(df_grp$velocity_pupil[idx_pre]) &
+              df_grp$velocity_pupil[idx_pre] <= neg_velocity_thresh
+          )
+        }
+        
+        # --- look FORWARD n_window samples for POSITIVE velocity ---
+        post_from <- last_na + 1
+        post_to   <- min(n, last_na + n_window)
+        
+        has_pos_peak <- FALSE
+        if (post_from <= post_to) {
+          idx_post <- post_from:post_to
+          has_pos_peak <- any(
+            !is.na(df_grp$velocity_pupil[idx_post]) &
+              df_grp$velocity_pupil[idx_post] >= pos_velocity_thresh
+          )
+        }
+        
+        # --- Blink duration = duration of NA block ---
+        blink_dur <- df_grp$timeline_trial[last_na] -
+          df_grp$timeline_trial[first_na]
+        
+        # --- Accept blink if all conditions met ---
+        if (has_neg_peak &&
+            has_pos_peak &&
+            !is.na(blink_dur) &&
+            blink_dur >= min_blink_dur &&
+            blink_dur <= max_blink_dur) {
+          
+          # mark NA rows
+          blink_detected[first_na:last_na] <- "yes"
+          
+          # NEU: auch die erste gültige Probe nach dem NA-Block als Blink markieren
+          first_non_na <- last_na + 1
+          if (first_non_na <= n &&
+              !is.na(df_grp$pupil_diameter_average[first_non_na])) {
+            blink_detected[first_non_na] <- "yes"
+          }
+        }
+        
+        # jump to first row after this NA block
+        i <- last_na + 1
+        next
+      }
+      
+      i <- i + 1
+    }
+    
+    df_grp$blink_detected <- blink_detected
+    df_grp
+  }
+  
+  result <- pupil_blink_base |>
+    dplyr::group_by(recording_name, trial) |>
+    dplyr::group_modify(~ detect_blinks_in_group(
+      .x,
+      max_blink_dur       = max_blink_dur,
+      min_blink_dur       = min_blink_dur,
+      neg_velocity_thresh = neg_velocity_thresh,
+      pos_velocity_thresh = pos_velocity_thresh,
+      n_window            = n_window
+    )) |>
+    dplyr::ungroup()
+  
+  return(result)
+}

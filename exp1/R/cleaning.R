@@ -129,7 +129,7 @@ correct_session_name <- function(df, recording_col = "Recording.name") {
 #' Detect blink-related samples and blink events in pupil data
 #'
 #' @param df A data frame with at least the columns:
-#'   `recording_name`, `trial`, `timeline_trial`, `pupil_diameter_average`.
+#'   `recording_name`, `trial`, `timeline_trial_units`, `pupil_diameter_average`.
 #' @param nxmedian_neg_velocity_thresh Multiplier for the dataset-wide median
 #'   absolute velocity to define the negative velocity threshold
 #'   (threshold = -nxmedian_neg_velocity_thresh * median(|velocity|)).
@@ -138,13 +138,18 @@ correct_session_name <- function(df, recording_col = "Recording.name") {
 #'   (threshold =  nxmedian_pos_velocity_thresh * median(|velocity|)).
 #' @param max_blink_dur Maximum allowed blink duration, operationalised as
 #'   the duration of the NA block in `pupil_diameter_average`, in the same
-#'   time unit as `timeline_trial` (e.g., 0.25 = 250 ms if in seconds).
+#'   time unit as `timeline_trial_units` (e.g., 0.25 = 250 ms if in seconds).
 #' @param min_blink_dur Minimum blink duration (duration of the NA block)
-#'   in the same time unit as `timeline_trial`
+#'   in the same time unit as `timeline_trial_units`
 #'   (e.g., 0.01 = 10 ms if in seconds).
 #' @param n_window Integer. Number of samples directly before and after an
 #'   NA block within which velocity must cross the negative (onset) and
 #'   positive (offset) thresholds for the NA block to be classified as a blink.
+#' @param apply_moving_average Logical. If TRUE, apply a moving-average
+#'   filter to `pupil_diameter_average` for the velocity calculation.
+#'   NA values remain NA and are not imputed.
+#' @param ma_window Integer. Window size (in samples) for the moving-average
+#'   filter used when `apply_moving_average = TRUE`.
 #'
 #' @return The original data frame plus:
 #'   `velocity_pupil`, `blinks_onset_offset`, `blink_detected`.
@@ -153,12 +158,16 @@ correct_session_name <- function(df, recording_col = "Recording.name") {
 #' Requires the package `dplyr`.
 #' Velocity thresholds are computed data-driven as multiples of the
 #' median absolute velocity over the entire input data frame.
+#' If `apply_moving_average = TRUE`, velocity is computed on an
+#' NA-preserving moving-average version of `pupil_diameter_average`.
 annotate_blinks <- function(df,
                             nxmedian_neg_velocity_thresh,
                             nxmedian_pos_velocity_thresh,
                             max_blink_dur = 272,
                             min_blink_dur = 10,
-                            n_window = 5) {
+                            n_window = 5,
+                            apply_moving_average = FALSE,
+                            ma_window = 5) {
   
   # Dependency check
   required_pkgs <- c("dplyr")
@@ -172,12 +181,52 @@ annotate_blinks <- function(df,
     }
   }
   
+  # --- Helper: NA-preserving moving average -------------------------------
+  ma_na_preserve <- function(x, k) {
+    if (k < 1L) stop("ma_window must be >= 1.")
+    n <- length(x)
+    if (k == 1L) return(x)
+    
+    half <- floor((k - 1L) / 2L)
+    res  <- rep(NA_real_, n)
+    
+    for (i in seq_len(n)) {
+      if (is.na(x[i])) {
+        # Do not impute NAs
+        res[i] <- NA_real_
+      } else {
+        from   <- max(1L, i - half)
+        to     <- min(n, i + half)
+        window <- x[from:to]
+        window <- window[!is.na(window)]
+        if (length(window) == 0L) {
+          res[i] <- NA_real_
+        } else {
+          res[i] <- mean(window)
+        }
+      }
+    }
+    res
+  }
+  
   # 1) Velocity (no blink flag yet)
   pupil_blink_base <- df |>
     dplyr::group_by(recording_name, trial) |>
     dplyr::mutate(
-      dp = pupil_diameter_average - dplyr::lag(pupil_diameter_average),
-      dt = timeline_trial       - dplyr::lag(timeline_trial),
+      # store the moving-average *explicitly* for inspection
+      pupil_ma = if (apply_moving_average) {
+        ma_na_preserve(pupil_diameter_average, ma_window)
+      } else {
+        NA_real_
+      },
+      # use either the moving average (if requested) or the raw pupil for velocity
+      pupil_for_velocity = if (apply_moving_average) {
+        pupil_ma
+      } else {
+        pupil_diameter_average
+      },
+      dp = pupil_for_velocity - dplyr::lag(pupil_for_velocity),
+      dt = timeline_trial_units    - dplyr::lag(timeline_trial_units),
       velocity_pupil = dplyr::case_when(
         is.na(dp) | is.na(dt) ~ NA_real_,
         dt == 0               ~ NA_real_,
@@ -190,8 +239,13 @@ annotate_blinks <- function(df,
   vel_abs_median <- stats::median(abs(pupil_blink_base$velocity_pupil),
                                   na.rm = TRUE)
   
-  message("Threshold for ", pupil_blink_base$participant_name |> unique(), ": ", nxmedian_neg_velocity_thresh * vel_abs_median)
-
+  message(
+    "Threshold for ",
+    pupil_blink_base$participant_name |> unique(),
+    ": ",
+    nxmedian_neg_velocity_thresh * vel_abs_median
+  )
+  
   if (is.na(vel_abs_median) || vel_abs_median == 0) {
     stop(
       "Cannot compute median absolute velocity (all NA or zero); ",
@@ -212,7 +266,8 @@ annotate_blinks <- function(df,
         1L, 0L
       )
     ) |>
-    dplyr::select(-dp, -dt)
+    dplyr::select(-dp, -dt)  # keep pupil_ma and pupil_for_velocity
+  
   
   # 4) Blink event detection, per recording_name × trial
   detect_blinks_in_group <- function(df_grp,
@@ -224,21 +279,21 @@ annotate_blinks <- function(df,
     n <- nrow(df_grp)
     blink_detected <- rep("no", n)
     
-    i <- 1
+    i <- 1L
     while (i <= n) {
       
       if (is.na(df_grp$pupil_diameter_average[i])) {
         # start of an NA block
         first_na <- i
         last_na  <- i
-        while (last_na + 1 <= n &&
-               is.na(df_grp$pupil_diameter_average[last_na + 1])) {
-          last_na <- last_na + 1
+        while (last_na + 1L <= n &&
+               is.na(df_grp$pupil_diameter_average[last_na + 1L])) {
+          last_na <- last_na + 1L
         }
         
         # --- look BACK n_window samples for NEGATIVE velocity ---
-        pre_from <- max(1, first_na - n_window)
-        pre_to   <- first_na - 1
+        pre_from <- max(1L, first_na - n_window)
+        pre_to   <- first_na - 1L
         
         has_neg_peak <- FALSE
         if (pre_from <= pre_to) {
@@ -250,7 +305,7 @@ annotate_blinks <- function(df,
         }
         
         # --- look FORWARD n_window samples for POSITIVE velocity ---
-        post_from <- last_na + 1
+        post_from <- last_na + 1L
         post_to   <- min(n, last_na + n_window)
         
         has_pos_peak <- FALSE
@@ -263,8 +318,8 @@ annotate_blinks <- function(df,
         }
         
         # --- Blink duration = duration of NA block ---
-        blink_dur <- df_grp$timeline_trial[last_na] -
-          df_grp$timeline_trial[first_na]
+        blink_dur <- df_grp$timeline_trial_units[last_na] -
+          df_grp$timeline_trial_units[first_na]
         
         # --- Accept blink if all conditions met ---
         if (has_neg_peak &&
@@ -276,8 +331,8 @@ annotate_blinks <- function(df,
           # mark NA rows
           blink_detected[first_na:last_na] <- "yes"
           
-          # NEU: auch die erste gültige Probe nach dem NA-Block als Blink markieren
-          first_non_na <- last_na + 1
+          # also mark the first valid sample after the NA block as blink
+          first_non_na <- last_na + 1L
           if (first_non_na <= n &&
               !is.na(df_grp$pupil_diameter_average[first_non_na])) {
             blink_detected[first_non_na] <- "yes"
@@ -285,11 +340,11 @@ annotate_blinks <- function(df,
         }
         
         # jump to first row after this NA block
-        i <- last_na + 1
+        i <- last_na + 1L
         next
       }
       
-      i <- i + 1
+      i <- i + 1L
     }
     
     df_grp$blink_detected <- blink_detected

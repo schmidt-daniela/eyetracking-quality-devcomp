@@ -8,8 +8,9 @@ rm(list = ls())
 # Packages ----------------------------------------------------------------
 library(here)
 library(tidyverse)
-# remotes::install_github("dmirman/gazer")
-library(gazer)
+library(gazer) # remotes::install_github("dmirman/gazer")
+library(ggforce)
+library(readxl)
 
 # Set Parameters ----------------------------------------------------------
 folder <- "chimps"
@@ -18,6 +19,9 @@ buffer <- 120 # 120px (3°) in chimps
 
 # Functions ---------------------------------------------------------------
 source(here("exp1", "R", "cleaning.R"))
+
+# Ape Information ---------------------------------------------------------
+apes_info <- read_excel(here("exp1", "doc", "information_apes.xlsx"))
 
 # Define AOIs -------------------------------------------------------------
 
@@ -138,17 +142,19 @@ for(i in c(1:sample_size)){
   df <- df |> select(-object_location, checkflake_location1, checkflake_location2) # redundant information
   
   df <- df |> 
-    group_by(session, recording_name) |> 
+    group_by(recording_name) |> 
     mutate(trial = make_trial_num(stimulus, stimulus_position),
            trial = na_if(trial, 0L)) |> 
     ungroup()
   
   df[is.na(df$stimulus),"trial"] <- NA
   
-  # Add cumulative duration per stimulus
+  # Add cumulative duration per trial
   df <- df |> 
     group_by(recording_name, trial, stimulus_duration) |> 
-    mutate(timeline_trial = cumsum(gaze_sample_duration)) |> 
+    mutate(timeline_trial_units = cumsum(gaze_sample_duration)) |> 
+    group_by(recording_name, trial) |> 
+    mutate(timeline_trial_tot = cumsum(gaze_sample_duration)) |> 
     ungroup()
   
   # Define AOIs (based on fixations)
@@ -232,37 +238,85 @@ for(i in c(1:sample_size)){
     ungroup()
   
   # Blink Detection (velocity-based)
-  # next: make this a functoin in the R folder
-  # next: create plots before an after to find the perfect velocity threshold
-  # next: check whether chatgpt debug makes sense
-  blink_velocity_adj <- function(df, neg_velocity_thresh = -5, pos_velocity_thresh = 5, fillback = 0, fillforward = 0, hz = 120) {
-    pupil_blink_algo <- df |> 
-      group_by(recording_name, trial) |>
-      mutate(smooth_pupil = moving_average_pupil(pupil_diameter_filtered, n = 10)) |> 
-      mutate(velocity_pupil = c(diff(smooth_pupil)/diff(timeline_trial), NA)) |> 
-      mutate(blinks_onset_offset = ifelse(velocity_pupil <= neg_velocity_thresh | velocity_pupil >= pos_velocity_thresh, 1, 0)) |> 
-      #mutate(blinks_pupil = ifelse(blinks_onset_offset == 1, is.na(pupil_diameter_filtered), pupil_diameter_filtered)) |> 
-      mutate(blinks_pupil = ifelse(blinks_onset_offset == 1, NA_real_, pupil_diameter_filtered)) |> 
-      ungroup()
-    
-    pup_extend <- pupil_blink_algo |> 
-      group_by(recording_name, trial) |> 
-      mutate(extendpupil = extend_blinks(blinks_pupil, fillback = fillback, fillforward = fillforward, hz = hz)) |> 
-      dplyr::mutate(interp = zoo::na.approx(extendpupil, na.rm = FALSE, rule = 2))
-    return(pup_extend)
+  df <- df |> 
+    rowwise() |> 
+    mutate(pupil_diameter_average = mean(c(pupil_diameter_left, pupil_diameter_right), na.rm = T)) |> 
+    ungroup()
+  
+  pupil_with_blinks <- annotate_blinks(
+    df = df,
+    nxmedian_neg_velocity_thresh = 4,
+    nxmedian_pos_velocity_thresh = 4,
+    max_blink_dur = 272,   # "Blink duration was normally distributed, with a mean of 153.5 ± 46.7 ms in the first test and 163.1 ± 42.3 ms in the second" (https://iovs.arvojournals.org/article.aspx?articleid=2188061)
+                           # 272ms is average blink duration in chimpanzees (https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0066018&type=printable)
+    min_blink_dur = 10,    # In humans, he mean blink duration was 128.80ms (SD=56.4, range=10–347ms).(https://www.nature.com/articles/s41598-025-04839-y)
+    n_window = 3,
+    apply_moving_average = TRUE,
+    ma_window = 3)
+  
+  # Plot data for visual inspection of blinks
+  # Prepare data
+  pupil_with_blinks_plot <- pupil_with_blinks |>
+    group_by(participant_name, recording_name, trial, stimulus_duration) |>
+    mutate(first_valid_time = min(timeline_trial_units[!is.na(pupil_ma)], na.rm = TRUE)) |>     # find first time point with non-NA pupil_ma
+    filter(timeline_trial_units >= first_valid_time) |>     # drop any rows before that time, so the trial really "starts" there
+    mutate(time_in_trial0 = timeline_trial_units - first_valid_time) |>     # make that first valid time = 0
+    ungroup() |>
+    select(-first_valid_time)
+  
+  pupil_with_blinks_plot2 <- pupil_with_blinks_plot |>
+    group_by(participant_name, recording_name, trial, stimulus_duration) |>
+    mutate(blink_y = min(pupil_ma, na.rm = TRUE) - 0.05) |>   # constant line bit below the minimal pupil in this trial
+    ungroup()
+  
+  # Prepare Participant label for the title
+  participant_ids <- unique(pupil_with_blinks_plot$participant_name)
+  participant_label <- if (length(participant_ids) == 1L) {
+    participant_ids
+  } else {
+    paste(participant_ids, collapse = ", ")
   }
   
-  blink_velocity_adj(df, neg_velocity_thresh = -5, pos_velocity_thresh = 5, fillback = 0, fillforward = 0, hz = 120)
-
+  # Generate base plot (no facets or pagination yet)
+  p_base <- ggplot(pupil_with_blinks_plot2,
+                   aes(x = time_in_trial0, y = pupil_ma)) +
+    geom_line() +
+    geom_point(
+      data = pupil_with_blinks_plot2 |> filter(blink_detected == "yes"),
+      aes(x = time_in_trial0, y = blink_y),   # wichtig: y = blink_y!
+      inherit.aes = FALSE, color = "red", size = 0.2) + # red dots for all "blink_detected == "yes", independend of is.na(pupil)
+    labs(x = "Time in trial (s)", y = "Pupil diameter (average)") +
+    theme_minimal()
   
+  # Define how many plots per pdf page
+  n_pages <- ggforce::n_pages(p_base +
+                                facet_wrap_paginate(~ recording_name + trial + stimulus_duration,
+                                                    ncol = 1, nrow = 1, scales = "free_x"))
   
-  ## continue here
-  # blink detection
-
+  # Save all pages into one pdf file
+  pdf(here("exp1", "doc", "blink_check", paste0("pupil_blinks_", pupil_with_blinks$participant_name |> unique() |> tolower(), ".pdf")), width = 10, height = 7)
   
+  for (i in seq_len(n_pages)) {
+    p_page <- p_base +
+      facet_wrap_paginate(~ recording_name + trial + stimulus_duration,
+                          ncol = 1, nrow = 1,
+                          scales = "free_x",
+                          page = i) +
+      ggtitle(paste0("Participant: ", participant_label,
+                     " — page ", i, " of ", n_pages))
+    print(p_page)
+  }
+  
+  dev.off()
+  
+  # Add information about ape
+  df_joined <- pupil_with_blinks |>  
+    left_join(apes_info, by = c("participant_name" = "id"))
 
   # Write data
-  write.table(df, here("exp1", "data", "raw_clean", folder, paste0(sub("\\.tsv$", "", filename), ".txt")), 
-              row.names = F, quote = F, sep = "\t", dec = ".")
+  fname_base <- sub("\\.tsv$", "", filename)
+  out_rds <- here("exp1", "data", "raw_clean", folder, paste0(fname_base, ".rds"))
+  saveRDS(pupil_with_blinks, out_rds, compress = "xz")
+
   print(i)
 }

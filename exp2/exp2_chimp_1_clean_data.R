@@ -1,6 +1,6 @@
 ## This script excludes invalid trials.
 ## A trial is not valid, if an individual didn't look in the stimulus AOI for at least one fixation. 
-## Dec 01 2025 – Daniela Schmidt
+## Jan 08 2025 – Daniela Schmidt
 
 # General -----------------------------------------------------------------
 rm(list = ls())
@@ -13,15 +13,15 @@ library(ggforce)
 library(readxl)
 
 # Set Parameters ----------------------------------------------------------
-folder <- "chimps"
-sample_size <- 17
+folder <- "alex_calibration_5p" # alex_calibration_5p or human_calibration_9p or ape_calibration_2p
+ape_size <- ifelse(folder %in% c("alex_calibration_5p", "human_calibration_9p"), 16, 17)
 buffer <- 120 # 120px (3°) in chimps
 
 # Functions ---------------------------------------------------------------
-source(here("exp1", "R", "cleaning.R"))
+source(here("exp2", "R", "cleaning.R"))
 
 # Ape Information ---------------------------------------------------------
-apes_info <- read_excel(here("exp1", "doc", "information_apes.xlsx"))
+apes_info <- read_excel(here("exp2", "doc", "information_apes.xlsx"))
 
 # Define AOIs -------------------------------------------------------------
 
@@ -69,15 +69,15 @@ at_x_botright <- 1057 + buffer
 at_y_botright <- 637 + buffer
 
 # Trial Exclusion ---------------------------------------------------------
-for(i in c(1:sample_size)){
+for(i in c(1:ape_size)){
   
   # Select file
-  filenames <- list.files(path = here("exp1", "data", "raw_2", folder))
+  filenames <- list.files(path = here("exp2", "data", "raw_2", folder))
   n <- i
   filename <- filenames[n]
   
   # Read file
-  raw <- read.table(here("exp1", "data", "raw_2", folder, filename), header = T, sep = "\t")
+  raw <- read.table(here("exp2", "data", "raw_2", folder, filename), header = T, sep = "\t")
   df <- raw
   
   # Add gaze-sample duration
@@ -247,26 +247,31 @@ for(i in c(1:sample_size)){
     df = df,
     nxmedian_neg_velocity_thresh = 4,
     nxmedian_pos_velocity_thresh = 4,
-    max_blink_dur = 272,   # "Blink duration was normally distributed, with a mean of 153.5 ± 46.7 ms in the first test and 163.1 ± 42.3 ms in the second" (https://iovs.arvojournals.org/article.aspx?articleid=2188061)
+    max_blink_dur = 272+56,   # "Blink duration was normally distributed, with a mean of 153.5 ± 46.7 ms in the first test and 163.1 ± 42.3 ms in the second" (https://iovs.arvojournals.org/article.aspx?articleid=2188061)
                            # 272ms is average blink duration in chimpanzees (https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0066018&type=printable)
-    min_blink_dur = 10,    # In humans, he mean blink duration was 128.80ms (SD=56.4, range=10–347ms).(https://www.nature.com/articles/s41598-025-04839-y)
+    min_blink_dur = 10,    # In humans, he mean blink duration was 128.80ms (SD=56, range=10–347ms).(https://www.nature.com/articles/s41598-025-04839-y)
     n_window = 3,
     apply_moving_average = TRUE,
     ma_window = 3)
   
+  if(folder == "alex_calibration_5p"){
   # Plot data for visual inspection of blinks
   # Prepare data
   pupil_with_blinks_plot <- pupil_with_blinks |>
     group_by(participant_name, recording_name, trial, stimulus_duration) |>
-    mutate(first_valid_time = min(timeline_trial_units[!is.na(pupil_ma)], na.rm = TRUE)) |>     # find first time point with non-NA pupil_ma
-    filter(timeline_trial_units >= first_valid_time) |>     # drop any rows before that time, so the trial really "starts" there
-    mutate(time_in_trial0 = timeline_trial_units - first_valid_time) |>     # make that first valid time = 0
+    mutate(first_valid_time = if (any(!is.na(pupil_ma))) { # find first time point with non-NA pupil_ma
+      min(timeline_trial_units[!is.na(pupil_ma)])
+    } else {
+      NA_real_
+    }) |>
+    filter(is.na(first_valid_time) | timeline_trial_units >= first_valid_time) |> # drop any rows before that time, so the trial really "starts" there
+    mutate(time_in_trial0 = if_else(is.na(first_valid_time), NA_real_, timeline_trial_units - first_valid_time)) |> # if first_valid_time is no NA, make that first valid time = 0 (), otherwise make NA
     ungroup() |>
     select(-first_valid_time)
   
   pupil_with_blinks_plot2 <- pupil_with_blinks_plot |>
     group_by(participant_name, recording_name, trial, stimulus_duration) |>
-    mutate(blink_y = min(pupil_ma, na.rm = TRUE) - 0.05) |>   # constant line bit below the minimal pupil in this trial
+    mutate(blink_y = if (any(!is.na(pupil_ma))) {min(pupil_ma, na.rm = TRUE) - 0.05} else {NA_real_}) |> # constant line bit below the minimal pupil in this trial
     ungroup()
   
   # Prepare Participant label for the title
@@ -294,28 +299,40 @@ for(i in c(1:sample_size)){
                                                     ncol = 1, nrow = 1, scales = "free_x"))
   
   # Save all pages into one pdf file
-  pdf(here("exp1", "doc", "blink_check", paste0("pupil_blinks_", pupil_with_blinks$participant_name |> unique() |> tolower(), ".pdf")), width = 10, height = 7)
+    pdf(here("exp2", "doc", "blink_check", folder, 
+             paste0("pupil_blinks_", str_remove(pupil_with_blinks$recording_name |> unique(), "^session[0-9]*_") |> unique(), ".pdf")), 
+        width = 10, height = 7)
   
-  for (i in seq_len(n_pages)) {
-    p_page <- p_base +
-      facet_wrap_paginate(~ recording_name + trial + stimulus_duration,
-                          ncol = 1, nrow = 1,
-                          scales = "free_x",
-                          page = i) +
-      ggtitle(paste0("Participant: ", participant_label,
-                     " — page ", i, " of ", n_pages))
-    print(p_page)
+    for (i in seq_len(n_pages)) {
+      p_page <- p_base +
+        facet_wrap_paginate(~ recording_name + trial + stimulus_duration,
+                            ncol = 1, nrow = 1,
+                            scales = "free_x",
+                            page = i) +
+        ggtitle(paste0("Participant: ", participant_label,
+                       " — page ", i, " of ", n_pages))
+      print(p_page)
+    }
+    dev.off()
   }
   
-  dev.off()
-  
   # Add information about ape
-  df_joined <- pupil_with_blinks |>  
-    left_join(apes_info, by = c("participant_name" = "id"))
+  if(folder %in% c("human_calibration_9p", "alex_calibration_5p")){
+      df_joined <- pupil_with_blinks |>
+        mutate(recording_name = str_remove(recording_name, "^session[0-9]*_"),
+               recording_name = str_remove(recording_name, "_[^_]+$")) |> 
+      left_join(apes_info |> mutate(id = id |> tolower()), by = c("recording_name" = "id"))
+  }
+  
+  if(folder == "ape_calibration_2p"){
+    df_joined <- pupil_with_blinks |>
+      mutate(participant_name = participant_name |> tolower()) |> 
+      left_join(apes_info |> mutate(id = id |> tolower()), by = c("participant_name" = "id"))
+  }
 
   # Write data
   fname_base <- sub("\\.tsv$", "", filename)
-  out_rds <- here("exp1", "data", "raw_clean", folder, paste0(fname_base, ".rds"))
+  out_rds <- here("exp2", "data", "raw_clean", folder, paste0(fname_base, ".rds"))
   saveRDS(pupil_with_blinks, out_rds, compress = "xz")
 
   print(pupil_with_blinks$recording_name |> unique())

@@ -12,6 +12,7 @@ exp2/data/raw_clean/
 
 # Doc folder
 exp1/doc/blink_check/
+exp2/doc/blink_check/
 
 # Local files
 exp1/doc/protocol_decoded.xlsx

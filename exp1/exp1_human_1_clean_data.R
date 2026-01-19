@@ -101,10 +101,6 @@ for(i in c(1:sample_size)){
     select(-c(ungrouped, client_area_position_x_dacspx, client_area_position_y_dacspx, viewport_position_x, # variables with NA only
               viewport_position_y, viewport_width, viewport_height, full_page_width, full_page_height, # variables with NA only
               mouse_position_x,mouse_position_y)) # variable not of interest
-  
-  # # Remove rows that are not of interest
-  # df <- df |> 
-  #   filter(presented_stimulus_name != "Eyetracker Calibration")
 
   # Prepare stimulus information
   df <- df |>
@@ -149,7 +145,7 @@ for(i in c(1:sample_size)){
   # Add cumulative duration per stimulus
   df <- df |> 
     group_by(trial, stimulus_duration) |> 
-    mutate(timeline = cumsum(gaze_sample_duration)) |> 
+    mutate(timeline_experiment = cumsum(gaze_sample_duration)) |> 
     ungroup()
   
   # Define AOIs (based on fixations)
@@ -217,21 +213,21 @@ for(i in c(1:sample_size)){
     filter(stimulus == "object") |> 
     filter(position == "top" & aoi_samples == "top") |>
     select(gaze_point_x, gaze_point_y, fixation_point_x, fixation_point_y, 
-           stimulus, position, eye_movement_type, trial, gaze_sample_duration, timeline, aoi_samples) |> 
+           stimulus, position, eye_movement_type, trial, gaze_sample_duration, timeline_experiment, aoi_samples) |> 
     group_by(trial) |> 
     slice(1) |> 
     ungroup() |> 
-    mutate(latency = timeline)
+    mutate(latency = timeline_experiment)
   
   latencies_bottom <- df |> 
     filter(stimulus == "object") |> 
     filter(position == "bottom" & aoi_samples == "bottom") |>
     select(gaze_point_x, gaze_point_y, fixation_point_x, fixation_point_y, 
-           stimulus, position, eye_movement_type, trial, gaze_sample_duration, timeline, aoi_samples) |> 
+           stimulus, position, eye_movement_type, trial, gaze_sample_duration, timeline_experiment, aoi_samples) |> 
     group_by(trial) |> 
     slice(1) |> 
     ungroup() |> 
-    mutate(latency = timeline)
+    mutate(latency = timeline_experiment)
   
   excluded_trials_100ms <- latencies_top |> 
     bind_rows(latencies_bottom) |> 
@@ -273,42 +269,24 @@ for(i in c(1:sample_size)){
   df$excluded_fixation <- "excluded"
   df[df$trial %in% included_fixation, "excluded_fixation"] <- "included"
   
-  
-  # continue here
-  # add time per session (independent of trial, cum not per trial)
-  # # Detect blinks
-  # # 1) If tracker already gives a blink flag
-  # blink_detect(df$pupil_diameter_filtered)
-  # 
-  # df_proc <- df |>
-  #   mutate(pupil = pupil_diameter_filtered,
-  #          blink = pupil == 0 | is.na(pupil), # pupil == 0 or missing -> blink
-  #          pupil = if_else(blink, NA_real_, pupil)) |>  # set blink samples to NA
-  #   group_by(trial) |>
-  #   mutate(extendpupil = extend_blinks(pupil,
-  #                                      fillback   = 100,  # ms before
-  #                                      fillforward = 100, # ms after
-  #                                      hz = 120)) |>
-  #   ungroup()
-  # 
-  # 
-  # # 2) Interpolate & smooth over those gaps
-  # dat_interp <- smooth_interpolate_pupil(
-  #   dat,
-  #   pupil       = "pupil",
-  #   extendpupil = "extendpupil",
-  #   extendblinks= TRUE,
-  #   type        = "linear",   # or "cubic"
-  #   maxgap      = Inf,
-  #   hz          = 250,
-  #   n           = 5           # moving-average window
-  # )
-  # 
-  # # Add data information about age, experimenter, gender
-  # # Interpolate blinks
+  # Add cumulative duration per trial
+  df <- df |> 
+    group_by(trial, stimulus_duration) |> 
+    mutate(timeline_trial_units = cumsum(gaze_sample_duration)) |> 
+    group_by(trial) |> 
+    mutate(timeline_trial_tot = cumsum(gaze_sample_duration)) |> 
+    ungroup()
 
+  # Add information about participant
+  df_joined <- df |> 
+    bind_cols(protocol |>  
+    select(age_ddd, sex, order, no_household, no_siblings, multilingual, kindergarten_yn, tagesmutter_yn, experimenter) |> 
+    slice(i))
+  
   # Write data
-  write.table(dat_fin, here("exp1", "data", "raw_2_exclude", folder, paste0(sub("\\.tsv$", "", filename), ".txt")), 
-              row.names = F, quote = F, sep = "\t", dec = ".")
+  fname_base <- sub("\\.tsv$", "", filename)
+  out_rds <- here("exp1", "data", "raw_clean", folder, paste0(fname_base, ".rds"))
+  saveRDS(df_joined, out_rds, compress = "xz")
+
   print(i)
 }

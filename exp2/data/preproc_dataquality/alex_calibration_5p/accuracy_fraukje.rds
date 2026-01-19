@@ -1,0 +1,16 @@
+trial	participant_name_session	accuracy	acc_visd	stimulus	position	variable	recording_date	average_calibration_accuracy_degrees
+6	fraukje_session1_fraukje_alex	179.938878511566	4.74318883756487	at	center	accuracy	06/02/2025	0.53
+8	fraukje_session1_fraukje_alex	256.035153836343	6.74908665512601	at	center	accuracy	06/02/2025	0.53
+10	fraukje_session1_fraukje_alex	91.4439719172346	2.41046309973831	at	center	accuracy	06/02/2025	0.53
+1	fraukje_session2_fraukje_alex	125.419296760905	3.30605266261746	at	center	accuracy	06/02/2025	0.53
+3	fraukje_session2_fraukje_alex	18.9736659610103	0.500145834732231	at	center	accuracy	06/02/2025	0.53
+5	fraukje_session2_fraukje_alex	176.82759965571	4.66117552692451	at	center	accuracy	06/02/2025	0.53
+7	fraukje_session2_fraukje_alex	185.261976670875	4.88350570504428	at	center	accuracy	06/02/2025	0.53
+10	fraukje_session2_fraukje_alex	206.475180106472	5.4426857476066	object	top	accuracy	06/02/2025	0.53
+9	fraukje_session1_fraukje_alex	133.764718816286	3.52603798799729	object	bottom	accuracy	06/02/2025	0.53
+11	fraukje_session1_fraukje_alex	182.529449678675	4.81147629352988	object	bottom	accuracy	06/02/2025	0.53
+4	fraukje_session2_fraukje_alex	130.13838787998	3.43044790451626	object	bottom	accuracy	06/02/2025	0.53
+8	fraukje_session2_fraukje_alex	183.741666477694	4.843430328352	object	bottom	accuracy	06/02/2025	0.53
+4	fraukje_session1_fraukje_alex	157.165517846632	4.14288305043722	checkflake	bot_left	accuracy	06/02/2025	0.53
+2	fraukje_session1_fraukje_alex	70.8378429936994	1.86728554131392	checkflake	bot_right	accuracy	06/02/2025	0.53
+5	fraukje_session1_fraukje_alex	95.0473566176356	2.50544832044088	checkflake	center	accuracy	06/02/2025	0.53

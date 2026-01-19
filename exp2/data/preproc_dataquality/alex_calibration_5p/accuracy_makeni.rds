@@ -1,0 +1,3 @@
+trial	participant_name_session	accuracy	acc_visd	stimulus	position	variable	recording_date	average_calibration_accuracy_degrees
+7	makeni_session1_makeni_alex	44.2831796509691	1.16730461559954	object	top	accuracy	06/03/2025	0.53
+2	makeni_session2_makeni_alex	180.294204011111	4.75255521773288	object	top	accuracy	07/03/2025	0.53

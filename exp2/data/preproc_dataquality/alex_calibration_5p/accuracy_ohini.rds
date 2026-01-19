@@ -1,0 +1,10 @@
+trial	participant_name_session	accuracy	acc_visd	stimulus	position	variable	recording_date	average_calibration_accuracy_degrees
+10	ohini_session1_ohini_alex	46.8721665810319	1.235550311076	at	center	accuracy	06/11/2025	0.53
+7	ohini_session1_ohini_alex	62.201286160336	1.63962590318646	object	top	accuracy	06/11/2025	0.53
+2	ohini_session2_ohini_alex	80.2246844805263	2.11472268290667	object	top	accuracy	06/11/2025	0.53
+6	ohini_session2_ohini_alex	56.7186036499489	1.49510239221265	object	top	accuracy	06/11/2025	0.53
+10	ohini_session2_ohini_alex	162.496153800636	4.28339861418477	object	top	accuracy	06/11/2025	0.53
+9	ohini_session1_ohini_alex	23.0867927612304	0.608567857186033	object	bottom	accuracy	06/11/2025	0.53
+11	ohini_session1_ohini_alex	47.0744091837593	1.24088142608389	object	bottom	accuracy	06/11/2025	0.53
+4	ohini_session2_ohini_alex	66.0302960768767	1.74055860458647	object	bottom	accuracy	06/11/2025	0.53
+8	ohini_session2_ohini_alex	97.0463806640928	2.55814259430549	object	bottom	accuracy	06/11/2025	0.53

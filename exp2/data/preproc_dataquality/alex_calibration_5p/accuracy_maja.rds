@@ -1,0 +1,7 @@
+trial	participant_name_session	accuracy	acc_visd	stimulus	position	variable	recording_date	average_calibration_accuracy_degrees
+10	maja_session1_maja_alex	88.5889383614004	2.33520441520652	at	center	accuracy	07/04/2025	0.53
+7	maja_session1_maja_alex	127.137720602503	3.35135031508197	object	top	accuracy	07/04/2025	0.53
+9	maja_session1_maja_alex	101.271911209377	2.66952757947919	object	bottom	accuracy	07/04/2025	0.53
+11	maja_session1_maja_alex	44.6542271235322	1.17708542697631	object	bottom	accuracy	07/04/2025	0.53
+1	maja_session1_maja_alex	166.147524808527	4.37964875395276	checkflake	top_left	accuracy	07/04/2025	0.53
+4	maja_session1_maja_alex	86.3539228987311	2.27628940761055	checkflake	bot_left	accuracy	07/04/2025	0.53

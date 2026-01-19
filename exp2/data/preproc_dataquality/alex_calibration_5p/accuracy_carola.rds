@@ -1,0 +1,16 @@
+trial	participant_name_session	accuracy	acc_visd	stimulus	position	variable	recording_date	average_calibration_accuracy_degrees
+6	carola_session1_carola_alex	126.253712816693	3.32804786984803	at	center	accuracy	06/02/2025	0.53
+8	carola_session1_carola_alex	107.200746266059	2.82581167157332	at	center	accuracy	06/02/2025	0.53
+1	carola_session2_carola_alex	80.0812087820857	2.11094066349578	at	center	accuracy	06/09/2025	0.53
+3	carola_session2_carola_alex	128.693434175952	3.39235892487809	at	center	accuracy	06/09/2025	0.53
+5	carola_session2_carola_alex	20	0.5272	at	center	accuracy	06/09/2025	0.53
+9	carola_session2_carola_alex	32.2024843762092	0.848857488156875	at	center	accuracy	06/09/2025	0.53
+7	carola_session1_carola_alex	18.2482875908947	0.481024860895983	object	top	accuracy	06/02/2025	0.53
+11	carola_session1_carola_alex	140.035709731482	3.69134130852188	object	bottom	accuracy	06/02/2025	0.53
+4	carola_session2_carola_alex	54.0370243444252	1.42441596171905	object	bottom	accuracy	06/09/2025	0.53
+8	carola_session2_carola_alex	88.8369292580512	2.34174145524223	object	bottom	accuracy	06/09/2025	0.53
+1	carola_session1_carola_alex	133.015036743971	3.50627636857108	checkflake	top_left	accuracy	06/02/2025	0.53
+3	carola_session1_carola_alex	53.3666562565053	1.40674505892148	checkflake	top_right	accuracy	06/02/2025	0.53
+4	carola_session1_carola_alex	149.345237620756	3.93674046368312	checkflake	bot_left	accuracy	06/02/2025	0.53
+2	carola_session1_carola_alex	64.5135644651572	1.70057755930155	checkflake	bot_right	accuracy	06/02/2025	0.53
+5	carola_session1_carola_alex	90.6697303403953	2.39005409177282	checkflake	center	accuracy	06/02/2025	0.53

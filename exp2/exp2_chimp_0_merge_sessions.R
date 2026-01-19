@@ -27,6 +27,10 @@ for(i in 1:ape_size){
   df <- data.frame()
   for(j in filenames |> str_subset(apes[nr]) |> sort()){
     df_temp <- read.table(here("exp2", "data", "raw_1", folder, j), header = TRUE, sep = "\t")
+
+    # Correct export mistake
+    if(folder == "ape_calibration_2p" & j == "alex_session1.tsv"){df_temp <- df_temp |> mutate(Recording.name = "session1")}
+    if(folder == "ape_calibration_2p" & j == "alex_session2.tsv"){df_temp <- df_temp |> mutate(Recording.name = "session2")}
     
     # Correct naming of sessions
     df_temp <- correct_session_name(df_temp)

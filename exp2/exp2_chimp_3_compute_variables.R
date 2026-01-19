@@ -6,22 +6,34 @@ options(warn = -1) # -1 = hide warnings
 library(here)
 library(tidyverse)
 
+# Set Parameters ----------------------------------------------------------
+folder <- "human_calibration_9p" # alex_calibration_5p (x) or human_calibration_9p (x) or ape_calibration_2p (x)
+ape_size <- ifelse(folder %in% c("alex_calibration_5p", "human_calibration_9p"), 16, 17)
+
+if(folder %in% c("ape_calibration_2p", "alex_calibration_5p")){id_col <- "participant_name_session"}
+if(folder == "human_calibration_9p"){id_col <- "recording_name"}
+
 # Load Functions ----------------------------------------------------------
-source(here("exp1", "R", "eyetracking_data_quality.R"))
-source(here("exp1", "R", "eyetracking_outcomes.R"))
-source(here("exp1", "R", "utils.R"))
+source(here("exp2", "R", "eyetracking_data_quality.R"))
+source(here("exp2", "R", "eyetracking_outcomes.R"))
+source(here("exp2", "R", "utils.R"))
 
 # Adjust Parameter --------------------------------------------------------
-participant_names <- list.files(path = here("exp1", "data", "raw_clean", "chimps"))
+participant_names <- list.files(path = here("exp2", "data", "raw_clean", folder))
 
-for(i in 1:17){
+for(i in 1:ape_size){
 nr <- i
 
 # Read Data ---------------------------------------------------------------
-raw <- read.table(here("exp1", "data", "raw_clean", "chimps", participant_names[nr]), header = T, sep = "\t") |> mutate(participant_name = participant_names[nr])
+raw <- readRDS(here("exp2", "data", "raw_clean", folder, participant_names[nr])) |> mutate(participant_name = participant_names[nr])
 df <- raw
 
 # Data Preparation --------------------------------------------------------
+if(folder %in% c("ape_calibration_2p", "alex_calibration_5p")){
+  df <- df |> 
+    unite("participant_name_session", c("participant_name", "recording_name"), remove = F) |> 
+    mutate(participant_name_session = str_remove(participant_name_session,".rds"))
+}
 
 ## Add Fixation Duration ----
 # Why? Because gaze_event_duration refers to the duration of a fixation, irrespective of
@@ -63,7 +75,7 @@ df <- raw
 ### Attention Getter ----
 df_acc_at <- calculate_accuracy(df |> filter(stimulus == "at"), 
                                 xmin = 783-40, xmax = 1137+40, ymin = 363-40, ymax = 717+40, stimulus_vec = "at",
-                                media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = "participant_name", trial = "trial",
+                                media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = id_col, trial = "trial",
                                 gaze_event_index_col = "eye_movement_type_index", x_fix = "fixation_point_x", y_fix = "fixation_point_y",
                                 stimulus_height = 354+80, stimulus_width = 354+80, aoi_buffer_px_x = 0, aoi_buffer_px_y = 0) |> # aoi buffer of 80px is already in xyminmax
   mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |> 
@@ -73,7 +85,7 @@ df_acc_at <- calculate_accuracy(df |> filter(stimulus == "at"),
 ### Top Object ----
 df_acc_objtop <- calculate_accuracy(df |> filter(stimulus == "object" & position == "top"), 
                                     xmin = 790-40, xmax = 1130+40, ymin = 0-40, ymax = 340+40, stimulus_vec = "object",
-                                    media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = "participant_name", trial = "trial",
+                                    media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = id_col, trial = "trial",
                                     gaze_event_index_col = "eye_movement_type_index", x_fix = "fixation_point_x", y_fix = "fixation_point_y",
                                     stimulus_height = 340+80, stimulus_width = 340+80, aoi_buffer_px_x = 0, aoi_buffer_px_y = 0) |> # aoi buffer of 80px is already in xyminmax
   mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |> 
@@ -83,7 +95,7 @@ df_acc_objtop <- calculate_accuracy(df |> filter(stimulus == "object" & position
 ### Bottom Object ----
 df_acc_objbot <- calculate_accuracy(df |> filter(stimulus == "object" & position == "bottom"), 
                                     xmin = 790-40, xmax = 1130+40, ymin = 740-40, ymax = 1080+40, stimulus_vec = "object",
-                                    media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = "participant_name",
+                                    media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = id_col,
                                     gaze_event_index_col = "eye_movement_type_index", x_fix = "fixation_point_x", y_fix = "fixation_point_y",
                                     stimulus_height = 340+80, stimulus_width = 340+80, aoi_buffer_px_x = 0, aoi_buffer_px_y = 0) |> # aoi buffer of 80px is already in xyminmax
   mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |> 
@@ -93,7 +105,7 @@ df_acc_objbot <- calculate_accuracy(df |> filter(stimulus == "object" & position
 ### Popflake Top Left ----
 df_acc_poptopleft <- calculate_accuracy(df |> filter(stimulus == "checkflake" & position == "top_left"), 
                                         xmin = 300-40, xmax = 660+40, ymin = 90-40, ymax = 450+40, stimulus_vec = "checkflake",
-                                        media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = "participant_name", trial = "trial",
+                                        media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = id_col, trial = "trial",
                                         gaze_event_index_col = "eye_movement_type_index", x_fix = "fixation_point_x", y_fix = "fixation_point_y",
                                         stimulus_height = 360+80, stimulus_width = 360+80, aoi_buffer_px_x = 0, aoi_buffer_px_y = 0) |> # aoi buffer of 80px is already in xyminmax
   mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |> 
@@ -103,7 +115,7 @@ df_acc_poptopleft <- calculate_accuracy(df |> filter(stimulus == "checkflake" & 
 ### Popflake Top Right ----
 df_acc_poptopright <- calculate_accuracy(df |> filter(stimulus == "checkflake" & position == "top_right"), 
                                          xmin = 1260-40, xmax = 1620+40, ymin = 90-40, ymax = 450+40, stimulus_vec = "checkflake",
-                                         media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = "participant_name", trial = "trial",
+                                         media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = id_col, trial = "trial",
                                          gaze_event_index_col = "eye_movement_type_index", x_fix = "fixation_point_x", y_fix = "fixation_point_y",
                                          stimulus_height = 360+80, stimulus_width = 360+80, aoi_buffer_px_x = 0, aoi_buffer_px_y = 0) |> # aoi buffer of 80px is already in xyminmax
   mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |> 
@@ -113,7 +125,7 @@ df_acc_poptopright <- calculate_accuracy(df |> filter(stimulus == "checkflake" &
 ### Popflake Bottom Left ----
 df_acc_popbotleft <- calculate_accuracy(df |> filter(stimulus == "checkflake" & position == "bot_left"), 
                                         xmin = 300-40, xmax = 660+40, ymin = 630-40, ymax = 990+40, stimulus_vec = "checkflake",
-                                        media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = "participant_name", trial = "trial",
+                                        media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = id_col, trial = "trial",
                                         gaze_event_index_col = "eye_movement_type_index", x_fix = "fixation_point_x", y_fix = "fixation_point_y",
                                         stimulus_height = 360+80, stimulus_width = 360+80, aoi_buffer_px_x = 0, aoi_buffer_px_y = 0) |> # aoi buffer of 80px is already in xyminmax
   mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |> 
@@ -123,7 +135,7 @@ df_acc_popbotleft <- calculate_accuracy(df |> filter(stimulus == "checkflake" & 
 ### Popflake Bottom Right ----
 df_acc_popbotright <- calculate_accuracy(df |> filter(stimulus == "checkflake" & position == "bot_right"), 
                                          xmin = 1260-40, xmax = 1620+40, ymin = 630-40, ymax = 990+40, stimulus_vec = "checkflake",
-                                         media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = "participant_name", trial = "trial",
+                                         media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = id_col, trial = "trial",
                                          gaze_event_index_col = "eye_movement_type_index", x_fix = "fixation_point_x", y_fix = "fixation_point_y",
                                          stimulus_height = 360+80, stimulus_width = 360+80, aoi_buffer_px_x = 0, aoi_buffer_px_y = 0) |> # aoi buffer of 80px is already in xyminmax
   mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |> 
@@ -133,7 +145,7 @@ df_acc_popbotright <- calculate_accuracy(df |> filter(stimulus == "checkflake" &
 ### Popflake Center ----
 df_acc_popcenter <- calculate_accuracy(df |> filter(stimulus == "checkflake" & position == "center"), 
                                        xmin = 780-40, xmax = 1140+40, ymin = 360-40, ymax = 720+40, stimulus_vec = "checkflake",
-                                       media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = "participant_name", trial = "trial",
+                                       media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = id_col, trial = "trial",
                                        gaze_event_index_col = "eye_movement_type_index", x_fix = "fixation_point_x", y_fix = "fixation_point_y",
                                        stimulus_height = 360+80, stimulus_width = 360+80, aoi_buffer_px_x = 0, aoi_buffer_px_y = 0) |> # aoi buffer of 80px is already in xyminmax
   mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |> 
@@ -145,7 +157,7 @@ df_acc_tot <- df_acc_at |>
   bind_rows(df_acc_objtop, df_acc_objbot,
             df_acc_poptopleft, df_acc_poptopright, df_acc_popbotleft, df_acc_popbotright, df_acc_popcenter) |> 
   mutate(variable = "accuracy")|> 
-  left_join(df |> select(trial, recording_name, recording_date, average_calibration_accuracy_degrees) |> distinct()) 
+  left_join(df |> select(trial, id_col, recording_date, average_calibration_accuracy_degrees) |> distinct()) 
 rm(df_acc_at, df_acc_objbot, df_acc_objtop, df_acc_popbotleft, df_acc_popbotright, df_acc_popcenter, df_acc_poptopleft, df_acc_poptopright)
 
 # ## [1.2] Precision RMS ----
@@ -158,7 +170,7 @@ rm(df_acc_at, df_acc_objbot, df_acc_objtop, df_acc_popbotleft, df_acc_popbotrigh
 # 
 # ## Attention Getter ----
 # df_precrms_at <- calculate_precision_rms(df |> filter(stimulus == "at") |> mutate(trial = trial), 
-#                                          media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = "participant_name", 
+#                                          media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = id_col, 
 #                                          stimulus_vec = "at", gaze_event_index_col = "eye_movement_type_index", gaze_event_dur_col = "gaze_event_duration_revised",
 #                                          fixation_point_x = "fixation_point_x", fixation_point_y = "fixation_point_y", x = "Gaze.point.X", y = "Gaze.point.Y", 
 #                                          screen_height = 1080, screen_width = 1920, aoi_buffer_px_x = 80, aoi_buffer_px_y = 80,
@@ -182,7 +194,7 @@ rm(df_acc_at, df_acc_objbot, df_acc_objtop, df_acc_popbotleft, df_acc_popbotrigh
 # 
 # for(j in c(1:7)){
 #   df_precrms_objpop_temp <- calculate_precision_rms(df |> filter(stimulus == param_precrms_objpop$stimulus[j] & position == param_precrms_objpop$position[j]), 
-#                                                     media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = "participant_name", 
+#                                                     media_col = "stimulus", gaze_event_col = "eye_movement_type", id_col = id_col, 
 #                                                     stimulus_vec = param_precrms_objpop$stimulus[j], 
 #                                                     gaze_event_index_col = "eye_movement_type_index", gaze_event_dur_col = "gaze_event_duration_revised",
 #                                                     fixation_point_x = "fixation_point_x", fixation_point_y = "fixation_point_y", x = "Gaze.point.X", y = "Gaze.point.Y", 
@@ -244,7 +256,7 @@ rm(df_acc_at, df_acc_objbot, df_acc_objtop, df_acc_popbotleft, df_acc_popbotrigh
 # ## [2.1] Proportional Looking Time in AOI ----
 # ### Attention Getter ----
 # df_rlt_at <- calculate_ltaoi(df |> filter(stimulus == "at"), media_col = "stimulus", stimulus_vec = "at",
-#                              rectime = "Recording.timestamp", id_col = "participant_name", 
+#                              rectime = "Recording.timestamp", id_col = id_col, 
 #                              fixation_point_x = "fixation_point_x", fixation_point_y = "fixation_point_y", x = "Gaze.point.X", y = "Gaze.point.Y", 
 #                              aoi_left_upper = c(783, 363), aoi_right_lower = c(1137, 717), is_00_upleftcorner = T) |> # aoi buffer of 80px is already in aoi_left_upper and aoi_right_lower 
 #   map(~ mutate(.x, stimulus = "at", position = "center", variable = "relativelookingtime"))
@@ -252,7 +264,7 @@ rm(df_acc_at, df_acc_objbot, df_acc_objtop, df_acc_popbotleft, df_acc_popbotrigh
 # 
 # ### Top Object ----
 # df_rlt_objtop <- calculate_ltaoi(df |> filter(stimulus == "object" & position == "up"), media_col = "stimulus", stimulus_vec = "object",
-#                                  rectime = "Recording.timestamp", id_col = "participant_name", 
+#                                  rectime = "Recording.timestamp", id_col = id_col, 
 #                                  fixation_point_x = "fixation_point_x", fixation_point_y = "fixation_point_y", x = "Gaze.point.X", y = "Gaze.point.Y", 
 #                                  aoi_left_upper = c(790, 0), aoi_right_lower = c(1130, 340), is_00_upleftcorner = T) |> # aoi buffer of 80px is already in aoi_left_upper and aoi_right_lower
 #   map(~ mutate(.x, stimulus = "object", position = "top", variable = "relativelookingtime"))
@@ -262,42 +274,42 @@ rm(df_acc_at, df_acc_objbot, df_acc_objtop, df_acc_popbotleft, df_acc_popbotrigh
 # 
 # ### Bottom Object ----
 # df_rlt_objbot <- calculate_ltaoi(df |> filter(stimulus == "object" & position == "down"), media_col = "stimulus", stimulus_vec = "object",
-#                                  rectime = "Recording.timestamp", id_col = "participant_name", 
+#                                  rectime = "Recording.timestamp", id_col = id_col, 
 #                                  fixation_point_x = "fixation_point_x", fixation_point_y = "fixation_point_y", x = "Gaze.point.X", y = "Gaze.point.Y", 
 #                                  aoi_left_upper = c(790, 740), aoi_right_lower = c(1130, 1080), is_00_upleftcorner = T) |> # aoi buffer of 80px is already in aoi_left_upper and aoi_right_lower
 #   map(~ mutate(.x, stimulus = "object", position = "bottom", variable = "relativelookingtime"))
 # 
 # ### Popflake Top Left ----
 # df_rlt_poptopleft <- calculate_ltaoi(df |> filter(stimulus == "checkflake" & position == "topleft"), media_col = "stimulus", stimulus_vec = "checkflake",
-#                                      rectime = "Recording.timestamp", id_col = "participant_name", 
+#                                      rectime = "Recording.timestamp", id_col = id_col, 
 #                                      fixation_point_x = "fixation_point_x", fixation_point_y = "fixation_point_y", x = "Gaze.point.X", y = "Gaze.point.Y", 
 #                                      aoi_left_upper = c(300, 90), aoi_right_lower = c(660, 450), is_00_upleftcorner = T) |> # aoi buffer of 80px is already in aoi_left_upper and aoi_right_lower
 #   map(~ mutate(.x, stimulus = "checkflake", position = "topleft", variable = "relativelookingtime"))
 # 
 # ### Popflake Top Right ----
 # df_rlt_poptopright <- calculate_ltaoi(df |> filter(stimulus == "checkflake" & position == "topright"), media_col = "stimulus", stimulus_vec = "checkflake",
-#                                       rectime = "Recording.timestamp", id_col = "participant_name", 
+#                                       rectime = "Recording.timestamp", id_col = id_col, 
 #                                       fixation_point_x = "fixation_point_x", fixation_point_y = "fixation_point_y", x = "Gaze.point.X", y = "Gaze.point.Y", 
 #                                       aoi_left_upper = c(1260, 90), aoi_right_lower = c(1620, 450), is_00_upleftcorner = T) |> # aoi buffer of 80px is already in aoi_left_upper and aoi_right_lower
 #   map(~ mutate(.x, stimulus = "checkflake", position = "topright", variable = "relativelookingtime"))
 # 
 # ### Popflake Bottom Left ----
 # df_rlt_popbotleft <- calculate_ltaoi(df |> filter(stimulus == "checkflake" & position == "botleft"), media_col = "stimulus", stimulus_vec = "checkflake",
-#                                      rectime = "Recording.timestamp", id_col = "participant_name", 
+#                                      rectime = "Recording.timestamp", id_col = id_col, 
 #                                      fixation_point_x = "fixation_point_x", fixation_point_y = "fixation_point_y", x = "Gaze.point.X", y = "Gaze.point.Y", 
 #                                      aoi_left_upper = c(300, 630), aoi_right_lower = c(660, 990), is_00_upleftcorner = T) |> # aoi buffer of 80px is already in aoi_left_upper and aoi_right_lower
 #   map(~ mutate(.x, stimulus = "checkflake", position = "botleft", variable = "relativelookingtime"))
 # 
 # ### Popflake Bottom Right ----
 # df_rlt_popbotright <- calculate_ltaoi(df |> filter(stimulus == "checkflake" & position == "botright"), media_col = "stimulus", stimulus_vec = "checkflake",
-#                                       rectime = "Recording.timestamp", id_col = "participant_name", 
+#                                       rectime = "Recording.timestamp", id_col = id_col, 
 #                                       fixation_point_x = "fixation_point_x", fixation_point_y = "fixation_point_y", x = "Gaze.point.X", y = "Gaze.point.Y", 
 #                                       aoi_left_upper = c(1260, 630), aoi_right_lower = c(1620, 990), is_00_upleftcorner = T) |> # aoi buffer of 80px is already in aoi_left_upper and aoi_right_lower
 #   map(~ mutate(.x, stimulus = "checkflake", position = "botright", variable = "relativelookingtime"))
 # 
 # ### Popflake Center ----
 # df_rlt_popcenter <- calculate_ltaoi(df |> filter(stimulus == "checkflake" & position == "centercenter"), media_col = "stimulus", stimulus_vec = "checkflake",
-#                                     rectime = "Recording.timestamp", id_col = "participant_name", 
+#                                     rectime = "Recording.timestamp", id_col = id_col, 
 #                                     fixation_point_x = "fixation_point_x", fixation_point_y = "fixation_point_y", x = "Gaze.point.X", y = "Gaze.point.Y", 
 #                                     aoi_left_upper = c(780, 360), aoi_right_lower = c(1140, 720), is_00_upleftcorner = T) |> # aoi buffer of 80px is already in aoi_left_upper and aoi_right_lower
 #   map(~ mutate(.x, stimulus = "checkflake", position = "centercenter", variable = "relativelookingtime"))
@@ -318,7 +330,7 @@ rm(df_acc_at, df_acc_objbot, df_acc_objtop, df_acc_popbotleft, df_acc_popbotrigh
 # if(folder == "chimps_2p"){
 #   df_rlt_tot <- df_rlt_tot |> 
 #     mutate(calibration = rep(df$Participant.name |> unique(), nrow(df_rlt_tot))) |> 
-#     mutate(calibration = gsub("_exp1|_exp2|_exp3|_exp4", "", calibration)) |> 
+#     mutate(calibration = gsub("_exp2|_exp2|_exp3|_exp4", "", calibration)) |> 
 #     left_join(df |> select(Recording.name, trial) |> distinct(), by = "trial") |> 
 #     rename(session = Recording.name) |> 
 #     rename(participant_name = id) |> 
@@ -361,9 +373,9 @@ rm(df_acc_at, df_acc_objbot, df_acc_objtop, df_acc_popbotleft, df_acc_popbotrigh
 # #   drop_na(participant_name)
 
 # [3] Merge DF with ET-DQ and ET-Outcomes ---------------------------------
-write.table(df_acc_tot, here("exp1", "data", "preproc", "chimps", paste0("accuracy_", participant_names[nr])), row.names = F, quote = F, sep = "\t", dec = ".")
+write.table(df_acc_tot, here("exp2", "data", "preproc_dataquality", folder, paste0("accuracy_", participant_names[nr])), row.names = F, quote = F, sep = "\t", dec = ".")
 # write.table(df_precrms_tot |> select(-eye_movement_type_index), here("data", "preproc_included_2", folder, paste0("precisionrms_", participant_names[nr])), row.names = F, quote = F, sep = "\t", dec = ".")
 # write.table(dfoutcome |> distinct(), here("data", "preproc_included_2", folder, paste0("etoutcomes_", participant_names[nr])), row.names = F, quote = F, sep = "\t", dec = ".")
 # rm(df, df_acc_tot, df_precrms_tot, dfoutcome)
-print(df_acc_tot |> group_by(participant_name) |> summarize(acc_visd = median(acc_visd, na.rm = T), average_calibration_accuracy_degrees = min(average_calibration_accuracy_degrees, na.rm = T)))
+print(participant_names[nr])
 }

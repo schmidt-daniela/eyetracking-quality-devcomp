@@ -13,7 +13,7 @@ library(ggforce)
 library(readxl)
 
 # Set Parameters ----------------------------------------------------------
-folder <- "alex_calibration_5p" # alex_calibration_5p or human_calibration_9p or ape_calibration_2p
+folder <- "human_calibration_9p" # alex_calibration_5p or human_calibration_9p or ape_calibration_2p
 ape_size <- ifelse(folder %in% c("alex_calibration_5p", "human_calibration_9p"), 16, 17)
 buffer <- 120 # 120px (3°) in chimps
 

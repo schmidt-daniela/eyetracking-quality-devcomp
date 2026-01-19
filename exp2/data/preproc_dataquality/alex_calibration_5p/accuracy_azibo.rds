@@ -1,0 +1,16 @@
+trial	participant_name_session	accuracy	acc_visd	stimulus	position	variable	recording_date	average_calibration_accuracy_degrees
+1	azibo_session2_azibo_alex	105.513032370414	2.78132353328411	at	center	accuracy	06/09/2025	0.53
+3	azibo_session2_azibo_alex	131.855982041013	3.47572368660111	at	center	accuracy	06/09/2025	0.53
+7	azibo_session2_azibo_alex	44.3846820423443	1.1699802186362	at	center	accuracy	06/09/2025	0.53
+9	azibo_session2_azibo_alex	111.139551915598	2.92963858849518	at	center	accuracy	06/09/2025	0.53
+7	azibo_session1_azibo_alex	178.843507011018	4.71431484481043	object	top	accuracy	06/03/2025	0.53
+2	azibo_session2_azibo_alex	48.5077313425396	1.27866379818934	object	top	accuracy	06/09/2025	0.53
+6	azibo_session2_azibo_alex	216.261415883648	5.70065092269295	object	top	accuracy	06/09/2025	0.53
+9	azibo_session1_azibo_alex	125.2557383915	3.30174126399995	object	bottom	accuracy	06/03/2025	0.53
+11	azibo_session1_azibo_alex	126.66885963014	3.33899113985048	object	bottom	accuracy	06/03/2025	0.53
+4	azibo_session2_azibo_alex	137.266164804004	3.61833610423355	object	bottom	accuracy	06/09/2025	0.53
+8	azibo_session2_azibo_alex	74.8131004570724	1.97207332804843	object	bottom	accuracy	06/09/2025	0.53
+1	azibo_session1_azibo_alex	187.555325171001	4.94395837150759	checkflake	top_left	accuracy	06/03/2025	0.53
+4	azibo_session1_azibo_alex	75.2396172239067	1.98331631002218	checkflake	bot_left	accuracy	06/03/2025	0.53
+2	azibo_session1_azibo_alex	97.9081201943945	2.58085804832424	checkflake	bot_right	accuracy	06/03/2025	0.53
+5	azibo_session1_azibo_alex	176.465294038233	4.65162515084782	checkflake	center	accuracy	06/03/2025	0.53

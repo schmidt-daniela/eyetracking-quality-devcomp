@@ -1,0 +1,15 @@
+trial	participant_name_session	accuracy	acc_visd	stimulus	position	variable	recording_date	average_calibration_accuracy_degrees
+8	youma_session1_youma_alex	27.459060435492	0.723820833079568	at	center	accuracy	06/03/2025	0.53
+10	youma_session1_youma_alex	88.2949602185765	2.32745515136168	at	center	accuracy	06/03/2025	0.53
+1	youma_session2_youma_alex	74.3303437365925	1.95934786089658	at	center	accuracy	06/25/2025	0.53
+3	youma_session2_youma_alex	214.741705311288	5.66059135200555	at	center	accuracy	06/25/2025	0.53
+5	youma_session2_youma_alex	144.360659460949	3.80534698339061	at	center	accuracy	06/25/2025	0.53
+7	youma_session2_youma_alex	66.6033032213869	1.75566307291576	at	center	accuracy	06/25/2025	0.53
+9	youma_session2_youma_alex	112.329871361094	2.96101540907845	at	center	accuracy	06/25/2025	0.53
+7	youma_session1_youma_alex	46.4865571966778	1.22538564770443	object	top	accuracy	06/03/2025	0.53
+2	youma_session2_youma_alex	108.747413762351	2.86658182677558	object	top	accuracy	06/25/2025	0.53
+9	youma_session1_youma_alex	127.318498263214	3.35611561421832	object	bottom	accuracy	06/03/2025	0.53
+1	youma_session1_youma_alex	87.6641317757725	2.31082651360936	checkflake	top_left	accuracy	06/03/2025	0.53
+3	youma_session1_youma_alex	130.980914640264	3.45265690991735	checkflake	top_right	accuracy	06/03/2025	0.53
+4	youma_session1_youma_alex	119.012604374495	3.13717225131168	checkflake	bot_left	accuracy	06/03/2025	0.53
+5	youma_session1_youma_alex	33.9705755029261	0.895464370257131	checkflake	center	accuracy	06/03/2025	0.53

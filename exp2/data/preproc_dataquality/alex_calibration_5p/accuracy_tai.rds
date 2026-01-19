@@ -1,0 +1,13 @@
+trial	participant_name_session	accuracy	acc_visd	stimulus	position	variable	recording_date	average_calibration_accuracy_degrees
+6	tai_session1_tai_alex	106.230880632705	2.8002460134781	at	center	accuracy	06/02/2025	0.53
+8	tai_session1_tai_alex	90.2551937563706	2.37912690741793	at	center	accuracy	06/02/2025	0.53
+1	tai_session2_tai_alex	250.199920063936	6.59526989288536	at	center	accuracy	06/09/2025	0.53
+3	tai_session2_tai_alex	84.0238061504	2.21486753012454	at	center	accuracy	06/09/2025	0.53
+7	tai_session1_tai_alex	83.5224520712844	2.20165183659906	object	top	accuracy	06/02/2025	0.53
+6	tai_session2_tai_alex	81	2.13516	object	top	accuracy	06/09/2025	0.53
+10	tai_session2_tai_alex	66.6408283261845	1.75665223467822	object	top	accuracy	06/09/2025	0.53
+9	tai_session1_tai_alex	102.396288995256	2.69916617791495	object	bottom	accuracy	06/02/2025	0.53
+11	tai_session1_tai_alex	83.3846508657319	2.19801939682069	object	bottom	accuracy	06/02/2025	0.53
+4	tai_session2_tai_alex	79.4040301244213	2.09309023407974	object	bottom	accuracy	06/09/2025	0.53
+1	tai_session1_tai_alex	210.608641798004	5.55164379779539	checkflake	top_left	accuracy	06/02/2025	0.53
+2	tai_session1_tai_alex	111.220501707194	2.93177242500164	checkflake	bot_right	accuracy	06/02/2025	0.53

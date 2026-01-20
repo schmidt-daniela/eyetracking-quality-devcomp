@@ -3,7 +3,7 @@
 ## The identification of eye blink is based on their characteristic of
 ## having a pronounced drop in the pupillary signal, followed by a full loss of signal. 
 # (https://link.springer.com/article/10.3758/s13428-017-1008-1)
-## Jan 19 – Daniela Schmidt
+## Jan 20 – Daniela Schmidt
 
 # Clear Workspace ---------------------------------------------------------
 rm(list = ls())
@@ -17,7 +17,7 @@ library(gazer)
 source(here("exp1", "R", "blink.R"))
 
 # Adjust Parameter --------------------------------------------------------
-folder_name <- "4m" # "4m" or "6m" or "9m" or "18m" or "adults"
+folder_name <- "18m" # "4m" or "6m" or "9m" or "18m" or "adults"
 filenames <- list.files(path = here("exp1", "data", "raw_clean", folder_name))
 
 # Read and Manipulate Data ------------------------------------------------
@@ -103,31 +103,32 @@ for(i in 1:length(filenames)){
   ## Exclude Too Short/ Long Blinks ----
   df <- filter_blinks_by_duration(df, blink_col = "blink_detection.left", blink_value = "blink",
                                   timestamp_col  = "recording_timestamp",  # assumed in ms
-                                  min_ms = 10, max_ms = 400)
+                                  min_ms = 100, max_ms = 400) # min-max range based on Hessels et al. (2015) (https://www.uu.nl/sites/default/files/hessels_et_al-2015-infancy.pdf)
   df <- filter_blinks_by_duration(df, blink_col = "blink_detection.right", blink_value = "blink",
                                   timestamp_col  = "recording_timestamp",  # assumed in ms
-                                  min_ms = 10, max_ms = 400)
+                                  min_ms = 100, max_ms = 400)
   
   ## Visualize Detected Blinks ----
   plots <- plot_blinks(
     df,
     eye = "both",
-    flank_n = 10,
+    flank_n = 5,
     min_run = 2,
     time_col  = "timeline_trial_tot",
     pupil_left_col = "pupil_diameter_left",
     pupil_right_col = "pupil_diameter_right",
     blink_col_left  = "blink_detection.left",
     blink_col_right = "blink_detection.right",
-    title_cols = c("participant_name", "recording_name", "trial")
+    drop_na_trial = TRUE,
+    title_cols = c("participant_name", "recording_name", "trial", "stimulus_position")
   )
-  save_detected_blinks_pdf(plots, df)
+  save_detected_blinks_pdf(plots, df, out_dir = here::here("exp1", "doc", folder_name))
   
   ## Write Table ----
-  write.table(df, here("exp1", "data", "raw_clean_blink", folder_name, filenames[nr]),
+  write.table(df, here("exp1", "data", "raw_clean_blink", folder_name, filenames[nr]), 
               row.names = F, quote = F, sep = "\t", dec = ".")
   
   print(i)
 }
 
-# next: run the same for humans
+# next: check 4m with gaze replay

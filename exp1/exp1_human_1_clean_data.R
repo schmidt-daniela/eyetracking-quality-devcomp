@@ -11,14 +11,9 @@ rm(list = ls())
 library(here)
 library(tidyverse)
 library(readxl)
-# remotes::install_github("dmirman/gazer")
-library(gazer)
-# install.packages("remotes")   # only once, if you don't have it yet
-# remotes::install_github("tmalsburg/saccades/saccades", dependencies = TRUE)
-library(saccades)
 
 # Set Parameters ----------------------------------------------------------
-folder <- "4m" # "4m", "6m", "9m", "18m", or "adults"
+folder <- "adults" # "4m", "6m", "9m", "18m", or "adults"
 sample_size <- 32
 buffer <- 40 # 40px (1°) in humans
 
@@ -278,10 +273,19 @@ for(i in c(1:sample_size)){
     ungroup()
 
   # Add information about participant
-  df_joined <- df |> 
-    bind_cols(protocol |>  
-    select(age_ddd, sex, order, no_household, no_siblings, multilingual, kindergarten_yn, tagesmutter_yn, experimenter) |> 
-    slice(i))
+  if(folder != "adults"){
+    df_joined <- df |> 
+      bind_cols(protocol |>  
+                  select(age_ddd, sex, order, no_household, no_siblings, multilingual, kindergarten_yn, tagesmutter_yn, experimenter) |> 
+                  slice(i))
+  }
+  
+  if(folder == "adults"){
+    df_joined <- df |> 
+      bind_cols(protocol |>  
+                  select(sex, order, age_md, experimenter) |> 
+                  slice(i))
+  }
   
   # Write data
   fname_base <- sub("\\.tsv$", "", filename)

@@ -123,9 +123,9 @@ for(i in 1:length(filenames)){
   )
   save_detected_blinks_pdf(plots, df)
   
-  ## Write Table ----
-  write.table(df, here("exp1", "data", "raw_clean_blink", folder_name, filenames[nr]),
-              row.names = F, quote = F, sep = "\t", dec = ".")
+  # Write data
+  out_rds <- here("exp1", "data", "raw_clean_blink", folder_name, filenames[nr])
+  saveRDS(df, out_rds, compress = "xz")
   
   print(i)
 }

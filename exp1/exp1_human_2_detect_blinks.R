@@ -17,7 +17,7 @@ library(gazer)
 source(here("exp1", "R", "blink.R"))
 
 # Adjust Parameter --------------------------------------------------------
-folder_name <- "18m" # "4m" or "6m" or "9m" or "18m" or "adults"
+folder_name <- "4m" # "4m" or "6m" or "9m" or "18m" or "adults"
 filenames <- list.files(path = here("exp1", "data", "raw_clean", folder_name))
 
 # Read and Manipulate Data ------------------------------------------------
@@ -123,10 +123,10 @@ for(i in 1:length(filenames)){
     title_cols = c("participant_name", "recording_name", "trial", "stimulus_position")
   )
   save_detected_blinks_pdf(plots, df, out_dir = here::here("exp1", "doc", folder_name))
-  
-  ## Write Table ----
-  write.table(df, here("exp1", "data", "raw_clean_blink", folder_name, filenames[nr]), 
-              row.names = F, quote = F, sep = "\t", dec = ".")
+
+  # Write data
+  out_rds <- here("exp1", "data", "raw_clean_blink", folder_name, filenames[nr])
+  saveRDS(df, out_rds, compress = "xz")
   
   print(i)
 }

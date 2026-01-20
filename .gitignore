@@ -11,8 +11,12 @@ exp1/data/raw_clean/
 exp2/data/raw_clean/
 
 # Doc folder
-exp1/doc/blink_check/
-exp2/doc/blink_check/
+exp1/doc/4m/
+exp1/doc/6m/
+exp1/doc/9m/
+exp1/doc/18m/
+exp1/doc/adults/
+exp1/doc/chimps/
 
 # Local files
 exp1/doc/protocol_decoded.xlsx

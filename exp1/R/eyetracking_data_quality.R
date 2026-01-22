@@ -33,20 +33,21 @@ calculate_accuracy <- function(df, xmin = 849, xmax = 1072, ymin = 417, ymax = 6
 # Precision RMS ----
 # Formula: https://dl.acm.org/doi/pdf/10.1145/2168556.2168563
 calculate_precision_rms <- function(df, media_col = "Presented.Media.name", gaze_event_col = "Eye.movement.type", id_col = "Recording.name", 
-                                    stimulus_vec = c("ATTENTION_Familiarization.mp4", "ATTENTION_Preflooking.mp4"),
+                                    stimulus_vec = c("ATTENTION_Familiarization.mp4", "ATTENTION_Preflooking.mp4"), trial = "trial",
                                     gaze_event_index_col = "Eye.movement.type.index", gaze_event_dur_col = "Gaze.event.duration",
                                     x_fix = "Fixation.point.X", y_fix = "Fixation.point.Y", x = "Gaze.point.X", y = "Gaze.point.Y", 
-                                    screen_height = 1080, screen_width = 1920, aoi_buffer_px_x = 40, aoi_buffer_px_y = 40,
+                                    screen_height_min = 0, screen_width_min = 0,
+                                    screen_height_max = 1080, screen_width_max = 1920, aoi_buffer_px_x = 40, aoi_buffer_px_y = 40,
                                     xmin = 849, xmax = 1072, ymin = 417, ymax = 672,
-                                    off_exclude = F, longest_fix_only = F, AOI_only = F) {
+                                    off_exclude = TRUE, longest_fix_only = FALSE, AOI_only = FALSE) {
   coordinates_df_sub <- df |> 
     filter(.data[[media_col]] %in% stimulus_vec) |> 
     filter(.data[[gaze_event_col]] == "Fixation")
   
   if(off_exclude == T){
       # Exclude all fixations whose coordinates are outside the screen AOI
-      exclude_rows <- which(coordinates_df_sub[[x_fix]] < 0 | coordinates_df_sub[[x_fix]] > screen_width + aoi_buffer_px_x |
-                              coordinates_df_sub[[y_fix]] < 0 | coordinates_df_sub[[y_fix]] > screen_height + aoi_buffer_px_y)
+      exclude_rows <- which(coordinates_df_sub[[x_fix]] < screen_width_min - aoi_buffer_px_x | coordinates_df_sub[[x_fix]] > screen_width_max + aoi_buffer_px_x |
+                              coordinates_df_sub[[y_fix]] < screen_height_min - aoi_buffer_px_x | coordinates_df_sub[[y_fix]] > screen_height_max + aoi_buffer_px_y)
       if(exclude_rows |> length() > 0){coordinates_df_sub <- coordinates_df_sub[-exclude_rows,]}
       }
   
@@ -59,13 +60,13 @@ calculate_precision_rms <- function(df, media_col = "Presented.Media.name", gaze
   
   if(longest_fix_only == T){
       coordinates_df_sub <- coordinates_df_sub |> 
-        group_by(.data[[id_col]], trial) |>
+        group_by(.data[[id_col]], .data[[trial]]) |>
         filter(.data[[gaze_event_dur_col]] == max(.data[[gaze_event_dur_col]], na.rm = T)) |> 
         ungroup()
     }
 
     prec_rms <- coordinates_df_sub |> 
-      group_by(.data[[id_col]], .data[[gaze_event_index_col]], trial) |> 
+      group_by(.data[[id_col]], .data[[gaze_event_index_col]], .data[[trial]]) |> 
       mutate(diff_coord_x = c(diff(.data[[x]]), NA),
              diff_coord_y = c(diff(.data[[y]]), NA)) |>
       mutate(eucl_dist = sqrt(diff_coord_x^2 + diff_coord_y^2)) |> 
@@ -79,12 +80,12 @@ calculate_precision_rms <- function(df, media_col = "Presented.Media.name", gaze
 
 # Precision SD ----
 # Formula: https://dl.acm.org/doi/pdf/10.1145/2168556.2168563
-# Default setting correspond to REJOINT
 calculate_precision_sd <- function(df, media_col = "Presented.Media.name", gaze_event_col = "Eye.movement.type", id_col = "Recording.name",
-                                   stimulus_vec = c("ATTENTION_Familiarization.mp4", "ATTENTION_Preflooking.mp4"),
+                                   stimulus_vec = c("ATTENTION_Familiarization.mp4", "ATTENTION_Preflooking.mp4"), trial = "trial",
                                    gaze_event_dur_col = "Gaze.event.duration", gaze_event_index_col = "Eye.movement.type.index",
                                    x_fix = "Fixation.point.X", y_fix = "Fixation.point.Y", x = "Gaze.point.X", y = "Gaze.point.Y", 
-                                   screen_height = 1080, screen_width = 1920, aoi_buffer_px_x = 40, aoi_buffer_px_y = 40,
+                                   screen_height_min = 0, screen_width_min = 0,
+                                   screen_height_max = 1080, screen_width_max = 1920, aoi_buffer_px_x = 40, aoi_buffer_px_y = 40,
                                    xmin = 849, xmax = 1072, ymin = 417, ymax = 672,
                                    off_exclude = F, longest_fix_only = F, AOI_only = F){
   
@@ -94,8 +95,8 @@ calculate_precision_sd <- function(df, media_col = "Presented.Media.name", gaze_
 
   if(off_exclude == T){
     # Exclude all fixations whose coordinates are outside the screen AOI
-    exclude_rows <- which(coordinates_df_sub[[x_fix]] < 0 | coordinates_df_sub[[x_fix]] > screen_width + aoi_buffer_px_x |
-                            coordinates_df_sub[[y_fix]] < 0 | coordinates_df_sub[[y_fix]] > screen_height + aoi_buffer_px_y)
+    exclude_rows <- which(coordinates_df_sub[[x_fix]] < screen_width_min - aoi_buffer_px_x | coordinates_df_sub[[x_fix]] > screen_width_max + aoi_buffer_px_x |
+                            coordinates_df_sub[[y_fix]] < screen_height_min - aoi_buffer_px_x | coordinates_df_sub[[y_fix]] > screen_height_max + aoi_buffer_px_y)
     if(exclude_rows |> length() > 0){coordinates_df_sub <- coordinates_df_sub[-exclude_rows,]}
   }
   
@@ -108,14 +109,14 @@ calculate_precision_sd <- function(df, media_col = "Presented.Media.name", gaze_
   
   if(longest_fix_only == T){
     coordinates_df_sub <- coordinates_df_sub |> 
-      group_by(.data[[id_col]], trial) |>
+      group_by(.data[[id_col]], .data[[trial]]) |>
       filter(.data[[gaze_event_dur_col]] == max(.data[[gaze_event_dur_col]], na.rm = T)) |> 
       ungroup()
   }
     
     prec_sd <- coordinates_df_sub |> 
-      select({{x}}, {{y}}, {{gaze_event_index_col}}, {{id_col}}, trial) |> 
-      group_by(.data[[id_col]], .data[[gaze_event_index_col]], trial) |> 
+      select({{x}}, {{y}}, {{gaze_event_index_col}}, {{id_col}}, .data[[trial]]) |> 
+      group_by(.data[[id_col]], .data[[gaze_event_index_col]], .data[[trial]]) |> 
       mutate(diff_coord_x = c(diff(.data[[x]]), NA),
              diff_coord_y = c(diff(.data[[y]]), NA)) |>
       mutate(eucl_dist = sqrt(diff_coord_x^2 + diff_coord_y^2)) |> 

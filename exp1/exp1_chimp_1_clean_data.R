@@ -96,10 +96,6 @@ for(i in c(1:sample_size)){
               viewport_position_y, viewport_width, viewport_height, full_page_width, full_page_height, # variables with NA only
               mouse_position_x,mouse_position_y)) # variable not of interest
   
-  # # Remove rows that are not of interest
-  # df <- df |> 
-  #   filter(presented_stimulus_name != "Eyetracker Calibration")
-  
   # Prepare stimulus information
   df <- df |>
     separate(presented_stimulus_name,

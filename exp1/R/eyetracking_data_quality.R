@@ -1,6 +1,3 @@
-# todo: check in the end whether all arguments are used in the function
-# todo: discuss drop_na(eucl_dist) mit Maleen
-
 # Accuracy ----
 calculate_accuracy <- function(df, xmin = 849, xmax = 1072, ymin = 417, ymax = 672, stimulus_vec = c("ATTENTION_Familiarization.mp4", "ATTENTION_Preflooking.mp4"),
                                media_col = "Presented.Media.name", gaze_event_col = "Eye.movement.type", id_col = "Recording.name", trial = "trial",
@@ -129,3 +126,104 @@ calculate_precision_sd <- function(df, media_col = "Presented.Media.name", gaze_
 }
 
 # Robustness ----
+#' Calculate robustness per trial.
+#'
+#' Robustness is defined as the mean length (ms) of consecutive valid gaze samples.
+#' A "valid chunk" is a run of consecutive rows classified as valid.
+#' Each chunk duration is the sum of `gaze_sample_duration` within that chunks.
+#' The robustness per trial is the mean duration of all valid chunks within that trial.
+#'
+#' @param df A data frame (or tibble) with gaze samples.
+#' @param trial_col Name of the trial column.
+#' @param gaze_x_col Name of the x gaze column (numeric).
+#' @param gaze_y_col Name of the y gaze column (numeric).
+#' @param sample_duration_col Name of the gaze sample duration column (ms; numeric).
+#' @param blink_left_col Name of the left blink-detection column.
+#' @param blink_right_col Name of the right blink-detection column.
+#' @param blink_removal Logical. If `TRUE`, blink samples are "removed" by setting
+#'   x/y to `blink_replacement_value` where a blink is detected.
+#' @param blink_label Value in blink columns indicating a blink (default: `"blink"`).
+#' @param blink_replacement_value Numeric value written into x/y during blink removal
+#'   (default: `99999`).
+#' @param validity_col Name of the new validity column to create (default: `"sample_validity"`).
+#'
+#' @return A tibble with exactly one row per trial: `trial` and `robustness_ms`.
+#'
+#' @examples
+#' # robustness_tbl <- calculate_robustness(df)
+#'
+calculate_robustness <- function(
+    df,
+    trial_col             = "trial",
+    gaze_x_col            = "gaze_point_x",
+    gaze_y_col            = "gaze_point_y",
+    sample_duration_col   = "gaze_sample_duration",
+    blink_left_col        = "blink_detection.left",
+    blink_right_col       = "blink_detection.right",
+    blink_removal         = TRUE,
+    blink_label           = "blink",
+    blink_replacement_value = 99999,
+    validity_col          = "sample_validity"
+) {
+  
+  # Basic Checks
+  needed <- c(trial_col, gaze_x_col, gaze_y_col, sample_duration_col, blink_left_col, blink_right_col)
+  missing_cols <- setdiff(needed, names(df))
+  if (length(missing_cols) > 0) {
+    stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
+  }
+  
+  # Blink Removal
+  if (isTRUE(blink_removal)) {
+    # Identify blink rows
+    bl_left  <- df[[blink_left_col]]
+    bl_right <- df[[blink_right_col]]
+    is_blink <- (!is.na(bl_left)  & bl_left == blink_label) |
+      (!is.na(bl_right) & bl_right == blink_label)
+    
+    # Set x/y to replacement value on blink rows
+    df[[gaze_x_col]] <- ifelse(is_blink, blink_replacement_value, df[[gaze_x_col]])
+    df[[gaze_y_col]] <- ifelse(is_blink, blink_replacement_value, df[[gaze_y_col]])
+  }
+  
+  # Add Validity Column
+  x <- df[[gaze_x_col]]
+  y <- df[[gaze_y_col]]
+  
+  valid_flag <- !is.na(x) | !is.na(y)
+  
+  df[[validity_col]] <- ifelse(valid_flag, "valid", "missing")
+  
+  # Calculate Robustness
+  trial_vec <- df[[trial_col]]
+  
+  run_id <- integer(nrow(df))
+  run_id[] <- NA_integer_
+  
+  split_idx <- split(seq_len(nrow(df)), trial_vec)
+  for (idx in split_idx) {
+    v <- valid_flag[idx]
+    starts <- v & !dplyr::lag(v, default = FALSE)
+    rid <- cumsum(starts)
+    run_id[idx] <- ifelse(v, rid, NA_integer_)
+  }
+  df[[".valid_run_id"]] <- run_id
+  
+  robustness_tbl <- df |>
+    dplyr::filter(.data[[validity_col]] == "valid") |>
+    dplyr::group_by(.data[[trial_col]], .data[[".valid_run_id"]]) |>
+    dplyr::summarise(run_duration_ms = sum(.data[[sample_duration_col]], na.rm = TRUE),
+                     .groups = "drop") |>
+    dplyr::group_by(.data[[trial_col]]) |>
+    dplyr::summarise(
+      robustness_ms = if (dplyr::n() == 0) NA_real_ else mean(run_duration_ms, na.rm = TRUE),
+      .groups = "drop"
+    ) |>
+    dplyr::rename(trial = !!trial_col)
+  
+  all_trials <- dplyr::tibble(trial = unique(df[[trial_col]]))
+  robustness_tbl <- dplyr::left_join(all_trials, robustness_tbl, by = "trial") |>
+    dplyr::arrange(trial)
+  
+  robustness_tbl
+}

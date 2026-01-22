@@ -1,7 +1,4 @@
-# todo: check in the end whether all arguments are used in the function
-
 # Fixation Duration ----
-# Default setting correspond to REJOINT
 calculate_fixdur <- function(df, gaze_event_col = "Eye.movement.type", media_col = "Presented.Media.name",
                              stimulus_vec = c("ATTENTION_Familiarization.mp4", "ATTENTION_Preflooking.mp4"),
                              id_col = "Recording.name", gaze_event_index_col = "Eye.movement.type.index", 
@@ -34,7 +31,6 @@ calculate_fixdur <- function(df, gaze_event_col = "Eye.movement.type", media_col
 }
 
 # Fixation Number ----
-# Default setting correspond to REJOINT
 calculate_fixnum <- function(df, gaze_event_col = "Eye.movement.type", media_col = "Presented.Media.name",
                              stimulus_vec = c("ATTENTION_Familiarization.mp4", "ATTENTION_Preflooking.mp4"),
                              id_col = "Recording.name", gaze_event_index_col = "Eye.movement.type.index", 

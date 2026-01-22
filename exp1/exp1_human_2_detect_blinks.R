@@ -17,7 +17,7 @@ library(gazer)
 source(here("exp1", "R", "blink.R"))
 
 # Adjust Parameter --------------------------------------------------------
-folder_name <- "4m" # "4m" or "6m" or "9m" or "18m" or "adults"
+folder_name <- "adults" # "4m" or "6m" or "9m" or "18m" or "adults"
 filenames <- list.files(path = here("exp1", "data", "raw_clean", folder_name))
 
 # Read and Manipulate Data ------------------------------------------------
@@ -131,4 +131,3 @@ for(i in 1:length(filenames)){
   print(i)
 }
 
-# next: check 4m with gaze replay

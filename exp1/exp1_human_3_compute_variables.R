@@ -12,14 +12,14 @@ source(here("exp1", "R", "utils.R"))
 
 # Adjust Parameter --------------------------------------------------------
 for (i in c(1:32)) {
-  folder <- "9m" # "4m", "6m", "9m", "18m", or "adult"
+  folder <- "4m" # "4m", "6m", "9m", "18m", or "adults"
   filenames <- list.files(path = here("exp1", "data", "raw_clean_blink", folder))
   n <- i
   filename <- filenames[n]
 
   # Read Data ---------------------------------------------------------------
   raw <- readRDS(here("exp1", "data", "raw_clean_blink", folder, filename))
-  df <- raw |> mutate(group_id = str_remove(group_id, ".rds"))
+  df <- raw |> mutate(group_id = str_remove(filename, ".rds"))
 
   if ("excluded" %in% (df |> drop_na(excluded_fixation) |> pull(excluded_fixation) |> unique())) {
     df <- df |> filter(excluded_fixation == "included")
@@ -36,20 +36,17 @@ for (i in c(1:32)) {
     mutate(gaze_event_duration_revised = sum(gaze_sample_duration)) |>
     ungroup()
 
-  # Manual Check (scroll down until transition between trial n & trial n+1)
-  # df |>
-  #   select(presented_stimulus_name, trial, eye_movement_type_index, eye_movement_type, gaze_event_duration, gaze_event_duration_revised) |>
-  #   View() # Check
-
   # [1] Calculate Data Quality ----------------------------------------------
 
   ## [1.1] Accuracy ----
-  # We define data accuracy as the Euclidean distance between gaze location and center of the target (Dalrymple et al., 2018).
-  # We will measure accuracy during the fixation whose gaze coordinates are (compared to all fixations of this trials) closed
-  # to the center of the displayed target. Fixations will be classified by applying an eye-tracking filter algorithm. We only
-  # consider fixations within pre-specified areas of interests (AOIs) (see “Other” for details). Lower values resulting from
-  # this calculation will be interpreted in terms of better accuracy. Accuracy values are bounded between 0 (gaze location
-  # equals the center of the target) and positive infinity.
+  # We define data accuracy as the Euclidean distance between gaze location and 
+  # center of the target (Dalrymple et al., 2018). We measure accuracy during 
+  # the fixation whose gaze coordinates are (compared to all fixations of this trials) 
+  # closest to the center of the displayed target. Fixations are classified by 
+  # applying an Tobii eye-tracking filter algorithm. We only consider fixations within 
+  # pre-specified areas of interests (AOIs). Lower values resulting from this 
+  # calculation are interpreted in terms of better accuracy.Accuracy values are bounded 
+  # between 0 (gaze location equals the center of the target) and positive infinity.
 
   ### Attention Getter ----
   df_acc_at <- calculate_accuracy(
@@ -63,41 +60,16 @@ for (i in c(1:32)) {
     gaze_event_col = "eye_movement_type",
     id_col = "group_id",
     gaze_event_index_col = "eye_movement_type_index",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
     stimulus_height = 354,
     stimulus_width = 354,
-    aoi_buffer_px_x = 0,
-    aoi_buffer_px_y = 0
-  ) |> # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_x = 0, # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_y = 0 # aoi buffer of 80px is already in xyminmax
+  ) |> 
     mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |>
     mutate(stimulus = "at") |>
     mutate(position = "center")
-
-  # Manual Check: Accuracy, 4M, 1, AT, Trial 6
-  # df |>
-  #   filter(stimulus == "at" & trial == 6 & eye_movement_type == "Fixation") |>
-  #   select(x_fix, y_fix) |>
-  #   distinct()
-  #
-  # fixation1 <- sqrt((927-960)^2 + (516-540)^2)
-  # fixation2 <- sqrt((911-960)^2 + (521-540)^2)
-  # fixation3 <- sqrt((950-960)^2 + (516-540)^2)
-  # fixation4 <- sqrt((928-960)^2 + (495-540)^2)
-  # fixation5 <- sqrt((936-960)^2 + (494-540)^2)
-  # fixation6 <- sqrt((939-960)^2 + (496-540)^2)
-  # fixation7 <- sqrt((941-960)^2 + (509-540)^2)
-  # fixation8 <- sqrt((944-960)^2 + (496-540)^2)
-  # fixation9 <- sqrt((948-960)^2 + (513-540)^2)
-  # fixation10 <- sqrt((950-960)^2 + (487-540)^2)
-  # fixation11 <- sqrt((953-960)^2 + (475-540)^2)
-  # fixation12 <- sqrt((950-960)^2 + (497-540)^2)
-  # min(fixation1, fixation2, fixation3, fixation4, fixation5, fixation6, fixation7, fixation8, fixation9, fixation10, fixation11, fixation12) # alignes with output of function: 26px
-  #
-  # calculate_accuracy(df, xmin = 849, xmax = 1072, ymin = 417, ymax = 672, stimulus_vec = c("ATTENTION_Familiarization.mp4", "ATTENTION_Preflooking.mp4"),
-  #                    media_col = "Presented.Media.name", gaze_event_col = "Eye.movement.type", id_col = "Recording.name",
-  #                    gaze_event_index_col = "Eye.movement.type.index", x_fix = "Fixation.point.X", y_fix = "Fixation.point.Y",
-  #                    stimulus_height = 255, stimulus_width = 223, aoi_buffer_px_x = 80, aoi_buffer_px_y = 80)
 
   ### Top Object ----
   df_acc_objtop <- calculate_accuracy(
@@ -111,8 +83,8 @@ for (i in c(1:32)) {
     gaze_event_col = "eye_movement_type",
     id_col = "group_id",
     gaze_event_index_col = "eye_movement_type_index",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
     stimulus_height = 340,
     stimulus_width = 340,
     aoi_buffer_px_x = 0,
@@ -134,13 +106,13 @@ for (i in c(1:32)) {
     gaze_event_col = "eye_movement_type",
     id_col = "group_id",
     gaze_event_index_col = "eye_movement_type_index",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
     stimulus_height = 340,
     stimulus_width = 340,
-    aoi_buffer_px_x = 0,
-    aoi_buffer_px_y = 0
-  ) |> # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_x = 0, # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_y = 0 # aoi buffer of 80px is already in xyminmax
+  ) |> 
     mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |>
     mutate(stimulus = "object") |>
     mutate(position = "bottom")
@@ -157,13 +129,13 @@ for (i in c(1:32)) {
     gaze_event_col = "eye_movement_type",
     id_col = "group_id",
     gaze_event_index_col = "eye_movement_type_index",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
     stimulus_height = 360,
     stimulus_width = 360,
-    aoi_buffer_px_x = 0,
-    aoi_buffer_px_y = 0
-  ) |> # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_x = 0, # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_y = 0 # aoi buffer of 80px is already in xyminmax
+  ) |> 
     mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |>
     mutate(stimulus = "checkflake") |>
     mutate(position = "top_left")
@@ -180,13 +152,13 @@ for (i in c(1:32)) {
     gaze_event_col = "eye_movement_type",
     id_col = "group_id",
     gaze_event_index_col = "eye_movement_type_index",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
     stimulus_height = 360,
     stimulus_width = 360,
-    aoi_buffer_px_x = 0,
-    aoi_buffer_px_y = 0
-  ) |> # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_x = 0, # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_y = 0 # aoi buffer of 80px is already in xyminmax
+  ) |> 
     mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |>
     mutate(stimulus = "checkflake") |>
     mutate(position = "top_right")
@@ -203,13 +175,13 @@ for (i in c(1:32)) {
     gaze_event_col = "eye_movement_type",
     id_col = "group_id",
     gaze_event_index_col = "eye_movement_type_index",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
     stimulus_height = 360,
     stimulus_width = 360,
-    aoi_buffer_px_x = 0,
-    aoi_buffer_px_y = 0
-  ) |> # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_x = 0, # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_y = 0 # aoi buffer of 80px is already in xyminmax
+  ) |> 
     mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |>
     mutate(stimulus = "checkflake") |>
     mutate(position = "bot_left")
@@ -226,13 +198,13 @@ for (i in c(1:32)) {
     gaze_event_col = "eye_movement_type",
     id_col = "group_id",
     gaze_event_index_col = "eye_movement_type_index",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
     stimulus_height = 360,
     stimulus_width = 360,
-    aoi_buffer_px_x = 0,
-    aoi_buffer_px_y = 0
-  ) |> # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_x = 0, # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_y = 0 # aoi buffer of 80px is already in xyminmax
+  ) |> 
     mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |>
     mutate(stimulus = "checkflake") |>
     mutate(position = "bot_right")
@@ -240,7 +212,7 @@ for (i in c(1:32)) {
   ### Popflake Center ----
   df_acc_popcenter <- calculate_accuracy(
     df |> 
-      filter(stimulus == "checkflake" & position == "center_center"),
+      filter(stimulus == "checkflake" & position == "center"),
     xmin = 780,
     xmax = 1140,
     ymin = 360,
@@ -250,16 +222,16 @@ for (i in c(1:32)) {
     gaze_event_col = "eye_movement_type",
     id_col = "group_id",
     gaze_event_index_col = "eye_movement_type_index",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
     stimulus_height = 360,
     stimulus_width = 360,
-    aoi_buffer_px_x = 0,
-    aoi_buffer_px_y = 0
-  ) |> # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_x = 0, # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_y = 0 # aoi buffer of 80px is already in xyminmax
+  ) |> 
     mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |>
     mutate(stimulus = "checkflake") |>
-    mutate(position = "center_center")
+    mutate(position = "center")
 
   ## Merge All Stimuli ----
   df_acc_tot <- df_acc_at |>
@@ -305,10 +277,10 @@ for (i in c(1:32)) {
     stimulus_vec = "at",
     gaze_event_index_col = "eye_movement_type_index",
     gaze_event_dur_col = "gaze_event_duration_revised",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
-    x = "x_both",
-    y = "y_both",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
+    x = "gaze_point_x",
+    y = "gaze_point_y",
     screen_height = 1080,
     screen_width = 1920,
     aoi_buffer_px_x = 80,
@@ -324,21 +296,6 @@ for (i in c(1:32)) {
     mutate(precrms_visd = precrms * onepx_in_visd(60, 92)) |>
     mutate(stimulus = "at") |>
     mutate(position = "center")
-
-  # Manual Check: Precision RMS, Adult, 1, AT, Trial 6
-  # library(png)
-  # img_precrms <- readPNG(here("img", "precrms_formular.png"))
-  # plot(1:2, type = "n", xlab = "", ylab = "", axes = FALSE)  # create empty plot
-  # rasterImage(img_precrms, 1, 1, 1.9, 1.5) # image boundaries
-  #
-  # precrms_test <- df |>
-  #   filter(trial == 6 & stimulus == "at" & eye_movement_type == "Fixation") |>
-  #   select(x_both, y_both, x_fix, y_fix) |>
-  #   mutate(x_diff = c(diff(x_both), NA),
-  #          y_diff = c(diff(y_both), NA)) |>
-  #   mutate(eucl_diff = sqrt(x_diff^2 + y_diff^2)) |>
-  #   mutate(eucl_diff_2 = eucl_diff^2)
-  # mean(precrms_test$eucl_diff_2, na.rm = TRUE) |> sqrt() # hooray, same result as with function applied above, i.e.: check!
 
   ## Popflakes and Objects ----
   param_precrms_objpop <- data.frame(
@@ -358,7 +315,7 @@ for (i in c(1:32)) {
       "bot_left",
       "top_right",
       "bot_right",
-      "center_center"
+      "center"
     ),
     xmin = c(870, 870, 380, 380, 1340, 1340, 860),
     xmax = c(1050, 1050, 580, 580, 1540, 1540, 1060),
@@ -387,10 +344,10 @@ for (i in c(1:32)) {
       stimulus_vec = param_precrms_objpop$stimulus[j],
       gaze_event_index_col = "eye_movement_type_index",
       gaze_event_dur_col = "gaze_event_duration_revised",
-      x_fix = "x_fix",
-      y_fix = "y_fix",
-      x = "x_both",
-      y = "y_both",
+      x_fix = "fixation_point_x",
+      y_fix = "fixation_point_y",
+      x = "gaze_point_x",
+      y = "gaze_point_y",
       screen_height = 1080,
       screen_width = 1920,
       aoi_buffer_px_x = 80,
@@ -409,11 +366,6 @@ for (i in c(1:32)) {
     assign(param_precrms_objpop$df_name[j], df_precrms_objpop_temp)
     rm(df_precrms_objpop_temp)
   }
-  # Check for first 4M (only fixations within AOI taken)
-  # df_precrms_popbotright
-  # df |>
-  #   filter(eye_movement_type_index %in% c(1020:1029)) |>
-  #   select(eye_movement_type, eye_movement_type_index, x_fix, y_fix, aoi)
 
   ## Merge All Stimuli ----
   df_precrms_tot <- df_precrms_at |>
@@ -436,7 +388,8 @@ for (i in c(1:32)) {
     df_precrms_popbotleft,
     df_precrms_poptopright,
     df_precrms_popbotright,
-    df_precrms_popcenter
+    df_precrms_popcenter,
+    param_precrms_objpop
   )
 
   ## [1.3] Precision SD ----
@@ -455,10 +408,10 @@ for (i in c(1:32)) {
     stimulus_vec = "at",
     gaze_event_index_col = "eye_movement_type_index",
     gaze_event_dur_col = "gaze_event_duration_revised",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
-    x = "x_both",
-    y = "y_both",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
+    x = "gaze_point_x",
+    y = "gaze_point_y",
     screen_height = 1080,
     screen_width = 1920,
     aoi_buffer_px_x = 80,
@@ -474,16 +427,6 @@ for (i in c(1:32)) {
     mutate(precsd_visd = precsd * onepx_in_visd(60, 92)) |>
     mutate(stimulus = "at") |>
     mutate(position = "center")
-
-  # Manual Check: Precision RMS, 18, 1, AT, Trial 6
-  # df |>
-  #   filter(trial == 6 & stimulus == "at" & eye_movement_type == "Fixation") |>
-  #   select(x_both, y_both, eye_movement_type_index) |>
-  #   group_by(eye_movement_type_index) |>
-  #   mutate(x_diff = c(diff(x_both), NA),
-  #          y_diff = c(diff(y_both), NA)) |>
-  #   mutate(eucl_diff = sqrt(x_diff^2 + y_diff^2)) |>
-  #   summarize(rmssd = sd(eucl_diff, na.rm = TRUE))  # hooray, same result as with function applied above, i.e.: check!
 
   ## Popflakes and Objects ----
   param_precsd_objpop <- data.frame(
@@ -503,7 +446,7 @@ for (i in c(1:32)) {
       "bot_left",
       "top_right",
       "bot_right",
-      "center_center"
+      "center"
     ),
     xmin = c(870, 870, 380, 380, 1340, 1340, 860),
     xmax = c(1050, 1050, 580, 580, 1540, 1540, 1060),
@@ -532,10 +475,10 @@ for (i in c(1:32)) {
       stimulus_vec = param_precsd_objpop$stimulus[k],
       gaze_event_index_col = "eye_movement_type_index",
       gaze_event_dur_col = "gaze_event_duration_revised",
-      x_fix = "x_fix",
-      y_fix = "y_fix",
-      x = "x_both",
-      y = "y_both",
+      x_fix = "fixation_point_x",
+      y_fix = "fixation_point_y",
+      x = "gaze_point_x",
+      y = "gaze_point_y",
       screen_height = 1080,
       screen_width = 1920,
       aoi_buffer_px_x = 80,
@@ -576,13 +519,29 @@ for (i in c(1:32)) {
     df_precsd_popbotleft,
     df_precsd_poptopright,
     df_precsd_popbotright,
-    df_precsd_popcenter
+    df_precsd_popcenter,
+    param_precsd_objpop
   )
 
   ## [1.4] Robustness ----
   # We will calculate data robustness as the duration of the mean usable data fragments obtained after interpolating blinks. The greater the
   # mean duration of usable data, the more robust the data. Robustness values are bounded between 0 (no usable data) and the total recording
   # duration considered.
+  df_robustness_tot <- calculate_robustness(
+    df,
+    trial_col             = "trial",
+    gaze_x_col            = "gaze_point_x",
+    gaze_y_col            = "gaze_point_y",
+    sample_duration_col   = "gaze_sample_duration",
+    blink_left_col        = "blink_detection.left",
+    blink_right_col       = "blink_detection.right",
+    blink_removal         = TRUE,
+    blink_label           = "blink",
+    blink_replacement_value = 99999,
+    validity_col          = "sample_validity"
+  ) |>
+    left_join(df |> select(group_id, stimulus, position, trial) |> distinct(), by = "trial") |>
+    mutate(data_quality = "robustness")
 
   # [2] Calculate Eye-Tracking Outcomes -------------------------------------
   # We consider the following common eye-tracking measures as dependent variables: fixation durations, number of fixations, latencies (i.e.,
@@ -597,8 +556,8 @@ for (i in c(1:32)) {
     id_col = "group_id",
     gaze_event_index_col = "eye_movement_type_index",
     gaze_event_dur_col = "gaze_event_duration_revised",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
     screen_height = 1080,
     screen_width = 1920,
     aoi_buffer_px_x = 80,
@@ -609,14 +568,6 @@ for (i in c(1:32)) {
     left_join(df |> select(stimulus, position, trial) |> distinct(), by = "trial") |>
     mutate(eyetracking_outcome = "fixationduration")
 
-  # Manual Check: Fixation Duration, Adult, 1, Trial 1
-  # df |>
-  #   filter(trial == 1 & eye_movement_type == "Fixation") |>
-  #   select(trial, eye_movement_type, eye_movement_type_index, gaze_event_duration_revised) |>
-  #   distinct() |>
-  #   pull(gaze_event_duration_revised) |>
-  #   mean() # hooray, same result as with function applied above, i.e.: check!
-
   ## Number of Fixations ----
   df_fixnum_tot <- calculate_fixnum(
     df,
@@ -626,21 +577,14 @@ for (i in c(1:32)) {
     id_col = "group_id",
     gaze_event_index_col = "eye_movement_type_index",
     gaze_event_dur_col = "gaze_event_duration_revised",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
     screen_height = 1080,
     screen_width = 1920,
     aoi_buffer_px_x = 80,
     aoi_buffer_px_y = 80,
     off_exclude = TRUE
   )
-
-  # Manual Check: Fixation Number, Adult, 1, Trial 1
-  # df |>
-  #   filter(trial == 1 & eye_movement_type == "Fixation") |>
-  #   select(trial, eye_movement_type, eye_movement_type_index) |>
-  #   distinct() |>
-  #   nrow() # hooray, same result as with function applied above, i.e.: check!
 
   df_fixnum_tot <- df_fixnum_tot |>
     left_join(df |> select(stimulus, position, trial) |> distinct(), by = "trial") |>
@@ -650,7 +594,7 @@ for (i in c(1:32)) {
   ## Latencies ----
   df_lat <- df
 
-  if (df |> drop_na(excluded_100ms) |> pull(excluded_100ms) |> unique() |> length() > 1 & folder != "adult") {
+  if (df |> drop_na(excluded_100ms) |> pull(excluded_100ms) |> unique() |> length() > 1 & folder != "tt") {
     df_lat <- df_lat |> filter(excluded_100ms == "included")
     print("<100ms latency trials were excluded.")
   }
@@ -661,34 +605,47 @@ for (i in c(1:32)) {
   }
 
   first_sample_in_trial <- df_lat |>
-    select(stimulus_name, stimulus, timestamp_rec, aoi_gazesamples) |>
-    group_by(stimulus_name) |>
+    filter(stimulus_position %in% c("object_top", "object_bottom") & stimulus_duration == "gaze_contingent") |> 
+    select(trial, stimulus_position, recording_timestamp, aoi_samples) |>
+    group_by(trial, stimulus_position) |>
     slice(1) |>
     ungroup() |>
-    rename(trialstart = timestamp_rec) |>
-    select(-aoi_gazesamples)
+    rename(trialstart = recording_timestamp) |>
+    select(-aoi_samples)
 
   first_sample_in_aoi <- df_lat |>
-    select(stimulus_name, timestamp_rec, aoi_gazesamples) |>
-    filter(aoi_gazesamples != "outside_target_aoi") |>
-    group_by(stimulus_name) |>
+    filter(stimulus_position %in% c("object_top", "object_bottom") & stimulus_duration == "gaze_contingent") |> 
+    select(trial, stimulus_position, recording_timestamp, aoi_samples) |>
+    filter(aoi_samples != "not_in_aoi") |>
+    group_by(trial, stimulus_position) |>
     slice(1) |>
     ungroup() |>
-    rename(arrivalinaoi = timestamp_rec) |>
-    select(-aoi_gazesamples)
+    rename(arrivalinaoi = recording_timestamp) |>
+    select(-aoi_samples)
 
   latencies <- first_sample_in_trial |>
-    left_join(first_sample_in_aoi, by = "stimulus_name") |>
+    left_join(first_sample_in_aoi, by = c("trial", "stimulus_position")) |>
     mutate(latencies = (arrivalinaoi - trialstart) / 1000) # unit: ms
 
-  df_latencies_tot <- df_lat |>
-    select(group_id, trial, stimulus_name, position, motion) |>
-    left_join(latencies, by = "stimulus_name") |>
-    select(-c(trialstart, arrivalinaoi)) |>
-    distinct() |>
-    filter(motion != "image") |> # checked 4M, 1, first trials, alignes with gaze replay
-    mutate(eyetracking_outcome = "latency")
-
+  df_latencies_tot <- latencies |>
+    mutate(eyetracking_outcome = "latency") |> 
+    select(-c(trialstart, arrivalinaoi)) |> 
+    mutate(group_id = str_remove(filename, ".rds")) |> 
+    separate(stimulus_position, into = c("stimulus", "position"), sep = "_")
+  
+  df_latencies_tot <- df |> 
+    filter(str_detect(presented_stimulus_name, "move")) |> 
+    transmute(
+      trial,
+      congruence = case_when(
+        str_detect(presented_stimulus_name, "_con_")   ~ "con",
+        str_detect(presented_stimulus_name, "_incon_") ~ "incon",
+        TRUE ~ NA_character_
+      )
+    ) |> 
+    distinct() |> 
+    right_join(df_latencies_tot, by = "trial")
+  
   rm(first_sample_in_trial, first_sample_in_aoi, latencies)
 
   ## Proportional Looking Time in AOI ----
@@ -697,12 +654,12 @@ for (i in c(1:32)) {
     df |> filter(stimulus == "at"),
     media_col = "stimulus",
     stimulus_vec = "at",
-    rectime = "timestamp_rec",
+    rectime = "recording_timestamp",
     id_col = "group_id",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
-    x = "x_both",
-    y = "y_both",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
+    x = "gaze_point_x",
+    y = "gaze_point_y",
     aoi_left_upper = c(783, 363),
     aoi_right_lower = c(1137, 717),
     is_00_upleftcorner = TRUE
@@ -716,29 +673,18 @@ for (i in c(1:32)) {
       )
     )
 
-  # Manual Check: Adult, 1, AT, Trial 10
-  # df |>
-  #   filter(trial == 10 & aoi == "at") |>
-  #   select(x_both, y_both, x_fix, y_fix, aoi, aoi_gazesamples, gaze_sample_duration, gaze_event_duration) |>
-  #   nrow() * 8.33 # Check, alignes with df_rlt_at, column abs_fix_in_aoi_duration
-
-  # df |>
-  #   filter(trial == 10 & aoi_gazesamples == "at") |>
-  #   select(x_both, y_both, x_fix, y_fix, aoi, aoi_gazesamples, gaze_sample_duration, gaze_event_duration) |>
-  #   nrow() * 8.33 # Check, alignes with df_rlt_at, column abs_gaze_in_aoi_duration
-
   ### Top Object ----
   df_rlt_objtop <- calculate_ltaoi(
     df |> filter(stimulus == "object" &
       position == "top"),
     media_col = "stimulus",
     stimulus_vec = "object",
-    rectime = "timestamp_rec",
+    rectime = "recording_timestamp",
     id_col = "group_id",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
-    x = "x_both",
-    y = "y_both",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
+    x = "gaze_point_x",
+    y = "gaze_point_y",
     aoi_left_upper = c(790, 0),
     aoi_right_lower = c(1130, 340),
     is_00_upleftcorner = TRUE
@@ -752,21 +698,18 @@ for (i in c(1:32)) {
       )
     )
 
-  # Manual Check: Adult, Object Top, Prelast (Trial 64)
-  # 100% gaze at object, validated in gaze replay
-
   ### Bottom Object ----
   df_rlt_objbot <- calculate_ltaoi(
     df |> filter(stimulus == "object" &
       position == "bottom"),
     media_col = "stimulus",
     stimulus_vec = "object",
-    rectime = "timestamp_rec",
+    rectime = "recording_timestamp",
     id_col = "group_id",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
-    x = "x_both",
-    y = "y_both",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
+    x = "gaze_point_x",
+    y = "gaze_point_y",
     aoi_left_upper = c(790, 740),
     aoi_right_lower = c(1130, 1080),
     is_00_upleftcorner = TRUE
@@ -786,12 +729,12 @@ for (i in c(1:32)) {
       position == "top_left"),
     media_col = "stimulus",
     stimulus_vec = "checkflake",
-    rectime = "timestamp_rec",
+    rectime = "recording_timestamp",
     id_col = "group_id",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
-    x = "x_both",
-    y = "y_both",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
+    x = "gaze_point_x",
+    y = "gaze_point_y",
     aoi_left_upper = c(300, 90),
     aoi_right_lower = c(660, 450),
     is_00_upleftcorner = TRUE
@@ -811,12 +754,12 @@ for (i in c(1:32)) {
       position == "top_right"),
     media_col = "stimulus",
     stimulus_vec = "checkflake",
-    rectime = "timestamp_rec",
+    rectime = "recording_timestamp",
     id_col = "group_id",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
-    x = "x_both",
-    y = "y_both",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
+    x = "gaze_point_x",
+    y = "gaze_point_y",
     aoi_left_upper = c(1260, 90),
     aoi_right_lower = c(1620, 450),
     is_00_upleftcorner = TRUE
@@ -836,12 +779,12 @@ for (i in c(1:32)) {
       position == "bot_left"),
     media_col = "stimulus",
     stimulus_vec = "checkflake",
-    rectime = "timestamp_rec",
+    rectime = "recording_timestamp",
     id_col = "group_id",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
-    x = "x_both",
-    y = "y_both",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
+    x = "gaze_point_x",
+    y = "gaze_point_y",
     aoi_left_upper = c(300, 630),
     aoi_right_lower = c(660, 990),
     is_00_upleftcorner = TRUE
@@ -861,12 +804,12 @@ for (i in c(1:32)) {
       position == "bot_right"),
     media_col = "stimulus",
     stimulus_vec = "checkflake",
-    rectime = "timestamp_rec",
+    rectime = "recording_timestamp",
     id_col = "group_id",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
-    x = "x_both",
-    y = "y_both",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
+    x = "gaze_point_x",
+    y = "gaze_point_y",
     aoi_left_upper = c(1260, 630),
     aoi_right_lower = c(1620, 990),
     is_00_upleftcorner = TRUE
@@ -883,15 +826,15 @@ for (i in c(1:32)) {
   ### Popflake Center ----
   df_rlt_popcenter <- calculate_ltaoi(
     df |> filter(stimulus == "checkflake" &
-      position == "center_center"),
+      position == "center"),
     media_col = "stimulus",
     stimulus_vec = "checkflake",
-    rectime = "timestamp_rec",
+    rectime = "recording_timestamp",
     id_col = "group_id",
-    x_fix = "x_fix",
-    y_fix = "y_fix",
-    x = "x_both",
-    y = "y_both",
+    x_fix = "fixation_point_x",
+    y_fix = "fixation_point_y",
+    x = "gaze_point_x",
+    y = "gaze_point_y",
     aoi_left_upper = c(780, 360),
     aoi_right_lower = c(1140, 720),
     is_00_upleftcorner = TRUE
@@ -900,7 +843,7 @@ for (i in c(1:32)) {
       ~ mutate(
         .x,
         stimulus = "checkflake",
-        position = "center_center",
+        position = "center",
         eyetracking_outcome = "relativelookingtime"
       )
     )
@@ -956,52 +899,93 @@ for (i in c(1:32)) {
   )
 
   # Merge All ---------------------------------------------------------------
+  add_demo_cols <- function(d, df, folder) {
+    if (folder != "adults") {
+      d |>
+        left_join(
+          df |>
+            select(
+              trial, excluded_100ms, excluded_3sd, excluded_fixation,
+              sex, age_ddd, order, experimenter,
+              no_siblings, no_household, multilingual, kindergarten_yn, tagesmutter_yn
+            ) |>
+            distinct(),
+          by = "trial"
+        ) |>
+        rename(age = age_ddd)
+    } else {
+      d |>
+        left_join(
+          df |>
+            select(
+              trial, excluded_100ms, excluded_3sd, excluded_fixation,
+              age_md, sex, order, experimenter
+            ) |>
+            distinct(),
+          by = "trial"
+        ) |>
+        rename(age = age_md)
+    }
+  }
+  
   df_tot <- data.frame(trial = 1:79) |>
-    left_join(df_acc_tot |> select(-data_quality)) |>
+    left_join(df_acc_tot |> select(-data_quality), by = "trial") |>
     left_join(
       df_precrms_tot |>
         group_by(group_id, trial, stimulus, position) |>
-        summarize(
+        summarise(
           precrms = mean(precrms, na.rm = TRUE),
-          precrms_visd = mean(precrms_visd, na.rm = TRUE)
-        )
+          precrms_visd = mean(precrms_visd, na.rm = TRUE),
+          .groups = "drop"
+        ),
+      by = "trial"
     ) |>
     left_join(
       df_precsd_tot |>
         group_by(group_id, trial, stimulus, position) |>
-        summarize(
+        summarise(
           precsd = mean(precsd, na.rm = TRUE),
-          precsd_visd = mean(precsd_visd, na.rm = TRUE)
-        )
+          precsd_visd = mean(precsd_visd, na.rm = TRUE),
+          .groups = "drop"
+        ),
+      by = "trial"
     ) |>
-    left_join(df_fixdur_tot |> select(-eyetracking_outcome)) |>
-    left_join(df_fixnum_tot |> select(-eyetracking_outcome)) |>
-    left_join(df_latencies_tot |> select(-eyetracking_outcome)) |>
-    left_join(df_rlt_tot |> select(-eyetracking_outcome))
-
+    left_join(df_robustness_tot |> select(group_id, trial, robustness_ms), by = "trial") |>
+    left_join(df_fixdur_tot |> select(-eyetracking_outcome), by = "trial") |>
+    left_join(df_fixnum_tot |> select(-eyetracking_outcome), by = "trial") |>
+    left_join(df_latencies_tot |> select(-eyetracking_outcome), by = "trial") |>
+    left_join(df_rlt_tot |> select(-eyetracking_outcome), by = "trial") |>
+    add_demo_cols(df = df, folder = folder)
+  
+  base_cols <- c(
+    "group_id", "trial", "stimulus", "position",
+    "accuracy", "acc_visd",
+    "precrms", "precrms_visd",
+    "precsd", "precsd_visd",
+    "robustness_ms",
+    "mean_fixation_duration", "mean_fixation_number",
+    "latencies", "congruence",
+    "rel_gaze_in_aoi", "rel_fix_in_aoi",
+    "abs_gaze_in_aoi_duration", "abs_gaze_out_aoi_duration", "abs_gaze_recorded_duration",
+    "abs_fix_in_aoi_duration", "abs_fix_out_aoi_duration", "abs_fix_recorded_duration",
+    "excluded_100ms", "excluded_3sd", "excluded_fixation",
+    "sex", "age", "order", "experimenter"
+  )
+  
+  extra_cols_nonadult <- c("no_siblings", "no_household", "multilingual", "kindergarten_yn", "tagesmutter_yn")
+  
+  df_tot <- df_tot |>
+    select(any_of(c(base_cols, if (folder != "adult") extra_cols_nonadult)))
+  
   # [3] Merge DF with ET-DQ and ET-Outcomes ---------------------------------
   write.table(
     df_tot,
-    here("data", "preproc_included_2", folder, filename),
+    here("exp1", "data", "preproc", folder, filename),
     row.names = FALSE,
     quote = FALSE,
     sep = "\t",
     dec = "."
   )
 
-  # write.table(df_acc_tot, here("data", "preproc_included_2", folder, paste0("accuracy_", str_replace(filename, "preproc1", "preproc2"))),
-  #             row.names = FALSE, quote = FALSE, sep = "\t", dec = ".")
-  # write.table(df_precrms_tot, here("data", "preproc_included_2", folder, paste0("precisionrms_", str_replace(filename, "preproc1", "preproc2"))),
-  #             row.names = FALSE, quote = FALSE, sep = "\t", dec = ".")
-  # write.table(df_precsd_tot, here("data", "preproc_included_2", folder, paste0("precisionsd_", str_replace(filename, "preproc1", "preproc2"))),
-  #             row.names = FALSE, quote = FALSE, sep = "\t", dec = ".")
-  # write.table(df_fixdur_tot, here("data", "preproc_included_2", folder, paste0("fixdur_", str_replace(filename, "preproc1", "preproc2"))),
-  #             row.names = FALSE, quote = FALSE, sep = "\t", dec = ".")
-  # write.table(df_fixnum_tot, here("data", "preproc_included_2", folder, paste0("fixnum_", str_replace(filename, "preproc1", "preproc2"))),
-  #             row.names = FALSE, quote = FALSE, sep = "\t", dec = ".")
-  # write.table(df_latencies_tot, here("data", "preproc_included_2", folder, paste0("latency_", str_replace(filename, "preproc1", "preproc2"))),
-  #             row.names = FALSE, quote = FALSE, sep = "\t", dec = ".")
-  # write.table(df_rlt_tot, here("data", "preproc_included_2", folder, paste0("rlt_", str_replace(filename, "preproc1", "preproc2"))),
-  #             row.names = FALSE, quote = FALSE, sep = "\t", dec = ".")
   print(i)
 }

@@ -281,8 +281,8 @@ for (i in c(1:32)) {
     y_fix = "fixation_point_y",
     x = "gaze_point_x",
     y = "gaze_point_y",
-    screen_height = 1080,
-    screen_width = 1920,
+    screen_height_min = 0, screen_width_min = 0,
+    screen_height_max = 1080, screen_width_max = 1920,
     aoi_buffer_px_x = 80,
     aoi_buffer_px_y = 80,
     xmin = 863,
@@ -348,8 +348,8 @@ for (i in c(1:32)) {
       y_fix = "fixation_point_y",
       x = "gaze_point_x",
       y = "gaze_point_y",
-      screen_height = 1080,
-      screen_width = 1920,
+      screen_height_min = 0, screen_width_min = 0,
+      screen_height_max = 1080, screen_width_max = 1920,
       aoi_buffer_px_x = 80,
       aoi_buffer_px_y = 80,
       xmin = param_precrms_objpop$xmin[j],
@@ -412,8 +412,8 @@ for (i in c(1:32)) {
     y_fix = "fixation_point_y",
     x = "gaze_point_x",
     y = "gaze_point_y",
-    screen_height = 1080,
-    screen_width = 1920,
+    screen_height_min = 0, screen_width_min = 0,
+    screen_height_max = 1080, screen_width_max = 1920,
     aoi_buffer_px_x = 80,
     aoi_buffer_px_y = 80,
     xmin = 863,
@@ -479,8 +479,8 @@ for (i in c(1:32)) {
       y_fix = "fixation_point_y",
       x = "gaze_point_x",
       y = "gaze_point_y",
-      screen_height = 1080,
-      screen_width = 1920,
+      screen_height_min = 0, screen_width_min = 0,
+      screen_height_max = 1080, screen_width_max = 1920,
       aoi_buffer_px_x = 80,
       aoi_buffer_px_y = 80,
       xmin = param_precsd_objpop$xmin[k],
@@ -538,10 +538,12 @@ for (i in c(1:32)) {
     blink_removal         = TRUE,
     blink_label           = "blink",
     blink_replacement_value = 99999,
-    validity_col          = "sample_validity"
+    validity_col          = "sample_validity", 
+    relative_robustness = TRUE
   ) |>
     left_join(df |> select(group_id, stimulus, position, trial) |> distinct(), by = "trial") |>
-    mutate(data_quality = "robustness")
+    mutate(data_quality = "robustness") |> 
+    drop_na(stimulus)
 
   # [2] Calculate Eye-Tracking Outcomes -------------------------------------
   # We consider the following common eye-tracking measures as dependent variables: fixation durations, number of fixations, latencies (i.e.,
@@ -558,8 +560,8 @@ for (i in c(1:32)) {
     gaze_event_dur_col = "gaze_event_duration_revised",
     x_fix = "fixation_point_x",
     y_fix = "fixation_point_y",
-    screen_height = 1080,
-    screen_width = 1920,
+    screen_height_min = 0, screen_width_min = 0,
+    screen_height_max = 1080, screen_width_max = 1920,
     aoi_buffer_px_x = 80,
     aoi_buffer_px_y = 80,
     off_exclude = TRUE,
@@ -579,8 +581,8 @@ for (i in c(1:32)) {
     gaze_event_dur_col = "gaze_event_duration_revised",
     x_fix = "fixation_point_x",
     y_fix = "fixation_point_y",
-    screen_height = 1080,
-    screen_width = 1920,
+    screen_height_min = 0, screen_width_min = 0,
+    screen_height_max = 1080, screen_width_max = 1920,
     aoi_buffer_px_x = 80,
     aoi_buffer_px_y = 80,
     off_exclude = TRUE
@@ -899,35 +901,6 @@ for (i in c(1:32)) {
   )
 
   # Merge All ---------------------------------------------------------------
-  add_demo_cols <- function(d, df, folder) {
-    if (folder != "adults") {
-      d |>
-        left_join(
-          df |>
-            select(
-              trial, excluded_100ms, excluded_3sd, excluded_fixation,
-              sex, age_ddd, order, experimenter,
-              no_siblings, no_household, multilingual, kindergarten_yn, tagesmutter_yn
-            ) |>
-            distinct(),
-          by = "trial"
-        ) |>
-        rename(age = age_ddd)
-    } else {
-      d |>
-        left_join(
-          df |>
-            select(
-              trial, excluded_100ms, excluded_3sd, excluded_fixation,
-              age_md, sex, order, experimenter
-            ) |>
-            distinct(),
-          by = "trial"
-        ) |>
-        rename(age = age_md)
-    }
-  }
-  
   df_tot <- data.frame(trial = 1:79) |>
     left_join(df_acc_tot |> select(-data_quality), by = "trial") |>
     left_join(
@@ -950,7 +923,7 @@ for (i in c(1:32)) {
         ),
       by = "trial"
     ) |>
-    left_join(df_robustness_tot |> select(group_id, trial, robustness_ms), by = "trial") |>
+    left_join(df_robustness_tot |> select(group_id, trial, robustness_ms, robustness_prop), by = "trial") |>
     left_join(df_fixdur_tot |> select(-eyetracking_outcome), by = "trial") |>
     left_join(df_fixnum_tot |> select(-eyetracking_outcome), by = "trial") |>
     left_join(df_latencies_tot |> select(-eyetracking_outcome), by = "trial") |>
@@ -962,7 +935,7 @@ for (i in c(1:32)) {
     "accuracy", "acc_visd",
     "precrms", "precrms_visd",
     "precsd", "precsd_visd",
-    "robustness_ms",
+    "robustness_ms", "robustness_prop",
     "mean_fixation_duration", "mean_fixation_number",
     "latencies", "congruence",
     "rel_gaze_in_aoi", "rel_fix_in_aoi",
@@ -978,14 +951,8 @@ for (i in c(1:32)) {
     select(any_of(c(base_cols, if (folder != "adult") extra_cols_nonadult)))
   
   # [3] Merge DF with ET-DQ and ET-Outcomes ---------------------------------
-  write.table(
-    df_tot,
-    here("exp1", "data", "preproc", folder, filename),
-    row.names = FALSE,
-    quote = FALSE,
-    sep = "\t",
-    dec = "."
-  )
+  saveRDS(df_tot, here("exp1", "data", "preproc", folder, filename), compress = "xz")
 
   print(i)
+  print(df_tot |> colnames() |> sort())
 }

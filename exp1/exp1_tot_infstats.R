@@ -392,7 +392,7 @@ t0 <- proc.time()
 full_rq1_precrms <- brm(
   precrms_visd ~ 0 + folder + 0 + position + (1 + position | group_id),
   data   = df_tot,
-  family = Gamma(link="log")
+  family = Gamma(link="log"),
   prior  = prior_rq1_precrms,
   chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
   sample_prior="yes",
@@ -597,6 +597,61 @@ full_rq1_precsd <- brm(
 t1 <- proc.time()
 proc_time_rq1_precsd <- t1 - t0
 rm(t0, t1)
+
+## Visualization ----
+
+# Extract all posterior samples
+post_samples_rq1_precsd <- as_draws_df(full_rq1_precsd)
+
+# Transform all condition parameters to probabilities
+posterior_probs_rq1_precsd <- post_samples_rq1_precsd |> 
+  select(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps) |> 
+  mutate(b_folder4m = plogis(b_folder4m), b_folder6m = plogis(b_folder6m), b_folder9m = plogis(b_folder9m),
+         b_folder18m = plogis(b_folder18m), b_folderadults = plogis(b_folderadults), b_folderchimps = plogis(b_folderchimps))
+
+# Plot posterior distributions of each condition
+png(here("exp1", "img", "rq1_precsd_posterior.png"), width = 2480, height = 3508/6, res = 300)
+posterior_probs_rq1_precsd |>
+  pivot_longer(cols = c(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps),
+               names_to = "param", values_to = "value") |>
+  mutate(param = recode(
+    param,
+    b_folder4m     = " 4-Month-Olds",
+    b_folder6m     = " 6-Month-Olds",
+    b_folder9m     = " 9-Month-Olds",
+    b_folder18m    = "18-Month-Olds",
+    b_folderadults = "Adults",
+    b_folderchimps = "Chimpanzees")) |> 
+  mutate(Group = param) |> 
+  ggplot(aes(x = value, fill = Group)) +
+  geom_histogram(position = "identity", alpha = 0.35) +
+  theme_minimal()
+dev.off()
+
+# Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
+png(here("exp1", "img", "rq1_precsd_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folderchimps", "prior_b_folderchimps"), facet_label = "Chimpanzees")
+dev.off()
+
+png(here("exp1", "img", "rq1_precsd_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder4m", "prior_b_folder4m"), facet_label = "4-Month-Olds")
+dev.off()
+
+png(here("exp1", "img", "rq1_precsd_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder6m", "prior_b_folder6m"), facet_label = "6-Month-Olds")
+dev.off()
+
+png(here("exp1", "img", "rq1_precsd_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder9m", "prior_b_folder9m"), facet_label = "9-Month-Olds")
+dev.off()
+
+png(here("exp1", "img", "rq1_precsd_posteriorprior_18m.png"), width = 2480/2, height = 3508/6, res = 300)
+plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder18m", "prior_b_folder18m"), facet_label = "18-Month-Olds")
+dev.off()
+
+png(here("exp1", "img", "rq1_precsd_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folderadults", "prior_b_folderadults"), facet_label = "Adults")
+dev.off()
 
 ## Inference ---- 
 # Descriptives

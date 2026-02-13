@@ -1,21 +1,22 @@
 # Fixation Duration ----
 calculate_fixdur <- function(df, gaze_event_col = "Eye.movement.type", media_col = "Presented.Media.name",
                              stimulus_vec = c("ATTENTION_Familiarization.mp4", "ATTENTION_Preflooking.mp4"),
-                             id_col = "Recording.name", gaze_event_index_col = "Eye.movement.type.index", 
+                             id_col = "Recording.name", gaze_event_index_col = "Eye.movement.type.index", trial = "trial",
                              gaze_event_dur_col = "Gaze.event.duration", x_fix = "Fixation.point.X", y_fix = "Fixation.point.Y",
-                             screen_height = 1080, screen_width = 1920, aoi_buffer_px_x = 40, aoi_buffer_px_y = 40,
+                             screen_height_min = 0, screen_width_min = 0,
+                             screen_height_max = 1080, screen_width_max = 1920, aoi_buffer_px_x = 40, aoi_buffer_px_y = 40,
                              off_exclude = F, longest_fix_only = F){
   
   if(off_exclude == T){
-    exclude_rows <- which(df[[x_fix]] < 0 | df[[x_fix]] > screen_width + aoi_buffer_px_x |
-                            df[[y_fix]] < 0 | df[[y_fix]] > screen_height + aoi_buffer_px_y)
+    exclude_rows <- which(df[[x_fix]] < screen_width_min - aoi_buffer_px_x | df[[x_fix]] > screen_width_max + aoi_buffer_px_x |
+                            df[[y_fix]] < screen_height_min - aoi_buffer_px_x | df[[y_fix]] > screen_height_max + aoi_buffer_px_y)
     if(exclude_rows |> length() > 0){df <- df[-exclude_rows,]} # checked, works
   }
   
   if(longest_fix_only == T){
     df <- df |> 
       filter(.data[[gaze_event_col]] == "Fixation") |> 
-      group_by(.data[[id_col]], trial) |>
+      group_by(.data[[id_col]], .data[[trial]]) |>
       filter(.data[[gaze_event_dur_col]] == max(.data[[gaze_event_dur_col]], na.rm = T)) |> 
       ungroup() # manually checked for one data example
   }
@@ -23,9 +24,9 @@ calculate_fixdur <- function(df, gaze_event_col = "Eye.movement.type", media_col
   df <- df |> 
     filter(.data[[gaze_event_col]] == "Fixation") |> 
     filter(.data[[media_col]] %in% stimulus_vec) |> 
-    select({{media_col}}, {{id_col}}, {{gaze_event_index_col}}, {{gaze_event_dur_col}}, trial) |> 
+    select({{media_col}}, {{id_col}}, {{gaze_event_index_col}}, {{gaze_event_dur_col}}, {{trial}}) |> 
     distinct() |>     
-    group_by(.data[[id_col]], trial) |> 
+    group_by(.data[[id_col]], .data[[trial]]) |> 
     summarize(mean_fixation_duration = mean(.data[[gaze_event_dur_col]], na.rm = T)) |> 
     as.data.frame() # necessary to avoid rounding # manually checked for two data examples
 }
@@ -33,32 +34,33 @@ calculate_fixdur <- function(df, gaze_event_col = "Eye.movement.type", media_col
 # Fixation Number ----
 calculate_fixnum <- function(df, gaze_event_col = "Eye.movement.type", media_col = "Presented.Media.name",
                              stimulus_vec = c("ATTENTION_Familiarization.mp4", "ATTENTION_Preflooking.mp4"),
-                             id_col = "Recording.name", gaze_event_index_col = "Eye.movement.type.index", 
+                             id_col = "Recording.name", gaze_event_index_col = "Eye.movement.type.index", trial = "trial",
                              gaze_event_dur_col = "Gaze.event.duration", x_fix = "Fixation.point.X", y_fix = "Fixation.point.Y",
-                             screen_height = 1080, screen_width = 1920, aoi_buffer_px_x = 40, aoi_buffer_px_y = 40,
+                             screen_height_min = 0, screen_width_min = 0,
+                             screen_height_max = 1080, screen_width_max = 1920, aoi_buffer_px_x = 40, aoi_buffer_px_y = 40,
                              off_exclude = F){
   
   if(off_exclude == T){
-    exclude_rows <- which(df[[x_fix]] < 0 | df[[x_fix]] > screen_width + aoi_buffer_px_x |
-                            df[[y_fix]] < 0 | df[[y_fix]] > screen_height + aoi_buffer_px_y)
+    exclude_rows <- which(df[[x_fix]] < screen_width_min - aoi_buffer_px_x | df[[x_fix]] > screen_width_max + aoi_buffer_px_x |
+                            df[[y_fix]] < screen_height_min - aoi_buffer_px_x | df[[y_fix]] > screen_height_max + aoi_buffer_px_y)
     if(exclude_rows |> length() > 0){df <- df[-exclude_rows,]}
   }
   
   df <- df |> 
     filter(.data[[gaze_event_col]] == "Fixation") |> 
     filter(.data[[media_col]] %in% stimulus_vec) |> 
-    select({{media_col}}, {{id_col}}, {{gaze_event_index_col}}, trial) |> 
+    select({{media_col}}, {{id_col}}, {{gaze_event_index_col}}, {{trial}}) |> 
     distinct() |> 
     group_by(.data[[id_col]])
   
   df <- df |> 
-    group_by(.data[[id_col]], trial) |> 
+    group_by(.data[[id_col]], .data[[trial]]) |> 
     count() # manually checked for the first five n's/ data examples
 }
 
 # Looking Time in AOI ----
 calculate_ltaoi <- function(df, media_col = "Presented.Media.name", stimulus_vec = c("ATTENTION_Familiarization.mp4", "ATTENTION_Preflooking.mp4"),
-                            rectime = "Recording.timestamp", id_col = "Recording.name", 
+                            rectime = "Recording.timestamp", id_col = "Recording.name", trial = "trial",
                             x_fix = "Fixation.point.X", y_fix = "Fixation.point.Y", x = "Gaze.point.X", y = "Gaze.point.Y", 
                             aoi_left_upper = c(849-40, 417-40), aoi_right_lower = c(1072+40, 672+40), is_00_upleftcorner = T){
   
@@ -77,14 +79,14 @@ calculate_ltaoi <- function(df, media_col = "Presented.Media.name", stimulus_vec
     filter(.data[[media_col]] %in% stimulus_vec)
   
   df <- df |> 
-    group_by(.data[[id_col]], trial) |> 
+    group_by(.data[[id_col]], .data[[trial]]) |> 
     mutate(GazeSampleDuration = c(diff(.data[[rectime]]), NA) / 1000) |> 
     slice(-n()) |> 
     ungroup()
   
   # Calculate LT in AOI (based on gaze samples)
   df_gaze <- df |> 
-    group_by(.data[[id_col]], trial) |> 
+    group_by(.data[[id_col]], .data[[trial]]) |> 
     summarize(abs_gaze_in_aoi_duration = sum(GazeSampleDuration[gaze_in_aoi == "in"], na.rm = T),
               abs_gaze_out_aoi_duration = sum(GazeSampleDuration[gaze_in_aoi == "out"], na.rm = T)) |> 
     mutate(abs_gaze_recorded_duration = abs_gaze_in_aoi_duration + abs_gaze_out_aoi_duration) |> 
@@ -93,7 +95,7 @@ calculate_ltaoi <- function(df, media_col = "Presented.Media.name", stimulus_vec
   
   # Calculate LT in AOI (based on fixations)
   df_fix <- df |> 
-    group_by(.data[[id_col]], trial) |> 
+    group_by(.data[[id_col]], .data[[trial]]) |> 
     summarize(abs_fix_in_aoi_duration = sum(GazeSampleDuration[fix_in_aoi == "in"], na.rm = T),
               abs_fix_out_aoi_duration = sum(GazeSampleDuration[fix_in_aoi == "out"], na.rm = T)) |> 
     mutate(abs_fix_recorded_duration = abs_fix_in_aoi_duration + abs_fix_out_aoi_duration) |> 

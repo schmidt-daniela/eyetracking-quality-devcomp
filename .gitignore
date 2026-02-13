@@ -33,7 +33,7 @@ exp1/doc/protocol.xlsx
 .Rapp.history
 
 # Session data files
-**/.RData
+*.RData
 .RData
 .RDataTmp
 

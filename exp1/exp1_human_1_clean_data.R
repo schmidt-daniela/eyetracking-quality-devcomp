@@ -13,7 +13,7 @@ library(tidyverse)
 library(readxl)
 
 # Set Parameters ----------------------------------------------------------
-folder <- "adults" # "4m", "6m", "9m", "18m", or "adults"
+folder <- "18m" # "4m", "6m", "9m", "18m", or "adults"
 sample_size <- 32
 buffer <- 40 # 40px (1°) in humans
 

@@ -12,7 +12,7 @@ source(here("exp1", "R", "utils.R"))
 
 # Adjust Parameter --------------------------------------------------------
 for (i in c(1:32)) {
-  folder <- "4m" # "4m", "6m", "9m", "18m", or "adults"
+  folder <- "adults" # "4m", "6m", "9m", "18m", or "adults"
   filenames <- list.files(path = here("exp1", "data", "raw_clean_blink", folder))
   n <- i
   filename <- filenames[n]
@@ -544,6 +544,24 @@ for (i in c(1:32)) {
     left_join(df |> select(group_id, stimulus, position, trial) |> distinct(), by = "trial") |>
     mutate(data_quality = "robustness") |> 
     drop_na(stimulus)
+  
+  df_robustness_tot_2 <- calculate_robustness_2(
+    df,
+    trial_col               = "trial",
+    gaze_x_col              = "gaze_point_x",
+    gaze_y_col              = "gaze_point_y",
+    sample_duration_col     = "gaze_sample_duration",
+    blink_left_col          = "blink_detection.left",
+    blink_right_col         = "blink_detection.right",
+    blink_removal           = TRUE,
+    blink_label             = "blink",
+    blink_replacement_value = 99999,
+    robustness_check_col    = "robustness_check",
+    cum_duration_col        = "cum_duration",
+    truncate_at_t_ms        = 53466,
+    print_max_cum           = FALSE) |>
+    mutate(group_id = df$group_id |> unique()) |> 
+    mutate(data_quality = "robustness_2")
 
   # [2] Calculate Eye-Tracking Outcomes -------------------------------------
   # We consider the following common eye-tracking measures as dependent variables: fixation durations, number of fixations, latencies (i.e.,
@@ -905,29 +923,31 @@ for (i in c(1:32)) {
     left_join(df_acc_tot |> select(-data_quality), by = "trial") |>
     left_join(
       df_precrms_tot |>
-        group_by(group_id, trial, stimulus, position) |>
+        group_by(trial, stimulus, position) |>
         summarise(
           precrms = mean(precrms, na.rm = TRUE),
           precrms_visd = mean(precrms_visd, na.rm = TRUE),
           .groups = "drop"
         ),
-      by = "trial"
+      by = c("trial", "stimulus", "position")
     ) |>
     left_join(
       df_precsd_tot |>
-        group_by(group_id, trial, stimulus, position) |>
+        group_by(trial, stimulus, position) |>
         summarise(
           precsd = mean(precsd, na.rm = TRUE),
           precsd_visd = mean(precsd_visd, na.rm = TRUE),
           .groups = "drop"
         ),
-      by = "trial"
+      by = c("trial", "stimulus", "position")
     ) |>
-    left_join(df_robustness_tot |> select(group_id, trial, robustness_ms, robustness_prop), by = "trial") |>
-    left_join(df_fixdur_tot |> select(-eyetracking_outcome), by = "trial") |>
-    left_join(df_fixnum_tot |> select(-eyetracking_outcome), by = "trial") |>
-    left_join(df_latencies_tot |> select(-eyetracking_outcome), by = "trial") |>
-    left_join(df_rlt_tot |> select(-eyetracking_outcome), by = "trial") |>
+    left_join(df_robustness_tot |> select(trial, robustness_ms, robustness_prop), by = "trial") |>
+    mutate(group_id = df$group_id |> unique()) |> 
+    left_join(df_robustness_tot_2 |> select(robustness_ms_2, group_id), by = "group_id") |>
+    left_join(df_fixdur_tot |> select(-eyetracking_outcome), by = c("trial", "stimulus", "position", "group_id")) |>
+    left_join(df_fixnum_tot |> select(-eyetracking_outcome), by = c("trial", "stimulus", "position", "group_id")) |>
+    left_join(df_latencies_tot |> select(-eyetracking_outcome), by = c("trial", "stimulus", "position", "group_id")) |>
+    left_join(df_rlt_tot |> rename(group_id = id) |> select(-eyetracking_outcome), by = c("trial", "stimulus", "position", "group_id")) |>
     add_demo_cols(df = df, folder = folder)
   
   base_cols <- c(
@@ -935,7 +955,7 @@ for (i in c(1:32)) {
     "accuracy", "acc_visd",
     "precrms", "precrms_visd",
     "precsd", "precsd_visd",
-    "robustness_ms", "robustness_prop",
+    "robustness_ms", "robustness_prop", "robustness_ms_2",
     "mean_fixation_duration", "mean_fixation_number",
     "latencies", "congruence",
     "rel_gaze_in_aoi", "rel_fix_in_aoi",
@@ -954,5 +974,4 @@ for (i in c(1:32)) {
   saveRDS(df_tot, here("exp1", "data", "preproc", folder, filename), compress = "xz")
 
   print(i)
-  print(df_tot |> colnames() |> sort())
 }

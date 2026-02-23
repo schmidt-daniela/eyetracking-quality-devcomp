@@ -7,6 +7,7 @@ library(tidyverse)
 library(brms)
 library(posterior)
 library(marginaleffects)
+library(readxl)
 
 # Load Functions ----------------------------------------------------------
 source(here("exp1", "R", "descriptives.R"))
@@ -29,6 +30,8 @@ df_9m     <- dfs[["9m"]] |> mutate(no_household = as.character(no_household))
 df_18m    <- dfs[["18m"]]
 df_adults <- dfs[["adults"]]
 df_chimps <- dfs[["chimps"]]
+
+day_session <- read_excel(here("exp1", "doc", "day_session_apes.xlsx"))
 
 # Prepare Data ------------------------------------------------------------
 df_tot <- df_4m |> 
@@ -66,6 +69,20 @@ position_levels <- c("center", "top_left", "top_right", "bot_left", "bot_right",
 df_tot <- df_tot |> 
   mutate(position = factor(position, levels = position_levels))
 
+# Scale robustness
+df_tot <- df_tot |> 
+  mutate(robustness_prop_2 = robustness_ms_2 / 53466)
+
+# Add day
+df_tot <- df_tot |> 
+  separate(session_trial, into = c("session", "trial"), sep = "_", remove = FALSE) |>
+  left_join(day_session, by = c("group_id", "session", "group"))
+
+df_tot <- df_tot |> 
+  mutate(time_3 = if_else(folder == "chimps", as.numeric(day), as.numeric(time)))
+
+# Legend for time:
+# In chimps: time_1 = session, time_2 = trial within session, time_3 = day
 
 # RQ1 (Accuracy) ----------------------------------------------------------
 # RQ1:  (How) does eye-tracking data quality (accuracy, precision, robustness) 
@@ -140,9 +157,7 @@ full_rq1_acc <- brm(
   prior  = prior_rq1_acc,
   chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
   sample_prior="yes",
-  # control = list(adapt_delta = 0.99, max_treedepth = 15),
   seed = 123,
-  # save_pars = save_pars(all = TRUE)
 )
 t1 <- proc.time()
 proc_time_rq1_acc <- t1 - t0
@@ -211,10 +226,18 @@ loo_compare(loo_full, loo_red) # red_rq1_acc: elpd_diff = -9.1 & se_diff = 4.4.
 post_samples_rq1_acc <- as_draws_df(full_rq1_acc)
 
 # Transform all condition parameters to probabilities
-posterior_probs_rq1_acc <- post_samples_rq1_acc |> 
-  select(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps) |> 
-  mutate(b_folder4m = plogis(b_folder4m), b_folder6m = plogis(b_folder6m), b_folder9m = plogis(b_folder9m),
-         b_folder18m = plogis(b_folder18m), b_folderadults = plogis(b_folderadults), b_folderchimps = plogis(b_folderchimps))
+# Gamma(link="log") -> exp()
+# Beta -> plogis()
+# Caution: This is the expected mean when position = reference category
+post_samples_rq1_acc <- post_samples_rq1_acc |>
+  transmute(
+    b_folder4m     = exp(b_folder4m),
+    b_folder6m     = exp(b_folder6m),
+    b_folder9m     = exp(b_folder9m),
+    b_folder18m    = exp(b_folder18m),
+    b_folderadults = exp(b_folderadults),
+    b_folderchimps = exp(b_folderchimps)
+  )
 
 # Plot posterior distributions of each condition
 png(here("exp1", "img", "rq1_acc_posterior.png"), width = 2480, height = 3508/6, res = 300)
@@ -252,7 +275,7 @@ png(here("exp1", "img", "rq1_acc_posteriorprior_9m.png"), width = 2480/2, height
 plot_prior_vs_poster(full_rq1_acc, pars = c("b_folder9m", "prior_b_folder9m"), facet_label = "9-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_acc_posteriorprior_18m.png"), width = 2480/2, height = 3508/6, res = 300)
+png(here("exp1", "img", "rq1_acc_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_acc, pars = c("b_folder18m", "prior_b_folder18m"), facet_label = "18-Month-Olds")
 dev.off()
 
@@ -337,7 +360,7 @@ p_acc <- ggplot(df_subj, aes(x = Group, y = acc_visd)) +
   ) +
   labs(
     x = "Group",
-    y = "Precision (RMS)\nin visual degrees"
+    y = "Accuracy\nin visual degrees"
   ) +
   theme_classic(base_size = 14) +
   theme(panel.grid = element_blank())
@@ -395,7 +418,7 @@ full_rq1_precrms <- brm(
   family = Gamma(link="log"),
   prior  = prior_rq1_precrms,
   chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
-  sample_prior="yes",
+  sample_prior = "yes",
   # control = list(adapt_delta = 0.99, max_treedepth = 15),
   seed = 123,
   # save_pars = save_pars(all = TRUE)
@@ -472,7 +495,6 @@ df_tot |>
   arrange(mean_precrms_visd)
 
 # Calculate posterior probability that precision (RMS) in A is higher than in B
-# todo: adjust order + add %
 mean(post_samples_rq1_precrms$b_folderadults < post_samples_rq1_precrms$b_folderchimps) # 1
 mean(post_samples_rq1_precrms$b_folderchimps < post_samples_rq1_precrms$b_folder9m) # 0
 mean(post_samples_rq1_precrms$b_folder9m < post_samples_rq1_precrms$b_folder18m) # 0.06075
@@ -589,6 +611,7 @@ t0 <- proc.time()
 full_rq1_precsd <- brm(
   precsd_visd ~ 0 + folder + 0 + position + (1 + position | group_id),
   data   = df_tot,
+  sample_prior = "yes",
   family = Gamma(link="log"),
   prior  = prior_rq1_precsd,
   chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
@@ -645,7 +668,7 @@ png(here("exp1", "img", "rq1_precsd_posteriorprior_9m.png"), width = 2480/2, hei
 plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder9m", "prior_b_folder9m"), facet_label = "9-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_precsd_posteriorprior_18m.png"), width = 2480/2, height = 3508/6, res = 300)
+png(here("exp1", "img", "rq1_precsd_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder18m", "prior_b_folder18m"), facet_label = "18-Month-Olds")
 dev.off()
 
@@ -664,128 +687,21 @@ df_tot |>
   ungroup() |> 
   arrange(mean_precsd_visd)
 
-# RQ1 (Robustness) ----------------------------------------------------------
-# Preregistered Model:
-# Dependent variables: accuracy, precision RMS, precision SD, and robustness (in separate GLMMs).
-# Fixed effect variables of interest: group (4-, 6-, 9-, 18-month-old human infants, human adults, chimpanzees)
-# Fixed control variables: stimulus position on screen
-# Random intercept: subject id
-# Random slopes: maximal random effect structure
-# 
-# Full model: data quality ~ group + position on screen + random effects
-# Reduced model: data quality ~ position on screen + random effects
-
-# Robustness definition (proportion):
-# robustness_prop = recorded_ms / trial_length_ms
-# Therefore: 0 < robustness_prop < 1
-
-# Model choice:
-# We use a Beta likelihood with a logit link.
-# With Beta(link="logit") and 0 + folder, folder coefficients are on the logit-mean scale:
-#   mu = inv_logit( b_folder* + ... )
-# Note: Beta() requires outcomes strictly in (0, 1). If exact 0 or 1 occur,
-# clamp slightly or use zero_one_inflated_beta().
-
-## Define Priors ----
-priors_rq1_rob <- c(
-  
-  # Robustness (not preregistered; therefore weakly informative priors)
-  # Prior choice:
-  # We expect robustness to be around 0.5 on average, but with wide uncertainty.
-  # Centering at 0.5 (logit scale), with a large SD to avoid strong assumptions.
-  # Even with a wide SD on the logit scale, mu remains constrained to (0, 1).
-  
-  # Group-level means (logit-mean scale)
-  prior(normal(qlogis(0.5), 1.5), class = "b", coef = "folder4m"),
-  prior(normal(qlogis(0.5), 1.5), class = "b", coef = "folder6m"),
-  prior(normal(qlogis(0.5), 1.5), class = "b", coef = "folder9m"),
-  prior(normal(qlogis(0.5), 1.5), class = "b", coef = "folder18m"),
-  prior(normal(qlogis(0.5), 1.5), class = "b", coef = "folderadults"),
-  prior(normal(qlogis(0.5), 1.5), class = "b", coef = "folderchimps"),
-  
-  # Dispersion (phi):
-  # phi controls how concentrated the Beta distribution is around mu.
-  # Weakly informative prior, avoids extreme concentration by default.
-  # Beta precision parameter (higher = less variance around mu)
-  prior(exponential(1), class = "phi"),
-  
-  # Position effects (weakly informative; small-to-moderate differences expected)
-  prior(normal(0, 0.56), class = "b", coef = "positionbot_left"),
-  prior(normal(0, 0.56), class = "b", coef = "positionbot_right"),
-  prior(normal(0, 0.56), class = "b", coef = "positionbottom"),
-  # prior(normal(0, 0.56), class = "b", coef = "positioncenter"), # center is the reference level
-  prior(normal(0, 0.56), class = "b", coef = "positiontop"),
-  prior(normal(0, 0.56), class = "b", coef = "positiontop_left"),
-  prior(normal(0, 0.56), class = "b", coef = "positiontop_right"),
-  
-  # Random effects regularization
-  prior(exponential(1), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
-  prior(lkj(2), class = "cor") # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
-  # supported, improving computational stability in random-slope models
-)
-
-## Full Model ----
-t0 <- proc.time()
-
-full_rq1_rob <- brm(
-  robustness_prop ~ 0 + folder + 0 + position + (1 + position | group_id),
-  data   = df_tot,
-  family = Beta(link = "logit"),
-  prior  = priors_rq1_rob,
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
-  seed = 123
-)
-t1 <- proc.time()
-proc_time_rq1_rob <- t1 - t0
-rm(t0, t1)
-
-## Visualization ----
-
-# Extract all posterior samples
-post_samples_rq1_rob <- as_draws_df(full_rq1_rob)
-
-# Transform all condition parameters to probabilities
-posterior_probs_rq1_rob <- post_samples_rq1_rob |> 
-  select(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps) |> 
-  mutate(b_folder4m = plogis(b_folder4m), b_folder6m = plogis(b_folder6m), b_folder9m = plogis(b_folder9m),
-         b_folder18m = plogis(b_folder18m), b_folderadults = plogis(b_folderadults), b_folderchimps = plogis(b_folderchimps))
-
-# Plot posterior distributions of each condition
-posterior_probs_rq1_rob |>
-  pivot_longer(cols = c(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps),
-               names_to = "param", values_to = "value") |>
-  ggplot(aes(x = value, fill = param)) +
-  geom_histogram(bins = 80, position = "identity", alpha = 0.35) +
-  theme_minimal()
-
-## Inference ----
-
-# Descriptives
-df_tot |> 
-  group_by(folder, group_id) |> 
-  summarize(robustness_ms = mean(robustness_ms, na.rm = T)) |> 
-  group_by(folder) |> 
-  summarize(mean_robustness_ms = mean(robustness_ms, na.rm = T),
-            sd_robustness_ms = sd(robustness_ms, na.rm = T)) |> 
-  ungroup() |> 
-  arrange(mean_robustness_ms)
-
-# Calculate posterior probability that roburacy in A is higher than in B
-mean(post_samples_rq1_rob$b_folderadults > post_samples_rq1_rob$b_folder18m) # xx% # 
-# "The posterior probability that chimpanzees have a better robustness than 4-month-old infants, is xx%."
-mean(post_samples_rq1_rob$b_folder18m < post_samples_rq1_rob$b_folder9m) # xx%
-mean(post_samples_rq1_rob$b_folder9m > post_samples_rq1_rob$b_folderchimps) # xx%
-mean(post_samples_rq1_rob$b_folderchimps > post_samples_rq1_rob$b_folder6m) # xx%
-mean(post_samples_rq1_rob$b_folder6m > post_samples_rq1_rob$b_folder4m) # xx%
+# Calculate posterior probability that precision (SD) in A is higher than in B
+mean(post_samples_rq1_precsd$b_folderadults < post_samples_rq1_precsd$b_folder9m) # 1
+mean(post_samples_rq1_precsd$b_folder9m < post_samples_rq1_precsd$b_folder18m) # 0.4295
+mean(post_samples_rq1_precsd$b_folder18m < post_samples_rq1_precsd$b_folder6m) # 0.99975
+mean(post_samples_rq1_precsd$b_folder6m < post_samples_rq1_precsd$b_folderchimps) # 0.98575
+mean(post_samples_rq1_precsd$b_folderchimps < post_samples_rq1_precsd$b_folder4m) # 0.61275
 
 ## Paper Plot ----
+
 # Aggregate to subject level (mean over time/trials)
 df_subj <- df_tot |>
-  # filter(!(group_id %in% c("alex", "daza"))) |> 
-  filter(!is.na(folder), !is.na(group_id), !is.na(time), !is.na(robustness_ms)) |>
+  filter(!is.na(folder), !is.na(group_id), !is.na(time), !is.na(precsd_visd)) |>
   group_by(folder, group_id) |>
   summarise(
-    robustness_ms = mean(robustness_ms, na.rm = TRUE),
+    precsd_visd = mean(precsd_visd, na.rm = TRUE),
     .groups = "drop"
   ) |>
   mutate(
@@ -797,12 +713,12 @@ df_subj <- df_tot |>
   )
 
 # Mean + 95% CI across subjects (per group)
-sum_df <- df_subj |>  
+sum_df <- df_subj |>
   group_by(Group) |>
   summarise(
     n = n(),
-    mean = mean(robustness_ms),
-    sd = sd(robustness_ms),
+    mean = mean(precsd_visd),
+    sd = sd(precsd_visd),
     se = sd / sqrt(n),
     tcrit = ifelse(n > 1, qt(0.975, df = n - 1), NA_real_),
     ci_low = mean - tcrit * se,
@@ -810,7 +726,7 @@ sum_df <- df_subj |>
     .groups = "drop"
   )
 
-p_robust <- ggplot(df_subj, aes(x = Group, y = robustness_ms)) +
+p_precsd <- ggplot(df_subj, aes(x = Group, y = precsd_visd)) +
   geom_violin(trim = FALSE, alpha = 0.25) +
   geom_point(
     aes(color = Group),
@@ -834,16 +750,243 @@ p_robust <- ggplot(df_subj, aes(x = Group, y = robustness_ms)) +
   ) +
   labs(
     x = "Group",
-    y = "Robustness\nin ms"
+    y = "Precision (SD)\nin visual degrees"
   ) +
   theme_classic(base_size = 14) +
   theme(panel.grid = element_blank())
 
-p_robust
+png(here("exp1", "img", "rq1_precsd_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
+p_precsd
+dev.off()
 
+# RQ1 (Robustness) ----------------------------------------------------------
+# Preregistered Model:
+# Dependent variables: accuracy, precision RMS, precision SD, and robustness (in separate GLMMs).
+# Fixed effect variables of interest: group (4-, 6-, 9-, 18-month-old human infants, human adults, chimpanzees)
+# Fixed control variables: stimulus position on screen
+# Random intercept: subject id
+# Random slopes: maximal random effect structure
+# 
+# Full model: data quality ~ group + position on screen + random effects
+# Reduced model: data quality ~ position on screen + random effects
+
+# Robustness definition (proportion):
+# robustness = mean length of consecutively valid samples
+# Therefore: 0 < 53466
+
+# Model choice:
+# We use a Beta likelihood with a logit link.
+# With Beta(link="logit") and 0 + folder, folder coefficients are on the logit-mean scale:
+#   mu = inv_logit( b_folder* + ... )
+# Note: Beta() requires outcomes strictly in (0, 1). If exact 0 or 1 occur,
+# clamp slightly or use zero_one_inflated_beta().
+
+## Define Priors ----
+mu0 <- qlogis(0.05)
+mu0 # -2.944439
+
+priors_rq1_rob <- c(
+  
+  # Robustness (not preregistered; therefore weakly informative priors)
+  # We expect robustness to be around 0.05 on average, but with wide uncertainty.
+  # Group-level means (logit-mean scale)
+  prior(normal(-2.944439, 0.9), class = "b", coef = "folder4m"),
+  prior(normal(-2.944439, 0.9), class = "b", coef = "folder6m"),
+  prior(normal(-2.944439, 0.9), class = "b", coef = "folder9m"),
+  prior(normal(-2.944439, 0.9), class = "b", coef = "folder18m"),
+  prior(normal(-2.944439, 0.9), class = "b", coef = "folderadults"),
+  prior(normal(-2.944439, 0.9), class = "b", coef = "folderchimps"),
+  
+  # Dispersion (phi):
+  # phi controls how concentrated the Beta distribution is around mu.
+  # Weakly informative prior, avoids extreme concentration by default.
+  # Beta precision parameter (higher = less variance around mu)
+  prior(exponential(1), class = "phi"),
+  
+  # Random effects regularization
+  prior(exponential(1), class = "sd") # enforces positivity but allows inter-individual heterogeneity
+)
+
+## Full Model ----
+t0 <- proc.time()
+
+full_rq1_rob <- brm(
+  robustness_prop_2 ~ 0 + folder + (1 | group_id),
+  data   = df_tot |> filter(!is.na(robustness_prop_2)) |> select(folder, group_id,robustness_prop_2) |> distinct(),
+  family = Beta(link = "logit"),
+  prior  = priors_rq1_rob,
+  sample_prior = "yes",
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  seed = 123,
+  control = list(adapt_delta = 0.99, max_treedepth = 15)
+)
+t1 <- proc.time()
+proc_time_rq1_rob <- t1 - t0
+rm(t0, t1)
+
+## Visualization ----
+
+# Extract all posterior samples
+post_samples_rq1_rob <- as_draws_df(full_rq1_rob)
+
+# Transform all condition parameters to probabilities
+posterior_probs_rq1_rob <- post_samples_rq1_rob |> 
+  select(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps) |> 
+  mutate(b_folder4m = plogis(b_folder4m), b_folder6m = plogis(b_folder6m), b_folder9m = plogis(b_folder9m),
+         b_folder18m = plogis(b_folder18m), b_folderadults = plogis(b_folderadults), b_folderchimps = plogis(b_folderchimps))
+
+# Plot posterior distributions of each condition
+png(here("exp1", "img", "rq1_rob_posterior.png"), width = 2480, height = 3508/6, res = 300)
+posterior_probs_rq1_rob |>
+  pivot_longer(cols = c(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps),
+               names_to = "param", values_to = "value") |>
+  mutate(param = recode(
+    param,
+    b_folder4m     = " 4-Month-Olds",
+    b_folder6m     = " 6-Month-Olds",
+    b_folder9m     = " 9-Month-Olds",
+    b_folder18m    = "18-Month-Olds",
+    b_folderadults = "Adults",
+    b_folderchimps = "Chimpanzees")) |> 
+  mutate(Group = param) |> 
+  ggplot(aes(x = value, fill = Group)) +
+  geom_histogram(position = "identity", alpha = 0.35) +
+  theme_minimal()
+dev.off()
+
+# Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
+png(here("exp1", "img", "rq1_rob_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq1_rob, pars = c("b_folderchimps", "prior_b_folderchimps"), facet_label = "Chimpanzees")
+dev.off()
+
+png(here("exp1", "img", "rq1_rob_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq1_rob, pars = c("b_folder4m", "prior_b_folder4m"), facet_label = "4-Month-Olds")
+dev.off()
+
+png(here("exp1", "img", "rq1_rob_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq1_rob, pars = c("b_folder6m", "prior_b_folder6m"), facet_label = "6-Month-Olds")
+dev.off()
+
+png(here("exp1", "img", "rq1_rob_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq1_rob, pars = c("b_folder9m", "prior_b_folder9m"), facet_label = "9-Month-Olds")
+dev.off()
+
+png(here("exp1", "img", "rq1_rob_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq1_rob, pars = c("b_folder18m", "prior_b_folder18m"), facet_label = "18-Month-Olds")
+dev.off()
+
+png(here("exp1", "img", "rq1_rob_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq1_rob, pars = c("b_folderadults", "prior_b_folderadults"), facet_label = "Adults")
+dev.off()
+
+## Inference ----
+
+# Descriptives
+df_tot |> 
+  group_by(folder, group_id) |> 
+  # summarize(robustness_ms_2 = mean(robustness_ms_2, na.rm = T)) |> 
+  summarize(robustness_prop_2 = mean(robustness_prop_2, na.rm = T)) |> 
+  group_by(folder) |> 
+  # summarize(mean_robustness_ms = mean(robustness_ms, na.rm = T),
+  #           sd_robustness_ms = sd(robustness_ms, na.rm = T)) |> 
+  summarize(mean_robustness_prop_2 = mean(robustness_prop_2, na.rm = T),
+            sd_robustness_prop_2 = sd(robustness_prop_2, na.rm = T)) |> 
+  ungroup() |> 
+  arrange(mean_robustness_prop_2)
+
+# df_tot |> 
+#   group_by(folder, group_id) |> 
+#   summarize(robustness_ms_2 = mean(robustness_ms_2, na.rm = T)) |> 
+#   group_by(folder) |> 
+#   summarize(mean_robustness_ms_2 = mean(robustness_ms_2, na.rm = T),
+#             sd_robustness_ms_2 = sd(robustness_ms_2, na.rm = T)) |>
+#   ungroup() |> 
+#   arrange(sd_robustness_ms_2)
+# 
+# df_tot |> 
+#   group_by(folder, group_id) |> 
+#   summarize(robustness_prop = mean(robustness_prop, na.rm = T)) |> 
+#   group_by(folder) |> 
+#   summarize(mean_robustness_prop = mean(robustness_prop, na.rm = T),
+#             sd_robustness_prop = sd(robustness_prop, na.rm = T)) |> 
+#   ungroup() |> 
+#   arrange(mean_robustness_prop)
+
+# Calculate posterior probability that Robustness in A is higher than in B
+mean(post_samples_rq1_rob$b_folderadults > post_samples_rq1_rob$b_folder18m) # 1 
+# "The posterior probability that adults have a better robustness than 18-month-old infants, is 1."
+mean(post_samples_rq1_rob$b_folder18m > post_samples_rq1_rob$b_folder9m) # 0.928%
+mean(post_samples_rq1_rob$b_folder9m > post_samples_rq1_rob$b_folder6m) # 0.7595%
+mean(post_samples_rq1_rob$b_folder6m > post_samples_rq1_rob$b_folderchimps) # 0.5656%
+mean(post_samples_rq1_rob$b_folderchimps > post_samples_rq1_rob$b_folder4m) # 0.67825%
+
+## Paper Plot ----
+# Aggregate to subject level (mean over time/trials)
+df_subj <- df_tot |>
+  select(robustness_prop_2, folder, group_id) |> 
+  distinct() |> 
+  group_by(folder, group_id) |>
+  summarise(
+    robustness_prop_2 = mean(robustness_prop_2, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    Group = factor(
+      folder,
+      levels = c("4m", "6m", "9m", "18m", "adults", "chimps"),
+      labels = c("4M", "6M", "9M", "18M", "Adults", "Chimpanzees")
+    )
+  )
+
+# Mean + 95% CI across subjects (per group)
+sum_df <- df_subj |>  
+  group_by(Group) |>
+  summarise(
+    n = n(),
+    mean = mean(robustness_prop_2),
+    sd = sd(robustness_prop_2),
+    se = sd / sqrt(n),
+    tcrit = ifelse(n > 1, qt(0.975, df = n - 1), NA_real_),
+    ci_low = mean - tcrit * se,
+    ci_high = mean + tcrit * se,
+    .groups = "drop"
+  )
+
+p_robust <- ggplot(df_subj, aes(x = Group, y = robustness_prop_2)) +
+  geom_violin(trim = FALSE, alpha = 0.25) +
+  geom_point(
+    aes(color = Group),
+    position = position_jitter(width = 0.12, height = 0),
+    alpha = 0.75,
+    size = 2,
+    show.legend = FALSE
+  ) +
+  geom_errorbar(
+    data = sum_df,
+    aes(x = Group, ymin = ci_low, ymax = ci_high),
+    width = 0.12,
+    linewidth = 1,
+    inherit.aes = FALSE
+  ) +
+  geom_point(
+    data = sum_df,
+    aes(x = Group, y = mean),
+    size = 3,
+    inherit.aes = FALSE
+  ) +
+  labs(
+    x = "Group",
+    y = "Robustness\nin %"
+  ) +
+  theme_classic(base_size = 14) +
+  theme(panel.grid = element_blank())
+
+png(here("exp1", "img", "rq1_rob_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
+p_robust
+dev.off()
 
 # RQ2 (Accuracy) ----------------------------------------------------------
-# RQ2:  (How) does eye-tracking data quality change over time, 
+# RQ2: (How) does eye-tracking data quality change over time, 
 # with time being defined as trials (humans, chimpanzees) and/or sessions (chimpanzees)?
 
 # Dependent variables: accuracy, precision RMS, precision SD, and robustness (in separate GLMMs).
@@ -861,144 +1004,524 @@ p_robust
 
 ## Define Priors ----
 # With Gamma(link="log"), coefficients are on the log-mean scale.
-priors_rq2 <- c(
+priors_rq2_acc_hum <- c(
   # Group parameters (log-mean scale)
   prior(normal(0.50, 0.48), class = "b", coef = "folder4m"),
   prior(normal(0.50, 0.48), class = "b", coef = "folder6m"),
   prior(normal(0.24, 0.09), class = "b", coef = "folder9m"),
   prior(normal(0.00, 0.09), class = "b", coef = "folder18m"),
   prior(normal(-0.41, 0.08), class = "b", coef = "folderadults"),
-  prior(normal(0.75, 0.24), class = "b", coef = "folderchimps"),
-
+  
   # Gamma shape (very wide; centered on preregistered median of 2.39 value)
   prior(lognormal(log(2.39), 1), class = "shape"),
   
-  # Interaction: folder × time_1
-  prior(normal(0, 0.64), class = "b", coef = "folder4m:time_1"),
-  prior(normal(0, 0.64), class = "b", coef = "folder6m:time_1"),
-  prior(normal(0, 0.64), class = "b", coef = "folder9m:time_1"),
-  prior(normal(0, 0.64), class = "b", coef = "folder18m:time_1"),
-  prior(normal(0, 0.64), class = "b", coef = "folderadults:time_1"),
-  prior(normal(0, 0.64), class = "b", coef = "folderchimps:time_1"),
+  # Interaction: folder × time_3
+  # Prior for group-specific linear time slopes (per trial) on the log-mean scale.
+  # SD = 0.002 implies that, over ~79 trials, most prior mass corresponds to a modest 
+  # total change (≈ −26% to +36%) in expected accuracy from the first to the last trial, 
+  # reflecting mixed evidence (decline vs no change) without allowing implausibly large
+  # session-wide shifts.
+  prior(normal(0, 0.002), class = "b", coef = "folder4m:time_3"),
+  prior(normal(0, 0.002), class = "b", coef = "folder6m:time_3"),
+  prior(normal(0, 0.002), class = "b", coef = "folder9m:time_3"),
+  prior(normal(0, 0.002), class = "b", coef = "folder18m:time_3"),
+  prior(normal(0, 0.002), class = "b", coef = "folderadults:time_3"),
   
-  # Position (weakly informative)
-  prior(normal(0, 0.56), class = "b", coef = "positionbot_left"),
-  prior(normal(0, 0.56), class = "b", coef = "positionbot_right"),
-  prior(normal(0, 0.56), class = "b", coef = "positionbottom"),
-  # prior(normal(0, 0.56), class = "b", coef = "positioncenter"), # center is the reference level
-  prior(normal(0, 0.56), class = "b", coef = "positiontop"),
-  prior(normal(0, 0.56), class = "b", coef = "positiontop_left"),
-  prior(normal(0, 0.56), class = "b", coef = "positiontop_right"),
+  # Position (should not be bigger than half of the difference between adults and 9ms,
+  # that is, -0.41 - 0.24 = -0.65, so half of that is 0.325)
+  prior(normal(0, 0.325), class = "b", coef = "positionbot_left"),
+  prior(normal(0, 0.325), class = "b", coef = "positionbot_right"),
+  prior(normal(0, 0.325), class = "b", coef = "positionbottom"),
+  # prior(normal(0, 0.325), class = "b", coef = "positioncenter"), # center is the reference level
+  prior(normal(0, 0.325), class = "b", coef = "positiontop"),
+  prior(normal(0, 0.325), class = "b", coef = "positiontop_left"),
+  prior(normal(0, 0.325), class = "b", coef = "positiontop_right"),
   
   # Random effects regularization
-  prior(exponential(0.25), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
+  prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
+  prior(lkj(2), class = "cor") # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  # supported, improving computational stability in random-slope models
+)
+
+priors_rq2_acc_chi <- c(
+  
+  # Gamma shape (very wide; centered on preregistered median of 2.39 value)
+  prior(lognormal(log(2.39), 1), class = "shape"),
+  
+  # Main effect time
+  # Linear time effect per testing day on the log-mean scale.
+  # We re-center time_3 so that 0 = first testing day. The coefficient b_time_3 is therefore
+  # the per-day multiplicative change in expected accuracy: mu_day = mu_day1 * exp(b_time_3 * day).
+  # SD = 0.026 implies that over ~7 days (Δt = 6) most prior mass corresponds to a modest
+  # total change (≈ −26% to +36%) from first to last day:
+  # exp(±1.96 * 0.026 * 6) ≈ [0.74, 1.36]. This reflects “no strong prediction” while ruling out
+  # implausibly large session-wide shifts.
+  prior(normal(0, 0.026), class = "b", coef = "time_3"),
+  
+  # Position (should not be bigger than half of the difference between adults and 9ms,
+  # that is, -0.41 - 0.24 = -0.65, so half of that is 0.325)
+  prior(normal(0, 0.325), class = "b", coef = "positionbot_left"),
+  prior(normal(0, 0.325), class = "b", coef = "positionbot_right"),
+  prior(normal(0, 0.325), class = "b", coef = "positionbottom"),
+  # prior(normal(0, 0.325), class = "b", coef = "positioncenter"), # center is the reference level
+  prior(normal(0, 0.325), class = "b", coef = "positiontop"),
+  prior(normal(0, 0.325), class = "b", coef = "positiontop_left"),
+  prior(normal(0, 0.325), class = "b", coef = "positiontop_right"),
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
   prior(lkj(2), class = "cor") # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
   # supported, improving computational stability in random-slope models
 )
 
 ## Full model ----
-full_rq2 <- brm(
-  acc_visd ~ 0 + folder + 0 + folder:time_1 + 0 + position +
-    (1 + position + time_1 | group_id),
-  data   = df_tot,
-  family = hurdle_gamma(link = "log"),
-  prior  = priors_rq2,
+full_rq2_acc_hum <- brm(
+  acc_visd ~ 0 + folder + 0 + folder:time_3 + 0 + position +
+    (1 + time_3 + position | group_id),
+  data   = df_tot |> filter(folder != "chimps") |> mutate(time_3 = time_3 - 1), # re-center time_3 to make the intercept more interpretable
+  family = hurdle_gamma(link="log"),
+  prior  = priors_rq2_acc_hum,
+  sample_prior = "yes",
   chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
-  control = list(adapt_delta = 0.99, max_treedepth = 15),
   seed = 123
-  # save_pars = save_pars(all = TRUE)
 )
 
-# Reduced model
-red_rq2 <- brm(
-  acc_visd ~ 0 + folder + 0 + position +
-    (1 + position + time_1 | group_id),
-  data   = df_tot,
-  family = hurdle_gamma(link = "log"),
-  prior  = priors_rq2,  # or define a priors_red_rq2 without the folder:time priors
+full_rq2_acc_chi <- brm(
+  acc_visd ~ time_3 + position + (1 + time_3 + position | group_id),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1),
+  family = hurdle_gamma(link="log"),
+  prior  = priors_rq2_acc_chi,
+  sample_prior = "yes",
   chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
-  control = list(adapt_delta = 0.99, max_treedepth = 15),
   seed = 123
 )
+
+## Inference ----
+
+# Descriptives
+df_tot |> 
+  group_by(folder, group_id, time_3) |> # or time_1 or time_2 or time_3
+  summarize(acc_visd = mean(acc_visd, na.rm = T)) |> 
+  group_by(folder, time_3) |> # or time_1 or time_2 or time_3
+  summarize(mean_acc_visd = mean(acc_visd, na.rm = T),
+            sd_acc_visd = sd(acc_visd, na.rm = T)) |> 
+  ungroup() |> 
+  arrange(folder, time_3) # or time_1 or time_2 or time_3
 
 ## Paper Plot ----
-png(here("exp1", "img", "rq2_all.png"), width = 2480, height = 3508, res = 300)
+# Plot showing data quality across time in all tested groups
+plot_rq2(df = df_tot, png_name = "rq2_acc_session_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+                         group_var = "folder", x_var   = "time_1", y_var = "acc_visd",
+                         xmax_chimps = 8, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 3, ymax_chimps = 5,
+                         ytitle = "Accuracy\nin visual degrees", x_label = "Time\n(trials in humans; sessions in apes)")
 
-lvl <- c("4m", "6m", "9m", "18m", "adults", "chimps")
+plot_rq2(df = df_tot, png_name = "rq2_acc_trial_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+                         group_var = "folder", x_var   = "time_2", y_var = "acc_visd",
+                         xmax_chimps = 11, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 3, ymax_chimps = 5,
+                         ytitle = "Accuracy\nin visual degrees", x_label = "Time\n(trials in humans; trials within sessions in apes)")
 
-facet_labs <- c(
-  "4m"     = "4-Month-Olds",
-  "6m"     = "6-Month-Olds",
-  "9m"     = "9-Month-Olds",
-  "18m"    = "18-Month-Olds",
-  "adults" = "Adults",
-  "chimps" = "Chimpanzees"
+plot_rq2(df = df_tot, png_name = "rq2_acc_day_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+                         group_var = "folder", x_var   = "time_3", y_var = "acc_visd",
+                         xmax_chimps = 7, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 3, ymax_chimps = 5,
+                         ytitle = "Accuracy\nin visual degrees", x_label = "Time\n(trials in humans; days in apes)")
+
+# RQ2 (Precision RMS) -----------------------------------------------------
+# RQ2: (How) does eye-tracking data quality change over time,
+# with time being defined as trials (humans) and testing days (chimpanzees)?
+
+## Define Priors ----
+# With Gamma(link="log"), coefficients are on the log-mean scale.
+
+priors_rq2_precrms_hum <- c(
+  # Group parameters (log-mean scale)
+  prior(normal(-0.88, 0.32), class = "b", coef = "folder4m"),
+  prior(normal(-0.88, 0.32), class = "b", coef = "folder6m"),
+  prior(normal(-1.64, 0.08), class = "b", coef = "folder9m"),
+  prior(normal(-1.82, 0.07), class = "b", coef = "folder18m"),
+  prior(normal(-2.03, 0.07), class = "b", coef = "folderadults"),
+  prior(normal(-0.11, 0.16), class = "b", coef = "folderchimps"),
+  
+  # Gamma shape
+  # shape estimate = 7.42 (SE 0.19) -> meanlog ~ 2.004, sdlog ~ 0.0256; doubled sd for width
+  prior(lognormal(2.004, 2*0.0256), class = "shape"),
+  
+  # Interaction: folder × time_3 (group-specific linear time slopes per trial)
+  # Prior for group-specific linear time slopes (per trial) on the log-mean scale.
+  # time_3 is unscaled but re-centered (0 = first trial). SD = 0.002 implies that over ~79 trials
+  # (Δt ≈ 78) most prior mass corresponds to a modest total change (≈ −26% to +36%) from first
+  # to last trial: exp(±1.96 * 0.002 * 78) ≈ [0.74, 1.36].
+  prior(normal(0, 0.002), class = "b", coef = "folder4m:time_3"),
+  prior(normal(0, 0.002), class = "b", coef = "folder6m:time_3"),
+  prior(normal(0, 0.002), class = "b", coef = "folder9m:time_3"),
+  prior(normal(0, 0.002), class = "b", coef = "folder18m:time_3"),
+  prior(normal(0, 0.002), class = "b", coef = "folderadults:time_3"),
+  
+  # Position priors
+  # Position should not be bigger than half of the difference between adults and 9ms:
+  # -2.03 - (-1.64) = -0.39, half = 0.195
+  prior(normal(0, 0.195), class = "b", coef = "positionbot_left"),
+  prior(normal(0, 0.195), class = "b", coef = "positionbot_right"),
+  prior(normal(0, 0.195), class = "b", coef = "positionbottom"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop_left"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop_right"),
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"),
+  prior(lkj(2), class = "cor")
 )
 
-# Build a clean plotting data frame
-df_plot <- df_tot |>
-  mutate(folder = trimws(as.character(folder))) |>
-  filter(!(folder == "chimps" & time_1 > 8)) |>
-  filter(!is.na(time_1), !is.na(acc_visd)) |>
-  mutate(folder = factor(folder, levels = lvl))
+priors_rq2_precrms_chi <- c(
+  # Gamma shape
+  prior(lognormal(2.004, 2*0.0256), class = "shape"),
+  
+  # Main effect time (per testing day)
+  # Linear time effect per testing day on the log-mean scale.
+  # time_3 is re-centered so that 0 = first testing day. SD = 0.026 implies that over ~7 days
+  # (Δt = 6) most prior mass corresponds to a modest total change (≈ −26% to +36%) from first
+  # to last day: exp(±1.96 * 0.026 * 6) ≈ [0.74, 1.36].
+  prior(normal(0, 0.026), class = "b", coef = "time_3"),
+  
+  # Position priors
+  prior(normal(0, 0.195), class = "b", coef = "positionbot_left"),
+  prior(normal(0, 0.195), class = "b", coef = "positionbot_right"),
+  prior(normal(0, 0.195), class = "b", coef = "positionbottom"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop_left"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop_right"),
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"),
+  prior(lkj(2), class = "cor")
+)
 
-# Summarise means + CI per time point
-gg_all_rq2 <- df_plot |>
-  group_by(folder, time_1) |>
-  summarise(
-    n = sum(!is.na(acc_visd)),
-    mean_acc = mean(acc_visd, na.rm = TRUE),
-    sd_acc   = sd(acc_visd, na.rm = TRUE),
-    se_acc   = sd_acc / sqrt(n),
-    tcrit    = ifelse(n > 1, qt(0.975, df = n - 1), NA_real_),
-    ci_low   = mean_acc - tcrit * se_acc,
-    ci_high  = mean_acc + tcrit * se_acc,
-    .groups = "drop"
-  )
+## Full models ----
 
-# Dummy limits for facet-specific x and y ranges
-dummy_limits <- bind_rows(
-  tibble(folder = c("4m","6m","9m","18m","adults"), x_min = 0, x_max = 80, y_min = 0, y_max = 2),
-  tibble(folder = "chimps",                   x_min = 0, x_max = 8,  y_min = 3, y_max = 5)
-) |>
-  mutate(folder = factor(folder, levels = lvl)) |>
-  pivot_longer(
-    cols = c(x_min, x_max, y_min, y_max),
-    names_to = c(".value", "which"),
-    names_pattern = "([xy])_(min|max)"
-  ) |>
-  transmute(folder, time_1 = x, mean_acc = y)
+full_rq2_precrms_hum <- brm(
+  precrms ~ 0 + folder + folder:time_3 + position +
+    (1 + time_3 + position | group_id),
+  data   = df_tot |> filter(folder != "chimps") |> mutate(time_3 = time_3 - 1),
+  family = Gamma(link = "log"),
+  prior  = priors_rq2_precrms_hum,
+  sample_prior = "yes",
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  seed = 123
+)
 
-# Plot
-p_all_rq2 <- ggplot(gg_all_rq2, aes(x = time_1, y = mean_acc, group = 1)) +
-  geom_blank(data = dummy_limits, aes(x = time_1, y = mean_acc)) +
-  geom_errorbar(
-    data = gg_all_rq2 |> filter(!is.na(ci_low), !is.na(ci_high)),
-    aes(ymin = ci_low, ymax = ci_high),
-    width = 0.2,
-    linewidth = 0.4
-  ) +
-  geom_line(linewidth = 0.7) +
-  geom_point(size = 1.4) +
-  facet_wrap(
-    ~ folder, ncol = 2, nrow = 3, scales = "free",
-    labeller = as_labeller(facet_labs)
-  ) +
-  labs(
-    y = "Accuracy\nin visual degrees",
-    x = "Time\n(trials in humans; sessions in apes)"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(
-    panel.grid.minor = element_blank(),
-    strip.text = element_text(face = "bold")
-  )
+full_rq2_precrms_chi <- brm(
+  precrms ~ time_3 + position + (1 + time_3 + position | group_id),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1),
+  family = Gamma(link = "log"),
+  prior  = priors_rq2_precrms_chi,
+  sample_prior = "yes",
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  seed = 123
+)
 
-p_all_rq2
-dev.off()
+## Inference ----
 
+# Descriptives
+df_tot |> 
+  group_by(folder, group_id, time_3) |> # or time_1 or time_2 or time_3
+  summarize(precrms_visd = mean(precrms_visd, na.rm = T)) |> 
+  group_by(folder, time_3) |> # or time_1 or time_2 or time_3
+  summarize(mean_precrms_visd = mean(precrms_visd, na.rm = T),
+            sd_precrms_visd = sd(precrms_visd, na.rm = T)) |> 
+  ungroup() |> 
+  arrange(folder, time_3) # or time_1 or time_2 or time_3
 
+## Paper Plot ----
+plot_rq2(df = df_tot, png_name = "rq2_precrms_session_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+                         group_var = "folder", x_var   = "time_1", y_var = "precrms_visd",
+                         xmax_chimps = 8, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 0, ymax_chimps = 2,
+                         ytitle = "Precision (RMS)\nin visual degrees", x_label = "Time\n(trials in humans; sessions in apes)")
 
+plot_rq2(df = df_tot, png_name = "rq2_precrms_trial_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+                         group_var = "folder", x_var   = "time_2", y_var = "precrms_visd",
+                         xmax_chimps = 11, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 0, ymax_chimps = 2,
+                         ytitle = "Precision (RMS)\nin visual degrees", x_label = "Time\n(trials in humans; trials within sessions in apes)")
 
+plot_rq2(df = df_tot, png_name = "rq2_precrms_day_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+                         group_var = "folder", x_var   = "time_3", y_var = "precrms_visd",
+                         xmax_chimps = 7, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 0, ymax_chimps = 2,
+                         ytitle = "Precision (RMS)\nin visual degrees", x_label = "Time\n(trials in humans; days in apes)")
 
+# RQ2 (Precision SD) -----------------------------------------------------
+# RQ2: (How) does eye-tracking data quality change over time,
+# with time being defined as trials (humans) and testing days (chimpanzees)?
 
+## Define Priors ----
+# With Gamma(link="log"), coefficients are on the log-mean scale.
+
+priors_rq2_precsd_hum <- c(
+  # Group parameters (log-mean scale)
+  prior(normal(-1.03, 0.28), class = "b", coef = "folder4m"),
+  prior(normal(-1.03, 0.28), class = "b", coef = "folder6m"),
+  prior(normal(-1.61, 0.06), class = "b", coef = "folder9m"),
+  prior(normal(-1.68, 0.06), class = "b", coef = "folder18m"),
+  prior(normal(-1.87, 0.05), class = "b", coef = "folderadults"),
+  prior(normal(-0.45, 0.14), class = "b", coef = "folderchimps"),
+  
+  # Gamma shape
+  # shape estimate = 7.42 (SE 0.19) -> meanlog ~ 2.004, sdlog ~ 0.0256; doubled sd for width
+  prior(lognormal(2.004, 2*0.0256), class = "shape"),
+  
+  # Interaction: folder × time_3 (group-specific linear time slopes per trial)
+  # Prior for group-specific linear time slopes (per trial) on the log-mean scale.
+  # time_3 is unscaled but re-centered (0 = first trial). SD = 0.002 implies that over ~79 trials
+  # (Δt ≈ 78) most prior mass corresponds to a modest total change (≈ −26% to +36%) from first
+  # to last trial: exp(±1.96 * 0.002 * 78) ≈ [0.74, 1.36].
+  prior(normal(0, 0.002), class = "b", coef = "folder4m:time_3"),
+  prior(normal(0, 0.002), class = "b", coef = "folder6m:time_3"),
+  prior(normal(0, 0.002), class = "b", coef = "folder9m:time_3"),
+  prior(normal(0, 0.002), class = "b", coef = "folder18m:time_3"),
+  prior(normal(0, 0.002), class = "b", coef = "folderadults:time_3"),
+  
+  # Position priors
+  # Position should not be bigger than half of the difference between adults and 9ms:
+  # -2.03 - (-1.64) = -0.39, half = 0.195
+  prior(normal(0, 0.195), class = "b", coef = "positionbot_left"),
+  prior(normal(0, 0.195), class = "b", coef = "positionbot_right"),
+  prior(normal(0, 0.195), class = "b", coef = "positionbottom"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop_left"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop_right"),
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"),
+  prior(lkj(2), class = "cor")
+)
+
+priors_rq2_precsd_chi <- c(
+  # Gamma shape
+  prior(lognormal(2.004, 2*0.0256), class = "shape"),
+  
+  # Main effect time (per testing day)
+  # Linear time effect per testing day on the log-mean scale.
+  # time_3 is re-centered so that 0 = first testing day. SD = 0.026 implies that over ~7 days
+  # (Δt = 6) most prior mass corresponds to a modest total change (≈ −26% to +36%) from first
+  # to last day: exp(±1.96 * 0.026 * 6) ≈ [0.74, 1.36].
+  prior(normal(0, 0.026), class = "b", coef = "time_3"),
+  
+  # Position priors
+  prior(normal(0, 0.195), class = "b", coef = "positionbot_left"),
+  prior(normal(0, 0.195), class = "b", coef = "positionbot_right"),
+  prior(normal(0, 0.195), class = "b", coef = "positionbottom"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop_left"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop_right"),
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"),
+  prior(lkj(2), class = "cor")
+)
+
+## Full models ----
+
+full_rq2_precsd_hum <- brm(
+  precsd ~ 0 + folder + folder:time_3 + position +
+    (1 + time_3 + position | group_id),
+  data   = df_tot |> filter(folder != "chimps") |> mutate(time_3 = time_3 - 1),
+  family = Gamma(link = "log"),
+  prior  = priors_rq2_precsd_hum,
+  sample_prior = "yes",
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  seed = 123
+)
+
+full_rq2_precsd_chi <- brm(
+  precsd ~ time_3 + position + (1 + time_3 + position | group_id),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1),
+  family = Gamma(link = "log"),
+  prior  = priors_rq2_precsd_chi,
+  sample_prior = "yes",
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  seed = 123
+)
+
+## Inference ----
+
+# Descriptives
+df_tot |> 
+  group_by(folder, group_id, time_3) |> # or time_1 or time_2 or time_3
+  summarize(precsd_visd = mean(precsd_visd, na.rm = T)) |> 
+  group_by(folder, time_3) |> # or time_1 or time_2 or time_3
+  summarize(mean_precsd_visd = mean(precsd_visd, na.rm = T),
+            sd_precsd_visd = sd(precsd_visd, na.rm = T)) |> 
+  ungroup() |> 
+  arrange(folder, time_3) # or time_1 or time_2 or time_3
+
+## Paper Plot ----
+plot_rq2(df = df_tot, png_name = "rq2_precsd_session_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+                         group_var = "folder", x_var   = "time_1", y_var = "precsd_visd",
+                         xmax_chimps = 8, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 1.5, ymin_chimps = 0, ymax_chimps = 1.5,
+                         ytitle = "Precision (SD)\nin visual degrees", x_label = "Time\n(trials in humans; sessions in apes)")
+
+plot_rq2(df = df_tot, png_name = "rq2_precsd_trial_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+                         group_var = "folder", x_var   = "time_2", y_var = "precsd_visd",
+                         xmax_chimps = 11, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 1.5, ymin_chimps = 0, ymax_chimps = 1.5,
+                         ytitle = "Precision (SD)\nin visual degrees", x_label = "Time\n(trials in humans; trials within sessions in apes)")
+
+plot_rq2(df = df_tot, png_name = "rq2_precsd_day_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+                         group_var = "folder", x_var   = "time_3", y_var = "precsd_visd",
+                         xmax_chimps = 7, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 1.5, ymin_chimps = 0, ymax_chimps = 1.5,
+                         ytitle = "Precision (SD)\nin visual degrees", x_label = "Time\n(trials in humans; days in apes)")
+
+# RQ3 (Fixation Duration) -------------------------------------------------
+
+## Inference ----
+
+# Descriptives
+df_tot |> 
+  group_by(folder, group_id) |> 
+  summarize(mean_fixation_duration = mean(mean_fixation_duration, na.rm = T)) |> 
+  group_by(folder) |> 
+  summarize(mean_mean_fixation_duration = mean(mean_fixation_duration, na.rm = T),
+            sd_mean_fixation_duration = sd(mean_fixation_duration, na.rm = T)) |> 
+  ungroup() |> 
+  arrange(mean_mean_fixation_duration)
+
+## Paper Plot ----
+plot_rq3(df = df_tot, x_var = "acc_visd", y_var = "mean_fixation_duration",
+  png_name = "rq3_acc_fixdur.png", x_lab = "Accuracy\n(in visual degrees)", y_lab = "Mean Fixation Duration\n(in ms)")
+
+plot_rq3(df = df_tot, x_var = "precsd_visd", y_var = "mean_fixation_duration",
+  png_name = "rq3_precsd_fixdur.png", x_lab = "Precision (SD)\n(in visual degrees)", y_lab = "Mean Fixation Duration\n(in ms)")
+
+plot_rq3(df = df_tot, x_var = "precrms_visd", y_var = "mean_fixation_duration",
+         png_name = "rq3_precrms_fixdur.png", x_lab = "Precision (RMS)\n(in visual degrees)", y_lab = "Mean Fixation Duration\n(in ms)")
+
+plot_rq3(df = df_tot, x_var = "robustness_prop_2", y_var = "mean_fixation_duration",
+  png_name = "rq3_rob_fixdur.png", x_lab = "Robustness\n(in %)", y_lab = "Mean Fixation Duration\n(in ms)")
+
+# Optionally not separated by group
+plot_rq3_all(df = df_tot, x_var = "acc_visd", y_var = "mean_fixation_duration",
+  png_name = "rq3_all_acc_fixdur.png", x_lab = "Accuracy\n(in visual degrees)", y_lab = "Mean Fixation Duration\n(in ms)")
+
+plot_rq3_all(df = df_tot, x_var = "precsd_visd", y_var = "mean_fixation_duration",
+             png_name = "rq3_all_precsd_fixdur.png", x_lab = "Precision (SD)\n(in visual degrees)", y_lab = "Mean Fixation Duration\n(in ms)")
+
+plot_rq3_all(df = df_tot, x_var = "precrms_visd", y_var = "mean_fixation_duration",
+             png_name = "rq3_all_precrms_fixdur.png", x_lab = "Precision (RMS)\n(in visual degrees)", y_lab = "Mean Fixation Duration\n(in ms)")
+
+plot_rq3_all(df = df_tot, x_var = "robustness_prop_2", y_var = "mean_fixation_duration",
+             png_name = "rq3_all_rob_fixdur.png", x_lab = "Robustness\n(in %)", y_lab = "Mean Fixation Duration\n(in ms)")
+
+# RQ3 (Fixation Number) ---------------------------------------------------
+
+## Inference ----
+
+# Descriptives
+df_tot |>
+  group_by(folder, group_id) |> 
+  summarize(mean_fixation_number = mean(mean_fixation_number, na.rm = T)) |> 
+  group_by(folder) |> 
+  summarize(mean_mean_fixation_number = mean(mean_fixation_number, na.rm = T),
+            sd_mean_fixation_number = sd(mean_fixation_number, na.rm = T)) |> 
+  ungroup() |> 
+  arrange(mean_mean_fixation_number)
+
+## Paper Plot ----
+plot_rq3(df = df_tot, x_var = "acc_visd", y_var = "mean_fixation_number",
+         png_name = "rq3_acc_fixnum.png", x_lab = "Accuracy\n(in visual degrees)", y_lab = "Mean Fixation Number")
+
+plot_rq3(df = df_tot, x_var = "precsd_visd", y_var = "mean_fixation_number",
+         png_name = "rq3_precsd_fixnum.png", x_lab = "Precision (SD)\n(in visual degrees)", y_lab = "Mean Fixation Number")
+
+plot_rq3(df = df_tot, x_var = "precrms_visd", y_var = "mean_fixation_number",
+         png_name = "rq3_precrms_fixnum.png", x_lab = "Precision (RMS)\n(in visual degrees)", y_lab = "Mean Fixation Number")
+
+plot_rq3(df = df_tot, x_var = "robustness_prop_2", y_var = "mean_fixation_number",
+         png_name = "rq3_rob_fixnum.png", x_lab = "Robustness\n(in %)", y_lab = "Mean Fixation Number")
+
+# Optionally not separated by group
+plot_rq3_all(df = df_tot, x_var = "acc_visd", y_var = "mean_fixation_number",
+             png_name = "rq3_all_acc_fixnum.png", x_lab = "Accuracy\n(in visual degrees)", y_lab = "Mean Fixation Number")
+
+plot_rq3_all(df = df_tot, x_var = "precsd_visd", y_var = "mean_fixation_number",
+             png_name = "rq3_all_precsd_fixnum.png", x_lab = "Precision (SD)\n(in visual degrees)", y_lab = "Mean Fixation Number")
+
+plot_rq3_all(df = df_tot, x_var = "precrms_visd", y_var = "mean_fixation_number",
+             png_name = "rq3_all_precrms_fixnum.png", x_lab = "Precision (RMS)\n(in visual degrees)", y_lab = "Mean Fixation Number")
+
+plot_rq3_all(df = df_tot, x_var = "robustness_prop_2", y_var = "mean_fixation_number",
+             png_name = "rq3_all_rob_fixnum.png", x_lab = "Robustness\n(in %)", y_lab = "Mean Fixation Number")
+
+# RQ3 (Latencies) ---------------------------------------------------------
+
+## Inference ----
+
+# Descriptives
+df_tot |>
+  group_by(folder, group_id) |>
+  summarize(latencies = mean(latencies, na.rm = T)) |>
+  group_by(folder) |>
+  summarize(mean_latencies = mean(latencies, na.rm = T),
+            sd_latencies = sd(latencies, na.rm = T)) |>
+  ungroup() |>
+  arrange(mean_latencies)
+
+## Paper Plot ----
+plot_rq3(df = df_tot, x_var = "acc_visd", y_var = "latencies",
+         png_name = "rq3_acc_lat.png", x_lab = "Accuracy\n(in visual degrees)", y_lab = "Latencies\n(in ms)")
+
+plot_rq3(df = df_tot, x_var = "precsd_visd", y_var = "latencies",
+         png_name = "rq3_precsd_lat.png", x_lab = "Precision (SD)\n(in visual degrees)", y_lab = "Latencies\n(in ms)")
+
+plot_rq3(df = df_tot, x_var = "precrms_visd", y_var = "latencies",
+         png_name = "rq3_precrms_lat.png", x_lab = "Precision (RMS)\n(in visual degrees)", y_lab = "Latencies\n(in ms)")
+
+plot_rq3(df = df_tot, x_var = "robustness_prop_2", y_var = "latencies",
+         png_name = "rq3_rob_lat.png", x_lab = "Robustness\n(in %)", y_lab = "Latencies\n(in ms)")
+
+# Optionally not separated by group
+plot_rq3_all(df = df_tot, x_var = "acc_visd", y_var = "latencies",
+             png_name = "rq3_all_acc_lat.png", x_lab = "Accuracy\n(in visual degrees)", y_lab = "Latencies\n(in ms)")
+
+plot_rq3_all(df = df_tot, x_var = "precsd_visd", y_var = "latencies",
+             png_name = "rq3_all_precsd_lat.png", x_lab = "Precision (SD)\n(in visual degrees)", y_lab = "Latencies\n(in ms)")
+
+plot_rq3_all(df = df_tot, x_var = "precrms_visd", y_var = "latencies",
+             png_name = "rq3_all_precrms_lat.png", x_lab = "Precision (RMS)\n(in visual degrees)", y_lab = "Latencies\n(in ms)")
+
+plot_rq3_all(df = df_tot, x_var = "robustness_prop_2", y_var = "latencies",
+             png_name = "rq3_all_rob_lat.png", x_lab = "Robustness\n(in %)", y_lab = "Latencies\n(in ms)")
+
+# RQ3 (Relative Looking Time) ---------------------------------------------
+
+## Inference ----
+# Descriptives
+df_tot |>
+  group_by(folder, group_id) |>
+  summarize(rel_gaze_in_aoi = mean(rel_gaze_in_aoi, na.rm = T)) |>
+  group_by(folder) |>
+  summarize(mean_rel_gaze_in_aoi = mean(rel_gaze_in_aoi, na.rm = T),
+            sd_rel_gaze_in_aoi = sd(rel_gaze_in_aoi, na.rm = T)) |>
+  ungroup() |>
+  arrange(mean_rel_gaze_in_aoi)
+
+## Paper Plot ----
+plot_rq3(df = df_tot, x_var = "acc_visd", y_var = "rel_gaze_in_aoi",
+         png_name = "rq3_acc_rellook.png", x_lab = "Accuracy\n(in visual degrees)", y_lab = "Relative Looking Time\n(in ms)")
+
+plot_rq3(df = df_tot, x_var = "precsd_visd", y_var = "rel_gaze_in_aoi",
+         png_name = "rq3_precsd_rellookt.png", x_lab = "Precision (SD)\n(in visual degrees)", y_lab = "Relative Looking Time\n(in ms)")
+
+plot_rq3(df = df_tot, x_var = "precrms_visd", y_var = "rel_gaze_in_aoi",
+         png_name = "rq3_precrms_rellook.png", x_lab = "Precision (RMS)\n(in visual degrees)", y_lab = "Relative Looking Time\n(in ms)")
+
+plot_rq3(df = df_tot, x_var = "robustness_prop_2", y_var = "rel_gaze_in_aoi",
+         png_name = "rq3_rob_rellook.png", x_lab = "Robustness\n(in %)", y_lab = "Relative Looking Time\n(in ms)")
+
+# Optionally not separated by group
+plot_rq3_all(df = df_tot, x_var = "acc_visd", y_var = "rel_gaze_in_aoi",
+             png_name = "rq3_all_acc_rellook.png", x_lab = "Accuracy\n(in visual degrees)", y_lab = "Relative Looking Time\n(in ms)")
+
+plot_rq3_all(df = df_tot, x_var = "precsd_visd", y_var = "rel_gaze_in_aoi",
+             png_name = "rq3_all_precsd_rellook.png", x_lab = "Precision (SD)\n(in visual degrees)", y_lab = "Relative Looking Time\n(in ms)")
+
+plot_rq3_all(df = df_tot, x_var = "precrms_visd", y_var = "rel_gaze_in_aoi",
+             png_name = "rq3_all_precrms_rellook.png", x_lab = "Precision (RMS)\n(in visual degrees)", y_lab = "Relative Looking Time\n(in ms)")
+
+plot_rq3_all(df = df_tot, x_var = "robustness_prop_2", y_var = "rel_gaze_in_aoi",
+             png_name = "rq3_all_rob_rellook.png", x_lab = "Robustness\n(in %)", y_lab = "Relative Looking Time\n(in ms)")

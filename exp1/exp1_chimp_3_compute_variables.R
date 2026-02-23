@@ -570,7 +570,8 @@ for (i in c(1:17)) {
     blink_removal         = TRUE,
     blink_label           = "blink",
     blink_replacement_value = 99999,
-    validity_col          = "sample_validity"
+    validity_col          = "sample_validity", 
+    relative_robustness = TRUE
   ) |>
     rename(session_trial = trial) |> 
     left_join(df |>
@@ -580,6 +581,24 @@ for (i in c(1:17)) {
     mutate(data_quality = "robustness") |> 
     drop_na(stimulus)
 
+  df_robustness_tot_2 <- calculate_robustness_2(
+    df,
+    trial_col               = "trial",
+    gaze_x_col              = "gaze_point_x",
+    gaze_y_col              = "gaze_point_y",
+    sample_duration_col     = "gaze_sample_duration",
+    blink_left_col          = "blink_detection.left",
+    blink_right_col         = "blink_detection.right",
+    blink_removal           = TRUE,
+    blink_label             = "blink",
+    blink_replacement_value = 99999,
+    robustness_check_col    = "robustness_check",
+    cum_duration_col        = "cum_duration",
+    truncate_at_t_ms        = 53466,
+    print_max_cum           = TRUE) |>
+    mutate(group_id = df$group_id |> unique()) |> 
+    mutate(data_quality = "robustness_2")
+  
   # [2] Calculate Eye-Tracking Outcomes -------------------------------------
   # We consider the following common eye-tracking measures as dependent variables: fixation durations, number of fixations, latencies (i.e.,
   # the time between stimulus onset and first gaze point in AOI), and proportional looking time in AOI (relative to looking time on screen)
@@ -923,7 +942,8 @@ for (i in c(1:17)) {
     precrms_sess      |> select(group_id, session_trial, stimulus, position),
     precsd_sess       |> select(group_id, session_trial, stimulus, position),
     df_rlt_tot        |> select(group_id, session_trial, stimulus, position),
-    df_robustness_tot |> select(group_id, session_trial, stimulus, position)
+    df_robustness_tot |> select(group_id, session_trial, stimulus, position),
+    df_robustness_tot_2 |> select(group_id) |> mutate(session_trial = NA, stimulus = NA, position = NA)
   ) |> distinct()
   
   # 3) Prepare tables
@@ -943,7 +963,8 @@ for (i in c(1:17)) {
         starts_with("abs_fix_"),  starts_with("rel_fix_")
       ),
     
-    df_robustness_tot |> select(group_id, session_trial, stimulus, position, robustness_ms)
+    df_robustness_tot |> select(group_id, session_trial, stimulus, position, robustness_ms, robustness_prop),
+    df_robustness_tot_2 |> select(group_id, robustness_ms_2) |> mutate(session_trial = NA, stimulus = NA, position = NA)
   )
   
   # 4) Merge everything

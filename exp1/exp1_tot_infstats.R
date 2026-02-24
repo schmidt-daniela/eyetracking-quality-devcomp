@@ -11,6 +11,7 @@ library(readxl)
 
 # Load Functions ----------------------------------------------------------
 source(here("exp1", "R", "descriptives.R"))
+source(here("exp1", "R", "inferentials.R"))
 source(here("exp1", "R", "utils.R"))
 source(here("exp1", "R", "viz.R"))
 
@@ -73,16 +74,167 @@ df_tot <- df_tot |>
 df_tot <- df_tot |> 
   mutate(robustness_prop_2 = robustness_ms_2 / 53466)
 
+# Change name of group column
+# (in order to make marginaleffects work)
+df_tot <- df_tot |>
+  rename(species_group = group)
+
 # Add day
 df_tot <- df_tot |> 
   separate(session_trial, into = c("session", "trial"), sep = "_", remove = FALSE) |>
-  left_join(day_session, by = c("group_id", "session", "group"))
+  left_join(day_session, by = c("group_id", "session", "species_group"))
 
 df_tot <- df_tot |> 
   mutate(time_3 = if_else(folder == "chimps", as.numeric(day), as.numeric(time)))
 
 # Legend for time:
 # In chimps: time_1 = session, time_2 = trial within session, time_3 = day
+
+# Trial Contribution ------------------------------------------------------
+
+## Accuracy ----
+df_tot |> 
+  select(folder, group_id, excluded_fixation, acc_visd) |>
+  filter(excluded_fixation == "included") |> 
+  drop_na(acc_visd) |> 
+  group_by(group_id, folder) |> 
+  count() |> 
+  group_by(folder) |> 
+  summarize(mean_valid_trials = mean(n),
+            sd_valid_trials = sd(n)) |>
+  ungroup() |> 
+  slice(c(3,4,5,2,6,1))
+
+## Precision (RMS & SD) & Robustness ----
+variable <- "precrms_visd" # precrms_visd or precsd_visd
+
+df_tot |>
+  select(folder, group_id, time, all_of(variable)) |>
+  drop_na(all_of(variable)) |>
+  group_by(group_id, folder) |>
+  count() |>
+  group_by(folder) |>
+  summarize(
+    mean_valid_trials = mean(n),
+    sd_valid_trials = sd(n)
+  ) |>
+  ungroup() |>
+  slice(c(3, 4, 5, 2, 6, 1))
+
+
+# Chimps Adult versus Non-Adult Plot --------------------------------------
+## Accuracy ----
+df_plot_chimpadults_acc <- df_tot |>  
+  filter(folder == "chimps") |> 
+  filter(!is.na(acc_visd), !is.na(age_classification)) |> 
+  mutate(age_group = case_when(
+    grepl("adult", tolower(age_classification)) ~ "Adult",
+    TRUE ~ "Non-Adult"),
+    age_group = factor(age_group, levels = c("Non-Adult", "Adult"))) |>
+  group_by(group_id, age_group) |>
+  summarize(acc_visd = mean(acc_visd, na.rm = TRUE), .groups = "drop")
+
+p_chimpadult_acc <- ggplot(df_plot_chimpadults_acc, aes(x = age_group, y = acc_visd)) +
+  geom_violin(trim = FALSE, width = 0.9, fill = "white", color = "grey25", alpha = 1, linewidth = 0.8) +
+  geom_jitter(aes(color = age_group), width = 0.08, height = 0, alpha = 0.65, size = 2.2) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.10, linewidth = 0.8, color = "black") +
+  stat_summary(fun = mean, geom = "point", size = 3.2, color = "black") +
+  labs(x = "Chimpanzee Age Classification", y = "Accuracy\n(in visual degree)", title = NULL) +
+  scale_color_manual(values = c("Non-Adult" = "#F8766D","Adult"     = "#E76BF3")) +
+  guides(color = "none") +
+  theme_classic(base_size = 12)
+
+png(here("exp1", "img", "acc_chimps_adults_nonadults.png"), width = 2480/2, height = 3508/4, res = 210)
+p_chimpadult_acc
+dev.off()
+
+## Precision (RMS) ----
+df_plot_chimpadults_precrms <- df_tot |>  
+  filter(folder == "chimps") |> 
+  filter(!is.na(precrms_visd), !is.na(age_classification)) |> 
+  mutate(age_group = case_when(
+    grepl("adult", tolower(age_classification)) ~ "Adult",
+    TRUE ~ "Non-Adult"),
+    age_group = factor(age_group, levels = c("Non-Adult", "Adult"))) |>
+  group_by(group_id, age_group) |>
+  summarize(precrms_visd = mean(precrms_visd, na.rm = TRUE), .groups = "drop") |> 
+  ungroup()
+
+p_chimpadult_precrms <- ggplot(df_plot_chimpadults_precrms, aes(x = age_group, y = precrms_visd)) +
+  geom_violin(trim = FALSE, width = 0.9, fill = "white", color = "grey25", alpha = 1, linewidth = 0.8) +
+  geom_jitter(aes(color = age_group), width = 0.08, height = 0, alpha = 0.65, size = 2.2) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.10, linewidth = 0.8, color = "black") +
+  stat_summary(fun = mean, geom = "point", size = 3.2, color = "black") +
+  labs(x = "Chimpanzee Age Classification", y = "Precision (RMS)\n(in visual degrees)", title = NULL) +
+  scale_color_manual(values = c("Non-Adult" = "#F8766D","Adult"     = "#E76BF3")) +
+  guides(color = "none") +
+  theme_classic(base_size = 12)
+
+png(here("exp1", "img", "precrms_chimps_adults_nonadults.png"), width = 2480/2, height = 3508/4, res = 210)
+p_chimpadult_precrms
+dev.off()
+
+## Precision (SD) ----
+df_plot_chimpadults_precsd <- df_tot |>  
+  filter(folder == "chimps") |> 
+  filter(!is.na(precsd_visd), !is.na(age_classification)) |> 
+  mutate(age_group = case_when(
+    grepl("adult", tolower(age_classification)) ~ "Adult",
+    TRUE ~ "Non-Adult"),
+    age_group = factor(age_group, levels = c("Non-Adult", "Adult"))) |>
+  group_by(group_id, age_group) |>
+  summarize(precsd_visd = mean(precsd_visd, na.rm = TRUE), .groups = "drop")|> 
+  ungroup()
+
+p_chimpadult_precsd <- ggplot(df_plot_chimpadults_precsd, aes(x = age_group, y = precsd_visd)) +
+  geom_violin(trim = FALSE, width = 0.9, fill = "white", color = "grey25", alpha = 1, linewidth = 0.8) +
+  geom_jitter(aes(color = age_group), width = 0.08, height = 0, alpha = 0.65, size = 2.2) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.10, linewidth = 0.8, color = "black") +
+  stat_summary(fun = mean, geom = "point", size = 3.2, color = "black") +
+  labs(x = "Chimpanzee Age Classification", y = "Precision (SD)\n(in visual degrees)", title = NULL) +
+  scale_color_manual(values = c("Non-Adult" = "#F8766D","Adult"     = "#E76BF3")) +
+  guides(color = "none") +
+  theme_classic(base_size = 12)
+
+png(here("exp1", "img", "precsd_chimps_adults_nonadults.png"), width = 2480/2, height = 3508/4, res = 210)
+p_chimpadult_precsd
+dev.off()
+
+## Robustness ----
+df_chimp_agegroup <- df_tot |>
+  filter(folder == "chimps") |>
+  filter(!is.na(group_id), !is.na(age_classification)) |>
+  mutate(
+    age_group = case_when(
+      grepl("adult", tolower(age_classification)) ~ "Adult",
+      TRUE ~ "Non-Adult"
+    ),
+    age_group = factor(age_group, levels = c("Non-Adult", "Adult"))
+  ) |>
+  select(group_id, age_group) |>
+  distinct()
+
+df_plot_chimpadults_rob <- df_tot |>
+  filter(folder == "chimps") |>
+  filter(!is.na(group_id), !is.na(robustness_prop_2)) |>
+  select(group_id, robustness_prop_2) |>
+  distinct() |>
+  left_join(df_chimp_agegroup, by = "group_id") |>
+  filter(!is.na(age_group))
+
+p_chimpadult_rob <- ggplot(df_plot_chimpadults_rob, aes(x = age_group, y = robustness_prop_2)) +
+  geom_violin(trim = FALSE, width = 0.9, fill = "white", color = "grey25", alpha = 1, linewidth = 0.8) +
+  geom_jitter(aes(color = age_group), width = 0.08, height = 0, alpha = 0.65, size = 2.2) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.10, linewidth = 0.8, color = "black") +
+  stat_summary(fun = mean, geom = "point", size = 3.2, color = "black") +
+  labs(x = "Chimpanzee Age Classification", y = "Robustness\n(in %)", title = NULL) +
+  scale_color_manual(values = c("Non-Adult" = "#F8766D","Adult" = "#E76BF3")) +
+  guides(color = "none") +
+  theme_classic(base_size = 12)
+
+png(here("exp1", "img", "robustness_chimps_adults_nonadults.png"), width = 2480/2, height = 3508/4, res = 210)
+p_chimpadult_rob
+dev.off()
 
 # RQ1 (Accuracy) ----------------------------------------------------------
 # RQ1:  (How) does eye-tracking data quality (accuracy, precision, robustness) 
@@ -218,45 +370,26 @@ loo_compare(loo_full, loo_red) # red_rq1_acc: elpd_diff = -9.1 & se_diff = 4.4.
                                # moderate evidence that the full model is better (difference is ~2 SE away from 0).
 
 ## Marginal Effects ----
-# avg_predictions(full_rq1_acc, by="folder")
+# RQ1: Marginal means (response scale) + pairwise contrasts ----------------
+rq1_acc_means_contr    <- get_rq1_marginals(full_rq1_acc, "Accuracy")
+
+
+
+avg_acc <- marginaleffects::avg_predictions(
+  full_rq1_acc,
+  by = "folder",
+  type = "response",
+  re_formula = NA
+)
+
+cmp_acc <- marginaleffects::comparisons(
+  full_rq1_acc,
+  variables = "folder",
+  type = "response",
+  re_formula = NA
+)
 
 ## Visualization ----
-
-# Extract all posterior samples
-post_samples_rq1_acc <- as_draws_df(full_rq1_acc)
-
-# Transform all condition parameters to probabilities
-# Gamma(link="log") -> exp()
-# Beta -> plogis()
-# Caution: This is the expected mean when position = reference category
-post_samples_rq1_acc <- post_samples_rq1_acc |>
-  transmute(
-    b_folder4m     = exp(b_folder4m),
-    b_folder6m     = exp(b_folder6m),
-    b_folder9m     = exp(b_folder9m),
-    b_folder18m    = exp(b_folder18m),
-    b_folderadults = exp(b_folderadults),
-    b_folderchimps = exp(b_folderchimps)
-  )
-
-# Plot posterior distributions of each condition
-png(here("exp1", "img", "rq1_acc_posterior.png"), width = 2480, height = 3508/6, res = 300)
-posterior_probs_rq1_acc |>
-  pivot_longer(cols = c(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps),
-               names_to = "param", values_to = "value") |>
-  mutate(param = recode(
-    param,
-    b_folder4m     = " 4-Month-Olds",
-    b_folder6m     = " 6-Month-Olds",
-    b_folder9m     = " 9-Month-Olds",
-    b_folder18m    = "18-Month-Olds",
-    b_folderadults = "Adults",
-    b_folderchimps = "Chimpanzees")) |> 
-  mutate(Group = param) |> 
-  ggplot(aes(x = value, fill = Group)) +
-  geom_histogram(bins = 80, position = "identity", alpha = 0.35) +
-  theme_minimal()
-dev.off()
 
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
 png(here("exp1", "img", "rq1_acc_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
@@ -427,36 +560,10 @@ t1 <- proc.time()
 proc_time_rq1_precrms <- t1 - t0
 rm(t0, t1)
 
+## Marginal Effects ----
+# avg_predictions(full_rq1_precrms, by="folder")
+
 ## Visualization ----
-
-# Extract all posterior samples
-post_samples_rq1_precrms <- as_draws_df(full_rq1_precrms)
-
-# Transform all condition parameters to probabilities
-posterior_probs_rq1_precrms <- post_samples_rq1_precrms |> 
-  select(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps) |> 
-  mutate(b_folder4m = plogis(b_folder4m), b_folder6m = plogis(b_folder6m), b_folder9m = plogis(b_folder9m),
-         b_folder18m = plogis(b_folder18m), b_folderadults = plogis(b_folderadults), b_folderchimps = plogis(b_folderchimps))
-
-# Plot posterior distributions of each condition
-png(here("exp1", "img", "rq1_precrms_posterior.png"), width = 2480, height = 3508/6, res = 300)
-posterior_probs_rq1_precrms |>
-  pivot_longer(cols = c(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps),
-               names_to = "param", values_to = "value") |>
-  mutate(param = recode(
-      param,
-      b_folder4m     = " 4-Month-Olds",
-      b_folder6m     = " 6-Month-Olds",
-      b_folder9m     = " 9-Month-Olds",
-      b_folder18m    = "18-Month-Olds",
-      b_folderadults = "Adults",
-      b_folderchimps = "Chimpanzees")) |> 
-  mutate(Group = param) |> 
-  ggplot(aes(x = value, fill = Group)) +
-  geom_histogram(position = "identity", alpha = 0.35) +
-  theme_minimal()
-dev.off()
-
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
 png(here("exp1", "img", "rq1_precrms_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folderchimps", "prior_b_folderchimps"), facet_label = "Chimpanzees")
@@ -621,41 +728,9 @@ t1 <- proc.time()
 proc_time_rq1_precsd <- t1 - t0
 rm(t0, t1)
 
+## Marginal Effects ----
+
 ## Visualization ----
-
-# Extract all posterior samples
-post_samples_rq1_precsd <- as_draws_df(full_rq1_precsd)
-
-# Transform all condition parameters to probabilities
-posterior_probs_rq1_precsd <- post_samples_rq1_precsd |> 
-  select(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps) |> 
-  mutate(b_folder4m = plogis(b_folder4m), b_folder6m = plogis(b_folder6m), b_folder9m = plogis(b_folder9m),
-         b_folder18m = plogis(b_folder18m), b_folderadults = plogis(b_folderadults), b_folderchimps = plogis(b_folderchimps))
-
-# Plot posterior distributions of each condition
-png(here("exp1", "img", "rq1_precsd_posterior.png"), width = 2480, height = 3508/6, res = 300)
-posterior_probs_rq1_precsd |>
-  pivot_longer(cols = c(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps),
-               names_to = "param", values_to = "value") |>
-  mutate(param = recode(
-    param,
-    b_folder4m     = " 4-Month-Olds",
-    b_folder6m     = " 6-Month-Olds",
-    b_folder9m     = " 9-Month-Olds",
-    b_folder18m    = "18-Month-Olds",
-    b_folderadults = "Adults",
-    b_folderchimps = "Chimpanzees")) |> 
-  mutate(Group = param) |> 
-  ggplot(aes(x = value, fill = Group)) +
-  geom_histogram(position = "identity", alpha = 0.35) +
-  theme_minimal()
-dev.off()
-
-# Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
-png(here("exp1", "img", "rq1_precsd_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folderchimps", "prior_b_folderchimps"), facet_label = "Chimpanzees")
-dev.off()
-
 png(here("exp1", "img", "rq1_precsd_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder4m", "prior_b_folder4m"), facet_label = "4-Month-Olds")
 dev.off()
@@ -826,33 +901,8 @@ rm(t0, t1)
 
 ## Visualization ----
 
-# Extract all posterior samples
-post_samples_rq1_rob <- as_draws_df(full_rq1_rob)
-
-# Transform all condition parameters to probabilities
-posterior_probs_rq1_rob <- post_samples_rq1_rob |> 
-  select(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps) |> 
-  mutate(b_folder4m = plogis(b_folder4m), b_folder6m = plogis(b_folder6m), b_folder9m = plogis(b_folder9m),
-         b_folder18m = plogis(b_folder18m), b_folderadults = plogis(b_folderadults), b_folderchimps = plogis(b_folderchimps))
-
-# Plot posterior distributions of each condition
-png(here("exp1", "img", "rq1_rob_posterior.png"), width = 2480, height = 3508/6, res = 300)
-posterior_probs_rq1_rob |>
-  pivot_longer(cols = c(b_folder4m, b_folder6m, b_folder9m, b_folder18m, b_folderadults, b_folderchimps),
-               names_to = "param", values_to = "value") |>
-  mutate(param = recode(
-    param,
-    b_folder4m     = " 4-Month-Olds",
-    b_folder6m     = " 6-Month-Olds",
-    b_folder9m     = " 9-Month-Olds",
-    b_folder18m    = "18-Month-Olds",
-    b_folderadults = "Adults",
-    b_folderchimps = "Chimpanzees")) |> 
-  mutate(Group = param) |> 
-  ggplot(aes(x = value, fill = Group)) +
-  geom_histogram(position = "identity", alpha = 0.35) +
-  theme_minimal()
-dev.off()
+## Marginal Effects ----
+# avg_predictions(full_rq1_precsd, by="folder")
 
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
 png(here("exp1", "img", "rq1_rob_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)

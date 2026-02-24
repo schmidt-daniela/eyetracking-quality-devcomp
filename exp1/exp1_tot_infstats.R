@@ -11,6 +11,7 @@ library(readxl)
 
 # Load Functions ----------------------------------------------------------
 source(here("exp1", "R", "descriptives.R"))
+source(here("exp1", "R", "inferentials.R"))
 source(here("exp1", "R", "utils.R"))
 source(here("exp1", "R", "viz.R"))
 
@@ -105,7 +106,7 @@ df_tot |>
   slice(c(3,4,5,2,6,1))
 
 ## Precision (RMS & SD) & Robustness ----
-variable <- "robustness_prop_2" # precrms_visd or precsd_visd or robustness_prop_2
+variable <- "precrms_visd" # precrms_visd or precsd_visd
 
 df_tot |>
   select(folder, group_id, time, all_of(variable)) |>
@@ -119,6 +120,121 @@ df_tot |>
   ) |>
   ungroup() |>
   slice(c(3, 4, 5, 2, 6, 1))
+
+
+# Chimps Adult versus Non-Adult Plot --------------------------------------
+## Accuracy ----
+df_plot_chimpadults_acc <- df_tot |>  
+  filter(folder == "chimps") |> 
+  filter(!is.na(acc_visd), !is.na(age_classification)) |> 
+  mutate(age_group = case_when(
+    grepl("adult", tolower(age_classification)) ~ "Adult",
+    TRUE ~ "Non-Adult"),
+    age_group = factor(age_group, levels = c("Non-Adult", "Adult"))) |>
+  group_by(group_id, age_group) |>
+  summarize(acc_visd = mean(acc_visd, na.rm = TRUE), .groups = "drop")
+
+p_chimpadult_acc <- ggplot(df_plot_chimpadults_acc, aes(x = age_group, y = acc_visd)) +
+  geom_violin(trim = FALSE, width = 0.9, fill = "white", color = "grey25", alpha = 1, linewidth = 0.8) +
+  geom_jitter(aes(color = age_group), width = 0.08, height = 0, alpha = 0.65, size = 2.2) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.10, linewidth = 0.8, color = "black") +
+  stat_summary(fun = mean, geom = "point", size = 3.2, color = "black") +
+  labs(x = "Chimpanzee Age Classification", y = "Accuracy\n(in visual degree)", title = NULL) +
+  scale_color_manual(values = c("Non-Adult" = "#F8766D","Adult"     = "#E76BF3")) +
+  guides(color = "none") +
+  theme_classic(base_size = 12)
+
+png(here("exp1", "img", "acc_chimps_adults_nonadults.png"), width = 2480/2, height = 3508/4, res = 210)
+p_chimpadult_acc
+dev.off()
+
+## Precision (RMS) ----
+df_plot_chimpadults_precrms <- df_tot |>  
+  filter(folder == "chimps") |> 
+  filter(!is.na(precrms_visd), !is.na(age_classification)) |> 
+  mutate(age_group = case_when(
+    grepl("adult", tolower(age_classification)) ~ "Adult",
+    TRUE ~ "Non-Adult"),
+    age_group = factor(age_group, levels = c("Non-Adult", "Adult"))) |>
+  group_by(group_id, age_group) |>
+  summarize(precrms_visd = mean(precrms_visd, na.rm = TRUE), .groups = "drop") |> 
+  ungroup()
+
+p_chimpadult_precrms <- ggplot(df_plot_chimpadults_precrms, aes(x = age_group, y = precrms_visd)) +
+  geom_violin(trim = FALSE, width = 0.9, fill = "white", color = "grey25", alpha = 1, linewidth = 0.8) +
+  geom_jitter(aes(color = age_group), width = 0.08, height = 0, alpha = 0.65, size = 2.2) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.10, linewidth = 0.8, color = "black") +
+  stat_summary(fun = mean, geom = "point", size = 3.2, color = "black") +
+  labs(x = "Chimpanzee Age Classification", y = "Precision (RMS)\n(in visual degrees)", title = NULL) +
+  scale_color_manual(values = c("Non-Adult" = "#F8766D","Adult"     = "#E76BF3")) +
+  guides(color = "none") +
+  theme_classic(base_size = 12)
+
+png(here("exp1", "img", "precrms_chimps_adults_nonadults.png"), width = 2480/2, height = 3508/4, res = 210)
+p_chimpadult_precrms
+dev.off()
+
+## Precision (SD) ----
+df_plot_chimpadults_precsd <- df_tot |>  
+  filter(folder == "chimps") |> 
+  filter(!is.na(precsd_visd), !is.na(age_classification)) |> 
+  mutate(age_group = case_when(
+    grepl("adult", tolower(age_classification)) ~ "Adult",
+    TRUE ~ "Non-Adult"),
+    age_group = factor(age_group, levels = c("Non-Adult", "Adult"))) |>
+  group_by(group_id, age_group) |>
+  summarize(precsd_visd = mean(precsd_visd, na.rm = TRUE), .groups = "drop")|> 
+  ungroup()
+
+p_chimpadult_precsd <- ggplot(df_plot_chimpadults_precsd, aes(x = age_group, y = precsd_visd)) +
+  geom_violin(trim = FALSE, width = 0.9, fill = "white", color = "grey25", alpha = 1, linewidth = 0.8) +
+  geom_jitter(aes(color = age_group), width = 0.08, height = 0, alpha = 0.65, size = 2.2) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.10, linewidth = 0.8, color = "black") +
+  stat_summary(fun = mean, geom = "point", size = 3.2, color = "black") +
+  labs(x = "Chimpanzee Age Classification", y = "Precision (SD)\n(in visual degrees)", title = NULL) +
+  scale_color_manual(values = c("Non-Adult" = "#F8766D","Adult"     = "#E76BF3")) +
+  guides(color = "none") +
+  theme_classic(base_size = 12)
+
+png(here("exp1", "img", "precsd_chimps_adults_nonadults.png"), width = 2480/2, height = 3508/4, res = 210)
+p_chimpadult_precsd
+dev.off()
+
+## Robustness ----
+df_chimp_agegroup <- df_tot |>
+  filter(folder == "chimps") |>
+  filter(!is.na(group_id), !is.na(age_classification)) |>
+  mutate(
+    age_group = case_when(
+      grepl("adult", tolower(age_classification)) ~ "Adult",
+      TRUE ~ "Non-Adult"
+    ),
+    age_group = factor(age_group, levels = c("Non-Adult", "Adult"))
+  ) |>
+  select(group_id, age_group) |>
+  distinct()
+
+df_plot_chimpadults_rob <- df_tot |>
+  filter(folder == "chimps") |>
+  filter(!is.na(group_id), !is.na(robustness_prop_2)) |>
+  select(group_id, robustness_prop_2) |>
+  distinct() |>
+  left_join(df_chimp_agegroup, by = "group_id") |>
+  filter(!is.na(age_group))
+
+p_chimpadult_rob <- ggplot(df_plot_chimpadults_rob, aes(x = age_group, y = robustness_prop_2)) +
+  geom_violin(trim = FALSE, width = 0.9, fill = "white", color = "grey25", alpha = 1, linewidth = 0.8) +
+  geom_jitter(aes(color = age_group), width = 0.08, height = 0, alpha = 0.65, size = 2.2) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.10, linewidth = 0.8, color = "black") +
+  stat_summary(fun = mean, geom = "point", size = 3.2, color = "black") +
+  labs(x = "Chimpanzee Age Classification", y = "Robustness\n(in %)", title = NULL) +
+  scale_color_manual(values = c("Non-Adult" = "#F8766D","Adult" = "#E76BF3")) +
+  guides(color = "none") +
+  theme_classic(base_size = 12)
+
+png(here("exp1", "img", "robustness_chimps_adults_nonadults.png"), width = 2480/2, height = 3508/4, res = 210)
+p_chimpadult_rob
+dev.off()
 
 # RQ1 (Accuracy) ----------------------------------------------------------
 # RQ1:  (How) does eye-tracking data quality (accuracy, precision, robustness) 
@@ -254,6 +370,11 @@ loo_compare(loo_full, loo_red) # red_rq1_acc: elpd_diff = -9.1 & se_diff = 4.4.
                                # moderate evidence that the full model is better (difference is ~2 SE away from 0).
 
 ## Marginal Effects ----
+# RQ1: Marginal means (response scale) + pairwise contrasts ----------------
+rq1_acc_means_contr    <- get_rq1_marginals(full_rq1_acc, "Accuracy")
+
+
+
 avg_acc <- marginaleffects::avg_predictions(
   full_rq1_acc,
   by = "folder",

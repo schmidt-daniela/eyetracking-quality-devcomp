@@ -371,23 +371,13 @@ loo_compare(loo_full, loo_red) # red_rq1_acc: elpd_diff = -9.1 & se_diff = 4.4.
 
 ## Marginal Effects ----
 # RQ1: Marginal means (response scale) + pairwise contrasts ----------------
+# Computes model-based marginal estimates (i.e., marginal means) for the categorical 
+# predictor group (folder) on the response scale and computes posterior contrasts 
+# between group levels on the response scale.
 rq1_acc_means_contr    <- get_rq1_marginals(full_rq1_acc, "Accuracy")
 
-
-
-avg_acc <- marginaleffects::avg_predictions(
-  full_rq1_acc,
-  by = "folder",
-  type = "response",
-  re_formula = NA
-)
-
-cmp_acc <- marginaleffects::comparisons(
-  full_rq1_acc,
-  variables = "folder",
-  type = "response",
-  re_formula = NA
-)
+rq1_acc_marginal_means <- rq1_acc_means_contr$avg # Marginal means (response scale)
+rq1_acc_pairwise_contrasts <- rq1_acc_means_contr$cmp # Pairwise contrasts (response scale)
 
 ## Visualization ----
 

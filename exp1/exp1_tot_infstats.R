@@ -370,7 +370,6 @@ loo_compare(loo_full, loo_red) # red_rq1_acc: elpd_diff = -9.1 & se_diff = 4.4.
                                # moderate evidence that the full model is better (difference is ~2 SE away from 0).
 
 ## Marginal Effects ----
-# RQ1: Marginal means (response scale) + pairwise contrasts ----------------
 # Computes model-based marginal estimates (i.e., marginal means) for the categorical 
 # predictor group (folder) on the response scale and computes posterior contrasts 
 # between group levels on the response scale.
@@ -378,6 +377,57 @@ rq1_acc_means_contr    <- get_rq1_marginals(full_rq1_acc, "Accuracy")
 
 rq1_acc_marginal_means <- rq1_acc_means_contr$avg # Marginal means (response scale)
 rq1_acc_pairwise_contrasts <- rq1_acc_means_contr$cmp # Pairwise contrasts (response scale)
+
+print(rq1_acc_marginal_means, n = Inf)
+print(rq1_acc_pairwise_contrasts, n = Inf)
+
+rq1_acc_marginal_means_report <- rq1_acc_marginal_means |>
+  select(folder, estimate, conf.low, conf.high)
+rq1_acc_pairwise_contrasts_report <- rq1_acc_pairwise_contrasts |>
+  select(contrast, estimate, conf.low, conf.high)
+
+## Group Means and Contrasts ----
+groups <- c("4m","6m","9m","18m","adults","chimps")
+acc_means <- brms_group_effects_response(
+  fit   = full_rq1_acc,
+  groups = groups,
+  group_prefix = "folder",
+  type  = "means",
+  link  = "log"         # Gamma(log)
+)
+
+acc_means
+acc_means |> arrange(estimate)
+
+acc_contr_all <- brms_group_effects_response(
+  fit   = full_rq1_acc,
+  groups = groups,
+  group_prefix = "folder",
+  type  = "contrasts",
+  ref   = NULL,          # => all pairwise
+  link  = "log",
+  contrast_scale = "ratio"
+)
+
+acc_contr_all
+acc_contr_all |> 
+  arrange(desc(ratio_median))
+
+# if the one above is too big, use this one:
+# acc_contr_adults <- brms_group_effects_response(
+#   fit   = full_rq1_acc,
+#   groups = groups,
+#   group_prefix = "folder",
+#   type  = "contrasts",
+#   ref   = "adults",
+#   link  = "log",
+#   contrast_scale = "ratio"  # default bei log, aber explizit ist gut
+# )
+# 
+# acc_contr_adults
+# acc_contr_adults |> 
+#   arrange(desc(ratio_median))
+
 
 ## Visualization ----
 

@@ -8,6 +8,7 @@ library(brms)
 library(posterior)
 library(marginaleffects)
 library(readxl)
+library(bayesplot)
 
 # Load Functions ----------------------------------------------------------
 source(here("exp1", "R", "descriptives.R"))
@@ -369,23 +370,6 @@ loo_red <- loo(red_rq1_acc)
 loo_compare(loo_full, loo_red) # red_rq1_acc: elpd_diff = -9.1 & se_diff = 4.4.
                                # moderate evidence that the full model is better (difference is ~2 SE away from 0).
 
-## Marginal Effects ----
-# Computes model-based marginal estimates (i.e., marginal means) for the categorical 
-# predictor group (folder) on the response scale and computes posterior contrasts 
-# between group levels on the response scale.
-rq1_acc_means_contr    <- get_rq1_marginals(full_rq1_acc, "Accuracy")
-
-rq1_acc_marginal_means <- rq1_acc_means_contr$avg # Marginal means (response scale)
-rq1_acc_pairwise_contrasts <- rq1_acc_means_contr$cmp # Pairwise contrasts (response scale)
-
-print(rq1_acc_marginal_means, n = Inf)
-print(rq1_acc_pairwise_contrasts, n = Inf)
-
-rq1_acc_marginal_means_report <- rq1_acc_marginal_means |>
-  select(folder, estimate, conf.low, conf.high)
-rq1_acc_pairwise_contrasts_report <- rq1_acc_pairwise_contrasts |>
-  select(contrast, estimate, conf.low, conf.high)
-
 ## Group Means and Contrasts ----
 groups <- c("4m","6m","9m","18m","adults","chimps")
 acc_means <- brms_group_effects_response(
@@ -429,7 +413,7 @@ acc_contr_all |>
 #   arrange(desc(ratio_median))
 
 
-## Visualization ----
+## Plot Versus Prior Plots ----
 
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
 png(here("exp1", "img", "rq1_acc_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
@@ -491,7 +475,8 @@ df_subj <- df_tot |>
     Group = factor(
       folder,
       levels = c("4m", "6m", "9m", "18m", "adults", "chimps"),
-      labels = c("4M", "6M", "9M", "18M", "Adults", "Chimpanzees")
+      labels = c("4 Months", "6 Months", "9 Months", "18 Months", "Adults", "Chimpanzees")
+      # labels = c("4M", "6M", "9M", "18M", "Adults", "Chimpanzees")
     )
   )
 
@@ -514,21 +499,20 @@ p_acc <- ggplot(df_subj, aes(x = Group, y = acc_visd)) +
   geom_point(
     aes(color = Group),
     position = position_jitter(width = 0.12, height = 0),
-    alpha = 0.75,
-    size = 2,
+    size = 0.5,
     show.legend = FALSE
   ) +
   geom_errorbar(
     data = sum_df,
     aes(x = Group, ymin = ci_low, ymax = ci_high),
     width = 0.12,
-    linewidth = 1,
+    linewidth = 0.5,
     inherit.aes = FALSE
   ) +
   geom_point(
     data = sum_df,
     aes(x = Group, y = mean),
-    size = 3,
+    size = 0.5,
     inherit.aes = FALSE
   ) +
   labs(
@@ -600,10 +584,80 @@ t1 <- proc.time()
 proc_time_rq1_precrms <- t1 - t0
 rm(t0, t1)
 
-## Marginal Effects ----
-# avg_predictions(full_rq1_precrms, by="folder")
+## Define Priors of Reduced Model ----
+# With Gamma(link="log"), coefficients are on the log-mean scale.
+prior_rq1_precrms_red <- c(
+  # Position (should not be bigger than half of the difference between adults and 9ms,
+  # that is, -2.03 - (-1.64) = -0.39, so half of that is 0.195)
+  prior(normal(0, 0.195), class = "b", coef = "positionbot_left"),
+  prior(normal(0, 0.195), class = "b", coef = "positionbot_right"),
+  prior(normal(0, 0.195), class = "b", coef = "positionbottom"),
+  # prior(normal(0, 0.195), class = "b", coef = "positioncenter"), # center is the reference level
+  prior(normal(0, 0.195), class = "b", coef = "positiontop"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop_left"),
+  prior(normal(0, 0.195), class = "b", coef = "positiontop_right"),
+  
+  # Gamma shape (estimate = 7.42 and est. error = 0.19 on a natural scale,
+  # which translates to meanlog = 2.004 and sdlog = 0.0256 on log scale,
+  # m <- 7.42
+  # s <- 0.19
+  # sigma2  <- log(1 + (s^2 / m^2))
+  # sdlog   <- sqrt(sigma2)              # 0.0256
+  # meanlog <- log(m) - sigma2/2         # 2.004 (approx)
+  # c(meanlog = meanlog, sdlog = sdlog)
+  # double the sd to make it wider
+  prior(lognormal(2.004, 2*0.0256), class = "shape"),
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
+  prior(lkj(2), class = "cor") # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  # supported, improving computational stability in random-slope models
+)
 
-## Visualization ----
+## Reduced Model ----
+red_rq1_precrms <- brm(
+  precrms_visd ~ 0 + position + (1 + position | group_id),
+  data   = df_tot,
+  family = Gamma(link="log"),
+  prior  = prior_rq1_precrms_red,
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  sample_prior = "yes",
+  seed = 123,
+)
+
+## Model Comparison ----
+loo_full_precrms <- loo(full_rq1_precrms)
+loo_red_precrms <- loo(red_rq1_precrms)
+loo_compare(loo_full_precrms, loo_red_precrms) # full_rq1_precrms -4.3       7.4 
+
+## Group Means and Contrasts ----
+groups <- c("4m","6m","9m","18m","adults","chimps")
+precrms_means <- brms_group_effects_response(
+  fit   = full_rq1_precrms,
+  groups = groups,
+  group_prefix = "folder",
+  type  = "means",
+  link  = "log"         # Gamma(log)
+)
+
+precrms_means
+precrms_means |> arrange(estimate)
+
+precrms_contr_all <- brms_group_effects_response(
+  fit   = full_rq1_precrms,
+  groups = groups,
+  group_prefix = "folder",
+  type  = "contrasts",
+  ref   = NULL,          # => all pairwise
+  link  = "log",
+  contrast_scale = "ratio"
+)
+
+precrms_contr_all
+precrms_contr_all |> 
+  arrange(desc(ratio_median))
+
+## Plot Versus Prior Plots ----
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
 png(here("exp1", "img", "rq1_precrms_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folderchimps", "prior_b_folderchimps"), facet_label = "Chimpanzees")
@@ -662,7 +716,8 @@ df_subj <- df_tot |>
     Group = factor(
       folder,
       levels = c("4m", "6m", "9m", "18m", "adults", "chimps"),
-      labels = c("4M", "6M", "9M", "18M", "Adults", "Chimpanzees")
+      # labels = c("4M", "6M", "9M", "18M", "Adults", "Chimpanzees")
+      labels = c("4 Months", "6 Months", "9 Months", "18 Months", "Adults", "Chimpanzees")
     )
   )
 
@@ -685,21 +740,20 @@ p_precrms <- ggplot(df_subj, aes(x = Group, y = precrms_visd)) +
   geom_point(
     aes(color = Group),
     position = position_jitter(width = 0.12, height = 0),
-    alpha = 0.75,
-    size = 2,
+    size = 0.5,
     show.legend = FALSE
   ) +
   geom_errorbar(
     data = sum_df,
     aes(x = Group, ymin = ci_low, ymax = ci_high),
     width = 0.12,
-    linewidth = 1,
+    linewidth = 0.5,
     inherit.aes = FALSE
   ) +
   geom_point(
     data = sum_df,
     aes(x = Group, y = mean),
-    size = 3,
+    size = 0.5,
     inherit.aes = FALSE
   ) +
   labs(
@@ -768,9 +822,80 @@ t1 <- proc.time()
 proc_time_rq1_precsd <- t1 - t0
 rm(t0, t1)
 
-## Marginal Effects ----
+## Define Priors of Reduced Model----
+# With Gamma(link="log"), coefficients are on the log-mean scale.
+prior_rq1_precsd_red <- c(
+  # Position (should not be bigger than half of the difference between adults and 9ms,
+  # that is, -1.87 - (-1.61) = 0.26, so half of it is 0.13)
+  prior(normal(0, 0.13), class = "b", coef = "positionbot_left"),
+  prior(normal(0, 0.13), class = "b", coef = "positionbot_right"),
+  prior(normal(0, 0.13), class = "b", coef = "positionbottom"),
+  # prior(normal(0, 0.13), class = "b", coef = "positioncenter"), # center is the reference level
+  prior(normal(0, 0.13), class = "b", coef = "positiontop"),
+  prior(normal(0, 0.13), class = "b", coef = "positiontop_left"),
+  prior(normal(0, 0.13), class = "b", coef = "positiontop_right"),
+  
+  # Gamma shape (estimate = 6.16 and est. error = 0.15 on a natural scale,
+  # which translates to meanlog = 2.004 and sdlog = 0.0256 on log scale,
+  # m <- 6.16
+  # s <- 0.15
+  # sigma2  <- log(1 + (s^2 / m^2))
+  # sdlog   <- sqrt(sigma2)              # 0.02434704
+  # meanlog <- log(m) - sigma2/2         # 1.81778039
+  # c(meanlog = meanlog, sdlog = sdlog)
+  # double the sd to make it wider
+  prior(lognormal(1.81778039, 2*0.02434704), class = "shape"),
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
+  prior(lkj(2), class = "cor") # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  # supported, improving computational stability in random-slope models
+)
 
-## Visualization ----
+## Reduced Model ----
+red_rq1_precsd <- brm(
+  precsd_visd ~ 0 + position + (1 + position | group_id),
+  data   = df_tot,
+  sample_prior = "yes",
+  family = Gamma(link="log"),
+  prior  = prior_rq1_precsd_red,
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  seed = 123
+)
+
+## Model Comparison ----
+loo_full_precsd <- loo(full_rq1_precsd)
+loo_red_precsd <- loo(red_rq1_precsd)
+loo_compare(loo_full_precsd, loo_red_precsd)
+
+## Group Means and Contrasts ----
+groups <- c("4m","6m","9m","18m","adults","chimps")
+precsd_means <- brms_group_effects_response(
+  fit   = full_rq1_precsd,
+  groups = groups,
+  group_prefix = "folder",
+  type  = "means",
+  link  = "log"         # Gamma(log)
+)
+
+precsd_means
+precsd_means |> arrange(estimate)
+
+precsd_contr_all <- brms_group_effects_response(
+  fit   = full_rq1_precsd,
+  groups = groups,
+  group_prefix = "folder",
+  type  = "contrasts",
+  ref   = NULL,          # => all pairwise
+  link  = "log",
+  contrast_scale = "ratio"
+)
+
+precsd_contr_all
+precsd_contr_all |> 
+  arrange(desc(ratio_median))
+
+## Plot Versus Prior Plots ----
 png(here("exp1", "img", "rq1_precsd_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder4m", "prior_b_folder4m"), facet_label = "4-Month-Olds")
 dev.off()
@@ -823,7 +948,8 @@ df_subj <- df_tot |>
     Group = factor(
       folder,
       levels = c("4m", "6m", "9m", "18m", "adults", "chimps"),
-      labels = c("4M", "6M", "9M", "18M", "Adults", "Chimpanzees")
+      labels = c("4 Months", "6 Months", "9 Months", "18 Months", "Adults", "Chimpanzees")
+      # labels = c("4M", "6M", "9M", "18M", "Adults", "Chimpanzees")
     )
   )
 
@@ -846,21 +972,20 @@ p_precsd <- ggplot(df_subj, aes(x = Group, y = precsd_visd)) +
   geom_point(
     aes(color = Group),
     position = position_jitter(width = 0.12, height = 0),
-    alpha = 0.75,
-    size = 2,
+    size = 0.5,
     show.legend = FALSE
   ) +
   geom_errorbar(
     data = sum_df,
     aes(x = Group, ymin = ci_low, ymax = ci_high),
     width = 0.12,
-    linewidth = 1,
+    linewidth = 0.5,
     inherit.aes = FALSE
   ) +
   geom_point(
     data = sum_df,
     aes(x = Group, y = mean),
-    size = 3,
+    size = 0.5,
     inherit.aes = FALSE
   ) +
   labs(
@@ -939,10 +1064,65 @@ t1 <- proc.time()
 proc_time_rq1_rob <- t1 - t0
 rm(t0, t1)
 
-## Visualization ----
+## Define Priors of Reduced Model ----
+mu0 <- qlogis(0.05)
+mu0 # -2.944439
 
-## Marginal Effects ----
-# avg_predictions(full_rq1_precsd, by="folder")
+priors_rq1_rob_red <- c(
+  
+  # Dispersion (phi):
+  # phi controls how concentrated the Beta distribution is around mu.
+  # Weakly informative prior, avoids extreme concentration by default.
+  # Beta precision parameter (higher = less variance around mu)
+  prior(exponential(1), class = "phi"),
+  
+  # Random effects regularization
+  prior(exponential(1), class = "sd") # enforces positivity but allows inter-individual heterogeneity
+)
+
+## Reduced Model ----
+red_rq1_rob <- brm(
+  robustness_prop_2 ~ (1 | group_id),
+  data   = df_tot |> filter(!is.na(robustness_prop_2)) |> select(folder, group_id,robustness_prop_2) |> distinct(),
+  family = Beta(link = "logit"),
+  prior  = priors_rq1_rob_red,
+  sample_prior = "yes",
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  seed = 123,
+  control = list(adapt_delta = 0.99, max_treedepth = 15)
+)
+
+## Model Comparison ----
+loo_full_rob <- loo(full_rq1_rob)
+loo_red_rob <- loo(red_rq1_rob)
+loo_compare(loo_full_rob, loo_red_rob) # red_rq1_rob  -31.3       5.5 
+
+## Group Means and Contrasts ----
+groups <- c("4m","6m","9m","18m","adults","chimps")
+rob_means <- brms_group_effects_response(
+  fit   = full_rq1_rob,
+  groups = groups,
+  group_prefix = "folder",
+  type  = "means",
+  link  = "logit" 
+)
+
+rob_means |> arrange(estimate)
+
+rob_contr_all <- brms_group_effects_response(
+  fit   = full_rq1_rob,
+  groups = groups,
+  group_prefix = "folder",
+  type  = "contrasts",
+  ref   = NULL,          # => all pairwise
+  link  = "log",
+  contrast_scale = "ratio"
+)
+
+rob_contr_all |> 
+  arrange(desc(ratio_median))
+
+## Plot Versus Prior Plots ----
 
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
 png(here("exp1", "img", "rq1_rob_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
@@ -1024,7 +1204,8 @@ df_subj <- df_tot |>
     Group = factor(
       folder,
       levels = c("4m", "6m", "9m", "18m", "adults", "chimps"),
-      labels = c("4M", "6M", "9M", "18M", "Adults", "Chimpanzees")
+      labels = c("4 Months", "6 Months", "9 Months", "18 Months", "Adults", "Chimpanzees")
+      # labels = c("4M", "6M", "9M", "18M", "Adults", "Chimpanzees")
     )
   )
 
@@ -1047,21 +1228,20 @@ p_robust <- ggplot(df_subj, aes(x = Group, y = robustness_prop_2)) +
   geom_point(
     aes(color = Group),
     position = position_jitter(width = 0.12, height = 0),
-    alpha = 0.75,
-    size = 2,
+    size = 0.5,
     show.legend = FALSE
   ) +
   geom_errorbar(
     data = sum_df,
     aes(x = Group, ymin = ci_low, ymax = ci_high),
     width = 0.12,
-    linewidth = 1,
+    linewidth = 0.5,
     inherit.aes = FALSE
   ) +
   geom_point(
     data = sum_df,
     aes(x = Group, y = mean),
-    size = 3,
+    size = 0.5,
     inherit.aes = FALSE
   ) +
   labs(
@@ -1074,6 +1254,29 @@ p_robust <- ggplot(df_subj, aes(x = Group, y = robustness_prop_2)) +
 png(here("exp1", "img", "rq1_rob_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
 p_robust
 dev.off()
+
+## Posterior Distribution Plot ----
+nd <- data.frame(folder = c("4m","6m","9m","18m","adults","chimps"))
+ep <- posterior_epred(full_rq1_rob, newdata = nd, re_formula = NA)
+colnames(ep) <- c("4m","6m","9m","18m","adults","chimps")
+pars_order <- c("4m","6m","9m","18m","adults","chimps")
+y_labels <- c(
+  "4m"     = "4 Months",
+  "6m"     = "6 Months",
+  "9m"     = "9 Months",
+  "18m"    = "18 Months",
+  "adults" = "Adults",
+  "chimps" = "Chimpanzees"
+)
+
+posterior_robust <- mcmc_areas(ep, pars = rev(pars_order), prob = 0.95) +
+  scale_y_discrete(labels = y_labels) +
+  ggplot2::labs(x = "Robustness\n(Posterior Predictive Mean; Response Scale)",
+                y = "Group")
+png(here("exp1", "img", "rq1_rob_posteriorplot.png"), width = 2480/2, height = 3508/4, res = 200)
+posterior_robust
+dev.off()
+
 
 # RQ2 (Accuracy) ----------------------------------------------------------
 # RQ2: (How) does eye-tracking data quality change over time, 

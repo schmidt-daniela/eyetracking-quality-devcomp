@@ -134,3 +134,63 @@ count_valid_trials <- function(dat, trial_id_col = "trial") {
       .groups = "drop"
     )
 }
+
+#' Convert posterior prediction matrix to a long tibble (draws x conditions)
+#'
+#' Takes a posterior prediction matrix (e.g., from \code{brms::posterior_epred()})
+#' with dimensions \code{n_draws x n_conditions} and converts it into a long-format
+#' tibble where each row represents one draw for one condition (row of \code{nd}).
+#'
+#' This helper is useful for plotting posterior predictive distributions with ggplot2
+#' (e.g., via \code{ggdist::stat_halfeye()}), because it aligns each column of the
+#' prediction matrix with the corresponding row in the supplied \code{nd} grid.
+#'
+#' @param ep A numeric matrix of posterior predictions with shape
+#'   \code{n_draws x nrow(nd)} (e.g., output of \code{brms::posterior_epred()}).
+#' @param nd A data frame/tibble containing the predictor grid used for prediction.
+#'   Must have \code{nrow(nd) == ncol(ep)}.
+#'
+#' @return A tibble in long format with columns:
+#' \describe{
+#'   \item{.draw}{Posterior draw index (1..n_draws).}
+#'   \item{.row}{Row index of \code{nd} (1..nrow(nd)).}
+#'   \item{.epred}{Posterior predicted value for that draw and condition.}
+#'   \item{...}{All columns from \code{nd} (joined by \code{.row}).}
+#' }
+#'
+#' @details
+#' The function assigns unique column names (\code{row_1}, \code{row_2}, ...)
+#' to \code{ep} before converting to a tibble. This avoids warnings from
+#' \code{tibble::as_tibble.matrix()} when column names are missing or non-unique.
+#'
+#' @examples
+#' \dontrun{
+#' nd <- tidyr::expand_grid(folder = c("4m","6m"), position = c("center","top"))
+#' ep <- brms::posterior_epred(fit, newdata = nd, re_formula = NA)
+#' long <- epred_to_long(ep, nd)
+#'
+#' ggplot(long, aes(x = .epred, y = folder, fill = position)) +
+#'   ggdist::stat_halfeye(point_interval = "median_qi")
+#' }
+#'
+#' @importFrom tibble as_tibble
+#' @importFrom dplyr mutate left_join
+#' @importFrom tidyr pivot_longer
+#' @importFrom stringr str_remove
+#' @export
+epred_to_long <- function(ep, nd) {
+  stopifnot(is.matrix(ep))
+  stopifnot(ncol(ep) == nrow(nd))
+  
+  colnames(ep) <- paste0("row_", seq_len(ncol(ep)))
+  
+  tibble::as_tibble(ep) |>
+    dplyr::mutate(.draw = dplyr::row_number()) |>
+    tidyr::pivot_longer(
+      cols      = dplyr::starts_with("row_"),
+      names_to  = ".row",
+      values_to = ".epred"
+    ) |>
+    dplyr::mutate(.row = as.integer(stringr::str_remove(.row, "^row_"))) |>
+    dplyr::left_join(dplyr::mutate(nd, .row = dplyr::row_number()), by = ".row")
+}

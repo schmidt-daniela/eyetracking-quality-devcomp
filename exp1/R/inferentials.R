@@ -99,14 +99,14 @@ brms_group_effects_response <- function(
     stop("`ref` is only used for `type = 'contrasts'`.")
   }
   
-  # --- helper: inverse link ---
+  # inverse link
   inv_link <- function(eta) {
     if (link == "log") return(exp(eta))
     if (link == "logit") return(stats::plogis(eta))
     stop("Unsupported link.")
   }
   
-  # --- pull posterior draws ---
+  # pull posterior draws
   draws <- posterior::as_draws_df(fit)
   coef_names <- paste0("b_", group_prefix, groups)
   missing <- setdiff(coef_names, names(draws))
@@ -114,7 +114,7 @@ brms_group_effects_response <- function(
     stop("Missing coefficients in posterior draws: ", paste(missing, collapse = ", "))
   }
   
-  # --- means ---
+  # means
   if (type == "means") {
     out <- lapply(groups, function(g) {
       eta <- draws[[paste0("b_", group_prefix, g)]]
@@ -129,7 +129,7 @@ brms_group_effects_response <- function(
     return(dplyr::bind_rows(out))
   }
   
-  # --- contrasts ---
+  # contrasts
   if (!is.null(ref)) {
     if (!ref %in% groups) stop("`ref` must be one of `groups`.")
     pairs <- tibble::tibble(g1 = setdiff(groups, ref), g2 = ref)

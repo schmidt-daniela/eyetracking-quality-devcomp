@@ -306,7 +306,7 @@ prior_rq1_acc <- c(
 ## Full Model ----
 t0 <- proc.time()
 full_rq1_acc <- brm(
-  acc_visd ~ 0 + folder + 0 + position + (1 + position | group_id),
+  acc_visd ~ 0 + folder + position + (1 + position | group_id),
   data   = df_tot,
   family = hurdle_gamma(link = "log"),
   prior  = prior_rq1_acc,
@@ -352,7 +352,7 @@ prior_rq1_acc_red <- c(
 ## Reduced Model ----
 t0 <- proc.time()
 red_rq1_acc <- brm(
-  acc_visd ~ 0 + position + (1 + position | group_id),
+  acc_visd ~ position + (1 + position | group_id),
   data   = df_tot,
   family = hurdle_gamma(link = "log"),
   prior  = prior_rq1_acc_red,
@@ -366,31 +366,23 @@ t1 <- proc.time()
 proc_time_rq1_acc <- t1 - t0
 rm(t0, t1)
 
+## Check Convergence ----
+full_rq1_acc # check: all regression coefficients rhat < 1.01
+
 ## Model Comparison ----
 loo_full <- loo(full_rq1_acc)
 loo_red <- loo(red_rq1_acc)
 loo_compare(loo_full, loo_red) # red_rq1_acc: elpd_diff = -9.1 & se_diff = 4.4.
                                # moderate evidence that the full model is better (difference is ~2 SE away from 0).
 
-## Group Means and Contrasts ----
-groups <- c("4m","6m","9m","18m","adults","chimps")
-acc_means <- brms_group_effects_response(
-  fit   = full_rq1_acc,
-  groups = groups,
-  group_prefix = "folder",
-  type  = "means",
-  link  = "log"         # Gamma(log)
-)
-
-acc_means
-acc_means |> arrange(estimate)
-
+## Contrasts ----
+groups <- levels(df_tot$folder)
 acc_contr_all <- brms_group_effects_response(
   fit   = full_rq1_acc,
   groups = groups,
   group_prefix = "folder",
   type  = "contrasts",
-  ref   = NULL,          # => all pairwise
+  ref   = NULL,          # = all pairwise
   link  = "log",
   contrast_scale = "ratio"
 )
@@ -398,6 +390,34 @@ acc_contr_all <- brms_group_effects_response(
 acc_contr_all
 acc_contr_all |> 
   arrange(desc(ratio_median))
+
+## Contrasts (Position) ----
+positions <- levels(df_tot$position)[2:7]
+acc_contr_all_pos <- brms_group_effects_response(
+  fit   = full_rq1_acc,
+  groups = positions,
+  group_prefix = "position",
+  type  = "contrasts",
+  ref   = NULL,
+  link  = "log",
+  contrast_scale = "ratio"
+)
+
+acc_contr_all_pos
+acc_contr_all_pos |> 
+  arrange(desc(ratio_median))
+
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
+
+png(here("exp1", "img", "rq1_acc_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_acc, ndraws = 100) # rq1 accuracy check, that's fine
+#pp_check(full_rq1_acc, type = "hist") # rq1 accuracy check, that's fine
+dev.off()
+
+png(here("exp1", "img", "rq1_acc_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_acc, type = "intervals_grouped", group = "folder") # might exceed memory limits
+dev.off()
 
 ## Posterior Distribution ----
 # Preparation
@@ -617,7 +637,7 @@ prior_rq1_precrms <- c(
 ## Full Model ----
 t0 <- proc.time()
 full_rq1_precrms <- brm(
-  precrms_visd ~ 0 + folder + 0 + position + (1 + position | group_id),
+  precrms_visd ~ 0 + folder + position + (1 + position | group_id),
   data   = df_tot,
   family = Gamma(link="log"),
   prior  = prior_rq1_precrms,
@@ -663,7 +683,7 @@ prior_rq1_precrms_red <- c(
 
 ## Reduced Model ----
 red_rq1_precrms <- brm(
-  precrms_visd ~ 0 + position + (1 + position | group_id),
+  precrms_visd ~ position + (1 + position | group_id),
   data   = df_tot,
   family = Gamma(link="log"),
   prior  = prior_rq1_precrms_red,
@@ -672,24 +692,20 @@ red_rq1_precrms <- brm(
   seed = 123,
 )
 
+## Check Convergence ----
+full_rq1_precrms
+# folder4m: Rhat = 1.01
+# folder6m: Rhat = 1.02
+
 ## Model Comparison ----
 loo_full_precrms <- loo(full_rq1_precrms)
 loo_red_precrms <- loo(red_rq1_precrms)
 loo_compare(loo_full_precrms, loo_red_precrms) # full_rq1_precrms -4.3       7.4 
 
-## Group Means and Contrasts ----
-groups <- c("4m","6m","9m","18m","adults","chimps")
-precrms_means <- brms_group_effects_response(
-  fit   = full_rq1_precrms,
-  groups = groups,
-  group_prefix = "folder",
-  type  = "means",
-  link  = "log"         # Gamma(log)
-)
+## Posterior Predictive Checks ----
+pp_check(full_rq1_precrms, ndraws = 100) # A good model will show the observed data (usually a dark line) closely following the distribution of simulated datasets (lighter lines).
 
-precrms_means
-precrms_means |> arrange(estimate)
-
+## Contrasts ----
 precrms_contr_all <- brms_group_effects_response(
   fit   = full_rq1_precrms,
   groups = groups,
@@ -703,6 +719,17 @@ precrms_contr_all <- brms_group_effects_response(
 precrms_contr_all
 precrms_contr_all |> 
   arrange(desc(ratio_median))
+
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
+png(here("exp1", "img", "rq1_precrms_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_precrms, ndraws = 100)
+#pp_check(full_rq1_precrms, type = "hist") 
+dev.off()
+
+png(here("exp1", "img", "rq1_precrms_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_precrms, type = "intervals_grouped", group = "folder") # might exceed memory limits
+dev.off()
 
 ## Posterior Distribution ----
 # Preparation
@@ -917,7 +944,7 @@ prior_rq1_precsd <- c(
 ## Full Model ----
 t0 <- proc.time()
 full_rq1_precsd <- brm(
-  precsd_visd ~ 0 + folder + 0 + position + (1 + position | group_id),
+  precsd_visd ~ 0 + folder + position + (1 + position | group_id),
   data   = df_tot,
   sample_prior = "yes",
   family = Gamma(link="log"),
@@ -961,7 +988,7 @@ prior_rq1_precsd_red <- c(
 
 ## Reduced Model ----
 red_rq1_precsd <- brm(
-  precsd_visd ~ 0 + position + (1 + position | group_id),
+  precsd_visd ~ position + (1 + position | group_id),
   data   = df_tot,
   sample_prior = "yes",
   family = Gamma(link="log"),
@@ -975,19 +1002,18 @@ loo_full_precsd <- loo(full_rq1_precsd)
 loo_red_precsd <- loo(red_rq1_precsd)
 loo_compare(loo_full_precsd, loo_red_precsd)
 
-## Group Means and Contrasts ----
-groups <- c("4m","6m","9m","18m","adults","chimps")
-precsd_means <- brms_group_effects_response(
-  fit   = full_rq1_precsd,
-  groups = groups,
-  group_prefix = "folder",
-  type  = "means",
-  link  = "log"         # Gamma(log)
-)
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
+png(here("exp1", "img", "rq1_precsd_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_precsd, ndraws = 100) 
+#pp_check(full_rq1_precsd, type = "hist")
+dev.off()
 
-precsd_means
-precsd_means |> arrange(estimate)
+png(here("exp1", "img", "rq1_precsd_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_precsd, type = "intervals_grouped", group = "folder") # might exceed memory limits
+dev.off()
 
+## Contrasts ----
 precsd_contr_all <- brms_group_effects_response(
   fit   = full_rq1_precsd,
   groups = groups,
@@ -1001,7 +1027,6 @@ precsd_contr_all <- brms_group_effects_response(
 precsd_contr_all
 precsd_contr_all |> 
   arrange(desc(ratio_median))
-
 
 ## Posterior Distribution ----
 # Preparation
@@ -1298,18 +1323,19 @@ loo_full_rob <- loo(full_rq1_rob)
 loo_red_rob <- loo(red_rq1_rob)
 loo_compare(loo_full_rob, loo_red_rob) # red_rq1_rob  -31.3       5.5 
 
-## Group Means and Contrasts ----
-groups <- c("4m","6m","9m","18m","adults","chimps")
-rob_means <- brms_group_effects_response(
-  fit   = full_rq1_rob,
-  groups = groups,
-  group_prefix = "folder",
-  type  = "means",
-  link  = "logit" 
-)
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
 
-rob_means |> arrange(estimate)
+png(here("exp1", "img", "rq1_rob_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_rob, ndraws = 100) 
+#pp_check(full_rq1_rob, type = "hist")
+dev.off()
 
+png(here("exp1", "img", "rq1_rob_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_rob, type = "intervals_grouped", group = "folder") # might exceed memory limits
+dev.off()
+
+## Contrasts ----
 rob_contr_all <- brms_group_effects_response(
   fit   = full_rq1_rob,
   groups = groups,

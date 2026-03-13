@@ -11,7 +11,6 @@ library(readxl)
 library(bayesplot)
 library(ggdist)
 
-
 # Load Functions ----------------------------------------------------------
 source(here("exp1", "R", "descriptives.R"))
 source(here("exp1", "R", "inferentials.R"))
@@ -306,7 +305,7 @@ prior_rq1_acc <- c(
 ## Full Model ----
 t0 <- proc.time()
 full_rq1_acc <- brm(
-  acc_visd ~ 0 + folder + 0 + position + (1 + position | group_id),
+  acc_visd ~ 0 + folder + position + (1 + position | group_id),
   data   = df_tot,
   family = hurdle_gamma(link = "log"),
   prior  = prior_rq1_acc,
@@ -352,7 +351,7 @@ prior_rq1_acc_red <- c(
 ## Reduced Model ----
 t0 <- proc.time()
 red_rq1_acc <- brm(
-  acc_visd ~ 0 + position + (1 + position | group_id),
+  acc_visd ~ position + (1 + position | group_id),
   data   = df_tot,
   family = hurdle_gamma(link = "log"),
   prior  = prior_rq1_acc_red,
@@ -366,31 +365,23 @@ t1 <- proc.time()
 proc_time_rq1_acc <- t1 - t0
 rm(t0, t1)
 
+## Check Convergence ----
+full_rq1_acc # check: all regression coefficients rhat < 1.01
+
 ## Model Comparison ----
 loo_full <- loo(full_rq1_acc)
 loo_red <- loo(red_rq1_acc)
 loo_compare(loo_full, loo_red) # red_rq1_acc: elpd_diff = -9.1 & se_diff = 4.4.
                                # moderate evidence that the full model is better (difference is ~2 SE away from 0).
 
-## Group Means and Contrasts ----
-groups <- c("4m","6m","9m","18m","adults","chimps")
-acc_means <- brms_group_effects_response(
-  fit   = full_rq1_acc,
-  groups = groups,
-  group_prefix = "folder",
-  type  = "means",
-  link  = "log"         # Gamma(log)
-)
-
-acc_means
-acc_means |> arrange(estimate)
-
+## Contrasts ----
+groups <- levels(df_tot$folder)
 acc_contr_all <- brms_group_effects_response(
   fit   = full_rq1_acc,
   groups = groups,
   group_prefix = "folder",
   type  = "contrasts",
-  ref   = NULL,          # => all pairwise
+  ref   = NULL,          # = all pairwise
   link  = "log",
   contrast_scale = "ratio"
 )
@@ -398,6 +389,34 @@ acc_contr_all <- brms_group_effects_response(
 acc_contr_all
 acc_contr_all |> 
   arrange(desc(ratio_median))
+
+## Contrasts (Position) ----
+positions <- levels(df_tot$position)[2:7]
+acc_contr_all_pos <- brms_group_effects_response(
+  fit   = full_rq1_acc,
+  groups = positions,
+  group_prefix = "position",
+  type  = "contrasts",
+  ref   = NULL,
+  link  = "log",
+  contrast_scale = "ratio"
+)
+
+acc_contr_all_pos
+acc_contr_all_pos |> 
+  arrange(desc(ratio_median))
+
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
+
+png(here("exp1", "img", "rq1_acc_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_acc, ndraws = 100) # rq1 accuracy check, that's fine
+#pp_check(full_rq1_acc, type = "hist") # rq1 accuracy check, that's fine
+dev.off()
+
+png(here("exp1", "img", "rq1_acc_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_acc, type = "intervals_grouped", group = "folder") # might exceed memory limits
+dev.off()
 
 ## Posterior Distribution ----
 # Preparation
@@ -441,6 +460,7 @@ posterior_plot_rq1_acc <- ggplot(
   stat_halfeye(
     point_interval = "median_qi",
     position = position_dodge(width = 0.80),
+    .width = c(0, 0.95),
     alpha = 0.65,
     height = 1.05, 
     adjust = 1.0
@@ -617,7 +637,7 @@ prior_rq1_precrms <- c(
 ## Full Model ----
 t0 <- proc.time()
 full_rq1_precrms <- brm(
-  precrms_visd ~ 0 + folder + 0 + position + (1 + position | group_id),
+  precrms_visd ~ 0 + folder + position + (1 + position | group_id),
   data   = df_tot,
   family = Gamma(link="log"),
   prior  = prior_rq1_precrms,
@@ -663,7 +683,7 @@ prior_rq1_precrms_red <- c(
 
 ## Reduced Model ----
 red_rq1_precrms <- brm(
-  precrms_visd ~ 0 + position + (1 + position | group_id),
+  precrms_visd ~ position + (1 + position | group_id),
   data   = df_tot,
   family = Gamma(link="log"),
   prior  = prior_rq1_precrms_red,
@@ -672,24 +692,20 @@ red_rq1_precrms <- brm(
   seed = 123,
 )
 
+## Check Convergence ----
+full_rq1_precrms
+# folder4m: Rhat = 1.01
+# folder6m: Rhat = 1.02
+
 ## Model Comparison ----
 loo_full_precrms <- loo(full_rq1_precrms)
 loo_red_precrms <- loo(red_rq1_precrms)
 loo_compare(loo_full_precrms, loo_red_precrms) # full_rq1_precrms -4.3       7.4 
 
-## Group Means and Contrasts ----
-groups <- c("4m","6m","9m","18m","adults","chimps")
-precrms_means <- brms_group_effects_response(
-  fit   = full_rq1_precrms,
-  groups = groups,
-  group_prefix = "folder",
-  type  = "means",
-  link  = "log"         # Gamma(log)
-)
+## Posterior Predictive Checks ----
+pp_check(full_rq1_precrms, ndraws = 100) # A good model will show the observed data (usually a dark line) closely following the distribution of simulated datasets (lighter lines).
 
-precrms_means
-precrms_means |> arrange(estimate)
-
+## Contrasts ----
 precrms_contr_all <- brms_group_effects_response(
   fit   = full_rq1_precrms,
   groups = groups,
@@ -703,6 +719,17 @@ precrms_contr_all <- brms_group_effects_response(
 precrms_contr_all
 precrms_contr_all |> 
   arrange(desc(ratio_median))
+
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
+png(here("exp1", "img", "rq1_precrms_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_precrms, ndraws = 100)
+#pp_check(full_rq1_precrms, type = "hist") 
+dev.off()
+
+png(here("exp1", "img", "rq1_precrms_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_precrms, type = "intervals_grouped", group = "folder") # might exceed memory limits
+dev.off()
 
 ## Posterior Distribution ----
 # Preparation
@@ -746,6 +773,7 @@ posterior_plot_rq1_precrms <- ggplot(
   stat_halfeye(
     point_interval = "median_qi",
     position = position_dodge(width = 0.80),
+    .width = c(0, 0.95),
     alpha = 0.65,
     height = 1.05,
     adjust = 1.0
@@ -917,7 +945,7 @@ prior_rq1_precsd <- c(
 ## Full Model ----
 t0 <- proc.time()
 full_rq1_precsd <- brm(
-  precsd_visd ~ 0 + folder + 0 + position + (1 + position | group_id),
+  precsd_visd ~ 0 + folder + position + (1 + position | group_id),
   data   = df_tot,
   sample_prior = "yes",
   family = Gamma(link="log"),
@@ -961,7 +989,7 @@ prior_rq1_precsd_red <- c(
 
 ## Reduced Model ----
 red_rq1_precsd <- brm(
-  precsd_visd ~ 0 + position + (1 + position | group_id),
+  precsd_visd ~ position + (1 + position | group_id),
   data   = df_tot,
   sample_prior = "yes",
   family = Gamma(link="log"),
@@ -975,19 +1003,18 @@ loo_full_precsd <- loo(full_rq1_precsd)
 loo_red_precsd <- loo(red_rq1_precsd)
 loo_compare(loo_full_precsd, loo_red_precsd)
 
-## Group Means and Contrasts ----
-groups <- c("4m","6m","9m","18m","adults","chimps")
-precsd_means <- brms_group_effects_response(
-  fit   = full_rq1_precsd,
-  groups = groups,
-  group_prefix = "folder",
-  type  = "means",
-  link  = "log"         # Gamma(log)
-)
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
+png(here("exp1", "img", "rq1_precsd_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_precsd, ndraws = 100) 
+#pp_check(full_rq1_precsd, type = "hist")
+dev.off()
 
-precsd_means
-precsd_means |> arrange(estimate)
+png(here("exp1", "img", "rq1_precsd_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_precsd, type = "intervals_grouped", group = "folder") # might exceed memory limits
+dev.off()
 
+## Contrasts ----
 precsd_contr_all <- brms_group_effects_response(
   fit   = full_rq1_precsd,
   groups = groups,
@@ -1001,7 +1028,6 @@ precsd_contr_all <- brms_group_effects_response(
 precsd_contr_all
 precsd_contr_all |> 
   arrange(desc(ratio_median))
-
 
 ## Posterior Distribution ----
 # Preparation
@@ -1045,6 +1071,7 @@ posterior_plot_rq1_precsd <- ggplot(
   stat_halfeye(
     point_interval = "median_qi",
     position = position_dodge(width = 0.80),
+    .width = c(0, 0.95),
     alpha = 0.65,
     height = 1.05,
     adjust = 1.0
@@ -1298,18 +1325,18 @@ loo_full_rob <- loo(full_rq1_rob)
 loo_red_rob <- loo(red_rq1_rob)
 loo_compare(loo_full_rob, loo_red_rob) # red_rq1_rob  -31.3       5.5 
 
-## Group Means and Contrasts ----
-groups <- c("4m","6m","9m","18m","adults","chimps")
-rob_means <- brms_group_effects_response(
-  fit   = full_rq1_rob,
-  groups = groups,
-  group_prefix = "folder",
-  type  = "means",
-  link  = "logit" 
-)
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
+png(here("exp1", "img", "rq1_rob_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_rob, ndraws = 100) 
+#pp_check(full_rq1_rob, type = "hist")
+dev.off()
 
-rob_means |> arrange(estimate)
+png(here("exp1", "img", "rq1_rob_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_rob, type = "intervals_grouped", group = "folder") # might exceed memory limits
+dev.off()
 
+## Contrasts ----
 rob_contr_all <- brms_group_effects_response(
   fit   = full_rq1_rob,
   groups = groups,
@@ -1344,7 +1371,7 @@ posterior_plot_rq1_rob <- ggplot(
   rob_long,
   aes(x = .epred,
       y = factor(folder, levels = rev(folder_order)))) +
-  stat_halfeye(point_interval = "median_qi",
+  stat_halfeye(point_interval = "median_qi", .width = c(0, 0.95),
                alpha = 0.65, height = 1.05, adjust = 1.0) +
   scale_y_discrete(labels = folder_labels) +
   labs(x = "Predicted Robustness", y = NULL) +
@@ -1821,70 +1848,119 @@ loo_full_acc_rq2_chi_2 <- loo(full_rq2_acc_chi_2)
 loo_red_acc_rq2_chi_2 <- loo(red_rq2_acc_chi_2)
 loo_compare(loo_full_acc_rq2_chi_2, loo_red_acc_rq2_chi_2)  # full_rq2_acc_chi_2 -0.6       0.2
 
-## Model Implied Slopes ----
-# What the code does:
-# Build a grid of all human groups × all observed trial numbers × all positions,
-# Get posterior_epred() values from the model,
-# Average those predictions across positions for each group and trial,
-# Fit pred ~ time_3 within each posterior draw,
-# Summarize the resulting posterior of slopes.
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
 
-hum_dat <- df_tot |> 
-  filter(folder != "chimps") |> 
-  mutate(
-    folder = droplevels(folder),
-    position = droplevels(position)
-  )
+png(here("exp1", "img", "rq2_acc_hum_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq2_acc_hum, ndraws = 100)
+dev.off()
 
-nd_rq2_acc_hum <- expand_grid(
-  time_3   = sort(unique(hum_dat$time_3)),
-  folder   = levels(hum_dat$folder),
-  position = levels(hum_dat$position)
+png(here("exp1", "img", "rq2_acc_chi1_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq2_acc_chi, ndraws = 100)
+dev.off()
+
+png(here("exp1", "img", "rq2_acc_chi2_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq2_acc_chi_2, ndraws = 100)
+dev.off()
+
+png(here("exp1", "img", "rq2_acc_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq2_acc_hum, type = "intervals_grouped", group = "folder") # might exceed memory limits
+dev.off()
+
+## Posterior Distribution ----
+## Preparation
+group_order <- c(
+  "4m", "6m", "9m", "18m", "adults",
+  "chimp_days", "chimp_trials"
 )
 
-pred_rq2_acc_hum <- posterior_epred(
-  full_rq2_acc_hum,
-  newdata = nd_rq2_acc_hum,
-  re_formula = NA
+group_labels <- c(
+  "4m"           = "4 Months",
+  "6m"           = "6 Months",
+  "9m"           = "9 Months",
+  "18m"          = "18 Months",
+  "adults"       = "Adults",
+  "chimp_days"   = "Chimpanzees (days)",
+  "chimp_trials" = "Chimpanzees (trials)"
 )
 
-key_rq2_acc_hum <- nd_rq2_acc_hum |>
-  mutate(col = row_number())
+## Humans
+post_hum <- as_draws_df(full_rq2_acc_hum)
 
-draw_time_means_hum <- map_dfr(levels(hum_dat$folder), function(g) {
-  times_g <- sort(unique(hum_dat$time_3))
-  
-  map_dfr(times_g, function(tt) {
-    idx <- key_rq2_acc_hum |>
-      filter(folder == g, time_3 == tt) |>
-      pull(col)
-    
-    tibble(
-      draw   = 1:nrow(pred_rq2_acc_hum),
-      folder = g,
-      time_3 = tt,
-      pred   = rowMeans(pred_rq2_acc_hum[, idx, drop = FALSE])
-    )
-  })
-})
-
-slopes_rq2_acc_hum <- draw_time_means_hum |>
-  group_by(folder, draw) |>
-  summarise(
-    slope = coef(lm(pred ~ time_3))[2],
-    .groups = "drop"
+slope_hum <- post_hum |>
+  transmute(
+    `4m`     = `b_folder4m:time_3`,
+    `6m`     = `b_folder6m:time_3`,
+    `9m`     = `b_folder9m:time_3`,
+    `18m`    = `b_folder18m:time_3`,
+    `adults` = `b_folderadults:time_3`
+  ) |>
+  mutate(.draw = row_number()) |>
+  pivot_longer(
+    cols = -.draw,
+    names_to = "group",
+    values_to = "slope"
   )
 
-slope_summary_rq2_acc_hum <- slopes_rq2_acc_hum |>
-  group_by(folder) |>
-  summarise(
-    estimate = median(slope),
-    l95      = quantile(slope, 0.025),
-    u95      = quantile(slope, 0.975),
-    .groups  = "drop"
-  )
+## Chimpanzees Days
+post_ch_days <- as_draws_df(full_rq2_acc_chi)
 
-slope_summary_rq2_acc_hum
+slope_ch_days <- post_ch_days |>
+  transmute(
+    group = "chimp_days",
+    slope = b_time_3
+  ) |>
+  mutate(.draw = row_number())
+
+## Chimpanzees Trials
+post_ch_trials <- as_draws_df(full_rq2_acc_chi_2)
+
+slope_ch_trials <- post_ch_trials |>
+  transmute(
+    group = "chimp_trials",
+    slope = b_time_2
+  ) |>
+  mutate(.draw = row_number())
+
+## Combine
+slope_all <- bind_rows(
+  slope_hum |> select(.draw, group, slope),
+  slope_ch_days |> select(.draw, group, slope),
+  slope_ch_trials |> select(.draw, group, slope)
+) |>
+  mutate(group = factor(group, levels = group_order))
+
+## Plot
+posterior_plot_rq2_acc <- ggplot(
+  slope_all,
+  aes(
+    x = slope,
+    y = factor(group, levels = rev(group_order))
+  )
+) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
+  stat_halfeye(
+    point_interval = "median_qi",
+    .width = c(0, 0.95),
+    alpha = 0.65,
+    height = 1.05,
+    adjust = 1.0,
+    fill = "grey70"
+  ) +
+  scale_y_discrete(labels = group_labels) +
+  scale_x_continuous(
+    breaks = seq(-0.03, 0.03, by = 0.01),
+    limits = c(-0.03, 0.03)
+  ) +
+  labs(
+    x = "Time",
+    y = NULL
+  ) +
+  theme_bw(base_size = 14)
+
+png(here("exp1", "img", "rq2_acc_posterior.png"), width = 2480, height = 3508/4.5, res = 190)
+posterior_plot_rq2_acc
+dev.off()
 
 ## Inference ----
 

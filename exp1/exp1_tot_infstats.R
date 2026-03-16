@@ -365,9 +365,6 @@ t1 <- proc.time()
 proc_time_rq1_acc <- t1 - t0
 rm(t0, t1)
 
-## Check Convergence ----
-full_rq1_acc # check: all regression coefficients rhat < 1.01
-
 ## Model Comparison ----
 loo_full <- loo(full_rq1_acc)
 loo_red <- loo(red_rq1_acc)
@@ -375,6 +372,7 @@ loo_compare(loo_full, loo_red) # red_rq1_acc: elpd_diff = -9.1 & se_diff = 4.4.
                                # moderate evidence that the full model is better (difference is ~2 SE away from 0).
 
 ## Contrasts ----
+## Group
 groups <- levels(df_tot$folder)
 acc_contr_all <- brms_group_effects_response(
   fit   = full_rq1_acc,
@@ -390,7 +388,7 @@ acc_contr_all
 acc_contr_all |> 
   arrange(desc(ratio_median))
 
-## Contrasts (Position) ----
+## Position
 positions <- levels(df_tot$position)[2:7]
 acc_contr_all_pos <- brms_group_effects_response(
   fit   = full_rq1_acc,
@@ -480,7 +478,7 @@ png(here("exp1", "img", "rq1_acc_posterior.png"), width = 2480, height = 3508/3,
 posterior_plot_rq1_acc
 dev.off()
 
-## Plot Versus Prior Plots ----
+## Posterior Versus Prior Plots ----
 
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
 png(here("exp1", "img", "rq1_acc_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
@@ -507,9 +505,7 @@ png(here("exp1", "img", "rq1_acc_posteriorprior_adults.png"), width = 2480/2, he
 plot_prior_vs_poster(full_rq1_acc, pars = c("b_folderadults", "prior_b_folderadults"), facet_label = "Adults")
 dev.off()
 
-## Inference ----
-
-# Descriptives
+## Descriptives ----
 df_tot |> 
   group_by(folder, group_id) |> 
   summarize(acc_visd = mean(acc_visd, na.rm = T)) |> 
@@ -519,6 +515,7 @@ df_tot |>
   ungroup() |> 
   arrange(mean_acc_visd)
 
+## Others ----
 # Calculate posterior probability that accuracy in A is higher than in B
 mean(post_samples_rq1_acc$b_folderchimps > post_samples_rq1_acc$b_folder4m) # 1 # 
 # "The posterior probability that chimpanzees have a worse accuracy than 4-month-old infants, is 1."
@@ -529,7 +526,6 @@ mean(post_samples_rq1_acc$b_folder9m > post_samples_rq1_acc$b_folder6m) # 99.35%
 mean(post_samples_rq1_acc$Yesb_folder6m > post_samples_rq1_acc$b_folderadults) # 99.9875%
 
 ## Paper Plot ----
-
 # Aggregate to subject level (mean over time/trials)
 df_subj <- df_tot |>
   filter(!is.na(folder), !is.na(group_id), !is.na(time), !is.na(acc_visd)) |>
@@ -596,7 +592,7 @@ dev.off()
 
 # RQ1 (Precision RMS) -----------------------------------------------------
 
-## Define Priors ----
+## Define Priors of Full Model ----
 # With Gamma(link="log"), coefficients are on the log-mean scale.
 prior_rq1_precrms <- c(
   # Group parameters (log-mean scale)
@@ -692,18 +688,10 @@ red_rq1_precrms <- brm(
   seed = 123,
 )
 
-## Check Convergence ----
-full_rq1_precrms
-# folder4m: Rhat = 1.01
-# folder6m: Rhat = 1.02
-
 ## Model Comparison ----
 loo_full_precrms <- loo(full_rq1_precrms)
 loo_red_precrms <- loo(red_rq1_precrms)
 loo_compare(loo_full_precrms, loo_red_precrms) # full_rq1_precrms -4.3       7.4 
-
-## Posterior Predictive Checks ----
-pp_check(full_rq1_precrms, ndraws = 100) # A good model will show the observed data (usually a dark line) closely following the distribution of simulated datasets (lighter lines).
 
 ## Contrasts ----
 precrms_contr_all <- brms_group_effects_response(
@@ -719,6 +707,9 @@ precrms_contr_all <- brms_group_effects_response(
 precrms_contr_all
 precrms_contr_all |> 
   arrange(desc(ratio_median))
+
+## Posterior Predictive Checks ----
+pp_check(full_rq1_precrms, ndraws = 100) # A good model will show the observed data (usually a dark line) closely following the distribution of simulated datasets (lighter lines).
 
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
@@ -792,7 +783,7 @@ png(here("exp1", "img", "rq1_precrms_posterior.png"), width = 2480/2, height = 3
 posterior_plot_rq1_precrms
 dev.off() 
 
-## Plot Versus Prior Plots ----
+## Posterior Versus Prior Plots ----
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
 png(here("exp1", "img", "rq1_precrms_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folderchimps", "prior_b_folderchimps"), facet_label = "Chimpanzees")
@@ -818,9 +809,7 @@ png(here("exp1", "img", "rq1_precrms_posteriorprior_adults.png"), width = 2480/2
 plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folderadults", "prior_b_folderadults"), facet_label = "Adults")
 dev.off()
 
-## Inference ----
-
-# Descriptives
+## Descriptives ----
 df_tot |> 
   group_by(folder, group_id) |> 
   summarize(precrms_visd = mean(precrms_visd, na.rm = T)) |> 
@@ -830,6 +819,7 @@ df_tot |>
   ungroup() |> 
   arrange(mean_precrms_visd)
 
+## Others ----
 # Calculate posterior probability that precision (RMS) in A is higher than in B
 mean(post_samples_rq1_precrms$b_folderadults < post_samples_rq1_precrms$b_folderchimps) # 1
 mean(post_samples_rq1_precrms$b_folderchimps < post_samples_rq1_precrms$b_folder9m) # 0
@@ -838,7 +828,6 @@ mean(post_samples_rq1_precrms$b_folder18m < post_samples_rq1_precrms$b_folder6m)
 mean(post_samples_rq1_precrms$b_folder6m < post_samples_rq1_precrms$b_folder4m) # 0.96225
 
 ## Paper Plot ----
-  
 # Aggregate to subject level (mean over time/trials)
 df_subj <- df_tot |>
   filter(!is.na(folder), !is.na(group_id), !is.na(time), !is.na(precrms_visd)) |>
@@ -904,7 +893,7 @@ dev.off()
 
 # RQ1 (Precision SD) ------------------------------------------------------
 
-## Define Priors ----
+## Define Priors of Full Model ----
 # With Gamma(link="log"), coefficients are on the log-mean scale.
 prior_rq1_precsd <- c(
   # Group parameters (log-mean scale)
@@ -1003,17 +992,6 @@ loo_full_precsd <- loo(full_rq1_precsd)
 loo_red_precsd <- loo(red_rq1_precsd)
 loo_compare(loo_full_precsd, loo_red_precsd)
 
-## Model Fit: Posterior Predictive Check ----
-# Check whether model is "match to the data"
-png(here("exp1", "img", "rq1_precsd_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
-pp_check(full_rq1_precsd, ndraws = 100) 
-#pp_check(full_rq1_precsd, type = "hist")
-dev.off()
-
-png(here("exp1", "img", "rq1_precsd_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
-pp_check(full_rq1_precsd, type = "intervals_grouped", group = "folder") # might exceed memory limits
-dev.off()
-
 ## Contrasts ----
 precsd_contr_all <- brms_group_effects_response(
   fit   = full_rq1_precsd,
@@ -1028,6 +1006,17 @@ precsd_contr_all <- brms_group_effects_response(
 precsd_contr_all
 precsd_contr_all |> 
   arrange(desc(ratio_median))
+
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
+png(here("exp1", "img", "rq1_precsd_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_precsd, ndraws = 100) 
+#pp_check(full_rq1_precsd, type = "hist")
+dev.off()
+
+png(here("exp1", "img", "rq1_precsd_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_precsd, type = "intervals_grouped", group = "folder") # might exceed memory limits
+dev.off()
 
 ## Posterior Distribution ----
 # Preparation
@@ -1090,7 +1079,7 @@ png(here("exp1", "img", "rq1_precsd_posterior.png"), width = 2480/2, height = 35
 posterior_plot_rq1_precsd
 dev.off() 
 
-## Plot Versus Prior Plots ----
+## Posterior Versus Prior Plots ----
 png(here("exp1", "img", "rq1_precsd_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder4m", "prior_b_folder4m"), facet_label = "4-Month-Olds")
 dev.off()
@@ -1111,8 +1100,7 @@ png(here("exp1", "img", "rq1_precsd_posteriorprior_adults.png"), width = 2480/2,
 plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folderadults", "prior_b_folderadults"), facet_label = "Adults")
 dev.off()
 
-## Inference ---- 
-# Descriptives
+## Descriptives ----
 df_tot |> 
   group_by(folder, group_id) |> 
   summarize(precsd_visd = mean(precsd_visd, na.rm = T)) |> 
@@ -1122,6 +1110,7 @@ df_tot |>
   ungroup() |> 
   arrange(mean_precsd_visd)
 
+## Others ----
 # Calculate posterior probability that precision (SD) in A is higher than in B
 mean(post_samples_rq1_precsd$b_folderadults < post_samples_rq1_precsd$b_folder9m) # 1
 mean(post_samples_rq1_precsd$b_folder9m < post_samples_rq1_precsd$b_folder18m) # 0.4295
@@ -1194,39 +1183,6 @@ png(here("exp1", "img", "rq1_precsd_paperplot.png"), width = 2480/2, height = 35
 p_precsd
 dev.off()
 
-## Posterior Distribution Plot ----
-folder_order <- c("4m","6m","9m","18m","adults","chimps")
-pos_levels <- df_tot |> distinct(position) |> arrange(position) |> pull(position)
-
-nd <- tidyr::expand_grid(position = pos_levels,
-                         folder   = folder_order) |>
-  mutate(folder = factor(folder, levels = folder_order),
-         position = if (is.factor(df_tot$position)) factor(position, levels = levels(df_tot$position)) else position)
-ep <- posterior_epred(full_rq1_precsd, newdata = nd, re_formula = NA)
-
-ep_group <- sapply(folder_order, function(f) {
-  cols <- which(nd$folder == f)
-  rowMeans(ep[, cols, drop = FALSE])
-})
-
-colnames(ep_group) <- folder_order
-
-apply(ep_group, 2, median)
-
-y_labels <- c("4m"="4 Months","6m"="6 Months","9m"="9 Months",
-              "18m"="18 Months","adults"="Adults","chimps"="Chimpanzees")
-
-posterior_precsd <- mcmc_areas(ep_group, pars = rev(folder_order), prob = 0.95) +
-  scale_y_discrete(labels = y_labels) +
-  labs(
-    x = "Precision (SD)\n(Posterior Predictive Mean; Response Scale)",
-    y = "Group"
-  )
-
-png(here("exp1", "img", "rq1_precsc_posteriorplot.png"), width = 2480/2, height = 3508/4, res = 250)
-posterior_precsd
-dev.off()
-
 # RQ1 (Robustness) ----------------------------------------------------------
 # Preregistered Model:
 # Dependent variables: accuracy, precision RMS, precision SD, and robustness (in separate GLMMs).
@@ -1249,7 +1205,7 @@ dev.off()
 # Note: Beta() requires outcomes strictly in (0, 1). If exact 0 or 1 occur,
 # clamp slightly or use zero_one_inflated_beta().
 
-## Define Priors ----
+## Define Priors of Full Model ----
 mu0 <- qlogis(0.05)
 mu0 # -2.944439
 
@@ -1325,17 +1281,6 @@ loo_full_rob <- loo(full_rq1_rob)
 loo_red_rob <- loo(red_rq1_rob)
 loo_compare(loo_full_rob, loo_red_rob) # red_rq1_rob  -31.3       5.5 
 
-## Model Fit: Posterior Predictive Check ----
-# Check whether model is "match to the data"
-png(here("exp1", "img", "rq1_rob_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
-pp_check(full_rq1_rob, ndraws = 100) 
-#pp_check(full_rq1_rob, type = "hist")
-dev.off()
-
-png(here("exp1", "img", "rq1_rob_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
-pp_check(full_rq1_rob, type = "intervals_grouped", group = "folder") # might exceed memory limits
-dev.off()
-
 ## Contrasts ----
 rob_contr_all <- brms_group_effects_response(
   fit   = full_rq1_rob,
@@ -1349,6 +1294,17 @@ rob_contr_all <- brms_group_effects_response(
 
 rob_contr_all |> 
   arrange(desc(ratio_median))
+
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
+png(here("exp1", "img", "rq1_rob_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_rob, ndraws = 100) 
+#pp_check(full_rq1_rob, type = "hist")
+dev.off()
+
+png(here("exp1", "img", "rq1_rob_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq1_rob, type = "intervals_grouped", group = "folder") # might exceed memory limits
+dev.off()
 
 ## Posterior Distribution ----
 
@@ -1382,7 +1338,7 @@ png(here::here("exp1", "img", "rq1_rob_posterior.png"), width = 2480, height = 3
 posterior_plot_rq1_rob
 dev.off()
 
-## Plot Versus Prior Plots ----
+## Posterior Versus Prior Plots ----
 
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
 png(here("exp1", "img", "rq1_rob_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
@@ -1409,9 +1365,7 @@ png(here("exp1", "img", "rq1_rob_posteriorprior_adults.png"), width = 2480/2, he
 plot_prior_vs_poster(full_rq1_rob, pars = c("b_folderadults", "prior_b_folderadults"), facet_label = "Adults")
 dev.off()
 
-## Inference ----
-
-# Descriptives
+## Descriptives ----
 df_tot |> 
   group_by(folder, group_id) |> 
   # summarize(robustness_ms_2 = mean(robustness_ms_2, na.rm = T)) |> 
@@ -1442,6 +1396,7 @@ df_tot |>
 #   ungroup() |> 
 #   arrange(mean_robustness_prop)
 
+## Others ----
 # Calculate posterior probability that Robustness in A is higher than in B
 mean(post_samples_rq1_rob$b_folderadults > post_samples_rq1_rob$b_folder18m) # 1 
 # "The posterior probability that adults have a better robustness than 18-month-old infants, is 1."
@@ -1962,9 +1917,38 @@ png(here("exp1", "img", "rq2_acc_posterior.png"), width = 2480, height = 3508/4.
 posterior_plot_rq2_acc
 dev.off()
 
-## Inference ----
+## Posterior Versus Prior Plot ----
+# Humans 
+png(here("exp1", "img", "rq2_acc_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq2_acc_hum, pars = c("b_folder4m:time_3", "prior_b_folder4m:time_3"), facet_label = "4 Months")
+dev.off()
 
-# Descriptives
+png(here("exp1", "img", "rq2_acc_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq2_acc_hum, pars = c("b_folder6m:time_3", "prior_b_folder6m:time_3"), facet_label = "6 Months")
+dev.off()
+
+png(here("exp1", "img", "rq2_acc_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq2_acc_hum, pars = c("b_folder9m:time_3", "prior_b_folder9m:time_3"), facet_label = "9 Months")
+dev.off()
+
+png(here("exp1", "img", "rq2_acc_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq2_acc_hum, pars = c("b_folder18m:time_3", "prior_b_folder18m:time_3"), facet_label = "18 Months")
+dev.off()
+
+png(here("exp1", "img", "rq2_acc_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq2_acc_hum, pars = c("b_folderadults:time_3", "prior_b_folderadults:time_3"), facet_label = "Adults")
+dev.off()
+
+# Chimps
+png(here("exp1", "img", "rq2_acc_posteriorprior_chimps_days.png"), width = 2480/2, height = 3508/3, res = 250)
+plot_prior_vs_poster(full_rq2_acc_chi, pars = c("b_time_3", "prior_b_time_3"), facet_label = "Chimpanzees (Time as Testing Days)")
+dev.off()
+
+png(here("exp1", "img", "rq2_acc_posteriorprior_chimps_trials.png"), width = 2480/2, height = 3508/3, res = 250)
+plot_prior_vs_poster(full_rq2_acc_chi_2, pars = c("b_time_2", "prior_b_time_2"), facet_label = "Chimpanzees (Time as Trials Within Testing Days)")
+dev.off()
+
+## Descriptives ----
 df_tot |> 
   group_by(folder, group_id, time_3) |> # or time_1 or time_2 or time_3
   summarize(acc_visd = mean(acc_visd, na.rm = T)) |> 
@@ -2008,7 +1992,7 @@ priors_rq2_precrms_hum <- c(
   # Gamma shape
   # shape estimate = 7.42 (SE 0.19) -> meanlog ~ 2.004, sdlog ~ 0.0256; doubled sd for width
   prior(lognormal(2.004, 2*0.0256), class = "shape"),
-  
+
   # Interaction: folder × time_3 (group-specific linear time slopes per trial)
   # Prior for group-specific linear time slopes (per trial) on the log-mean scale.
   # time_3 is unscaled but re-centered (0 = first trial). SD = 0.002 implies that over ~79 trials
@@ -2207,10 +2191,168 @@ red_rq2_precrms_chi_2 <- brm(
   seed = 123
 )
 
+## Model Comparison ----
+# Humans
+loo_full_precrms_rq2_hum <- loo(full_rq2_precrms_hum)
+loo_red_precrms_rq2_hum <- loo(red_rq2_precrms_hum)
+loo_compare(loo_full_precrms_rq2_hum, loo_red_precrms_rq2_hum)
 
-## Inference ----
+# Chimps I
+loo_full_precrms_rq2_chi <- loo(full_rq2_precrms_chi)
+loo_red_precrms_rq2_chi <- loo(red_rq2_precrms_chi)
+loo_compare(loo_full_precrms_rq2_chi, loo_red_precrms_rq2_chi)
 
-# Descriptives
+# Chimps II
+loo_full_precrms_rq2_chi_2 <- loo(full_rq2_precrms_chi_2)
+loo_red_precrms_rq2_chi_2 <- loo(red_rq2_precrms_chi_2)
+loo_compare(loo_full_precrms_rq2_chi_2, loo_red_precrms_rq2_chi_2)
+
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
+
+png(here("exp1", "img", "rq2_precrms_hum_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq2_precrms_hum, ndraws = 100)
+dev.off()
+
+png(here("exp1", "img", "rq2_precrms_chi1_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq2_precrms_chi, ndraws = 100)
+dev.off()
+
+png(here("exp1", "img", "rq2_precrms_chi2_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq2_precrms_chi_2, ndraws = 100)
+dev.off()
+
+png(here("exp1", "img", "rq2_precrms_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq2_precrms_hum, type = "intervals_grouped", group = "folder") # might exceed memory limits
+dev.off()
+
+## Posterior Distribution ----
+## Preparation
+group_order <- c(
+  "4m", "6m", "9m", "18m", "adults",
+  "chimp_days", "chimp_trials"
+)
+
+group_labels <- c(
+  "4m"           = "4 Months",
+  "6m"           = "6 Months",
+  "9m"           = "9 Months",
+  "18m"          = "18 Months",
+  "adults"       = "Adults",
+  "chimp_days"   = "Chimpanzees (days)",
+  "chimp_trials" = "Chimpanzees (trials)"
+)
+
+## Humans
+post_hum <- as_draws_df(full_rq2_precrms_hum)
+
+slope_hum <- post_hum |>
+  transmute(
+    `4m`     = `b_folder4m:time_3`,
+    `6m`     = `b_folder6m:time_3`,
+    `9m`     = `b_folder9m:time_3`,
+    `18m`    = `b_folder18m:time_3`,
+    `adults` = `b_folderadults:time_3`
+  ) |>
+  mutate(.draw = row_number()) |>
+  pivot_longer(
+    cols = -.draw,
+    names_to = "group",
+    values_to = "slope"
+  )
+
+## Chimpanzees Days
+post_ch_days <- as_draws_df(full_rq2_precrms_chi)
+
+slope_ch_days <- post_ch_days |>
+  transmute(
+    group = "chimp_days",
+    slope = b_time_3
+  ) |>
+  mutate(.draw = row_number())
+
+## Chimpanzees Trials
+post_ch_trials <- as_draws_df(full_rq2_precrms_chi_2)
+
+slope_ch_trials <- post_ch_trials |>
+  transmute(
+    group = "chimp_trials",
+    slope = b_time_2
+  ) |>
+  mutate(.draw = row_number())
+
+## Combine
+slope_all <- bind_rows(
+  slope_hum |> select(.draw, group, slope),
+  slope_ch_days |> select(.draw, group, slope),
+  slope_ch_trials |> select(.draw, group, slope)
+) |>
+  mutate(group = factor(group, levels = group_order))
+
+## Plot
+posterior_plot_rq2_precrms <- ggplot(
+  slope_all,
+  aes(
+    x = slope,
+    y = factor(group, levels = rev(group_order))
+  )
+) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
+  stat_halfeye(
+    point_interval = "median_qi",
+    .width = c(0, 0.95),
+    alpha = 0.65,
+    height = 1.05,
+    adjust = 1.0,
+    fill = "grey70"
+  ) +
+  scale_y_discrete(labels = group_labels) +
+  scale_x_continuous(
+    breaks = seq(-0.03, 0.03, by = 0.01),
+    limits = c(-0.03, 0.03)
+  ) +
+  labs(
+    x = "Time",
+    y = NULL
+  ) +
+  theme_bw(base_size = 14)
+
+png(here("exp1", "img", "rq2_precrms_posterior.png"), width = 2480, height = 3508/4.5, res = 190)
+posterior_plot_rq2_precrms
+dev.off()
+
+## Posterior Versus Prior Plot ----
+# Humans 
+png(here("exp1", "img", "rq2_precrms_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 250)
+plot_prior_vs_poster(full_rq2_precrms_hum, pars = c("b_folder4m:time_3", "prior_b_folder4m:time_3"), facet_label = "4 Months")
+dev.off()
+
+png(here("exp1", "img", "rq2_precrms_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 250)
+plot_prior_vs_poster(full_rq2_precrms_hum, pars = c("b_folder6m:time_3", "prior_b_folder6m:time_3"), facet_label = "6 Months")
+dev.off()
+
+png(here("exp1", "img", "rq2_precrms_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 250)
+plot_prior_vs_poster(full_rq2_precrms_hum, pars = c("b_folder9m:time_3", "prior_b_folder9m:time_3"), facet_label = "9 Months")
+dev.off()
+
+png(here("exp1", "img", "rq2_precrms_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 250)
+plot_prior_vs_poster(full_rq2_precrms_hum, pars = c("b_folder18m:time_3", "prior_b_folder18m:time_3"), facet_label = "18 Months")
+dev.off()
+
+png(here("exp1", "img", "rq2_precrms_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 250)
+plot_prior_vs_poster(full_rq2_precrms_hum, pars = c("b_folderadults:time_3", "prior_b_folderadults:time_3"), facet_label = "Adults")
+dev.off()
+
+# Chimps
+png(here("exp1", "img", "rq2_precrms_posteriorprior_chimps_days.png"), width = 2480/2, height = 3508/3, res = 250)
+plot_prior_vs_poster(full_rq2_precrms_chi, pars = c("b_time_3", "prior_b_time_3"), facet_label = "Chimpanzees (Time as Testing Days)")
+dev.off()
+
+png(here("exp1", "img", "rq2_precrms_posteriorprior_chimps_trials.png"), width = 2480/2, height = 3508/3, res = 250)
+plot_prior_vs_poster(full_rq2_precrms_chi_2, pars = c("b_time_2", "prior_b_time_2"), facet_label = "Chimpanzees (Time as Trials Within Testing Days)")
+dev.off()
+
+## Descriptives ----
 df_tot |> 
   group_by(folder, group_id, time_3) |> # or time_1 or time_2 or time_3
   summarize(precrms_visd = mean(precrms_visd, na.rm = T)) |> 
@@ -2500,9 +2642,137 @@ red_rq2_precsd_chi_2 <- brm(
   seed = 123
 )
 
-## Inference ----
+## Model Comparison ----
+# Humans
+loo_full_precsd_rq2_hum <- loo(full_rq2_precsd_hum)
+loo_red_precsd_rq2_hum <- loo(red_rq2_precsd_hum)
+loo_compare(loo_full_precsd_rq2_hum, loo_red_precsd_rq2_hum)
 
-# Descriptives
+# Chimps I
+loo_full_precsd_rq2_chi <- loo(full_rq2_precsd_chi)
+loo_red_precsd_rq2_chi <- loo(red_rq2_precsd_chi)
+loo_compare(loo_full_precsd_rq2_chi, loo_red_precsd_rq2_chi)
+
+# Chimps II
+loo_full_precsd_rq2_chi_2 <- loo(full_rq2_precsd_chi_2)
+loo_red_precsd_rq2_chi_2 <- loo(red_rq2_precsd_chi_2)
+loo_compare(loo_full_precsd_rq2_chi_2, loo_red_precsd_rq2_chi_2)
+
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
+
+png(here("exp1", "img", "rq2_precsd_hum_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq2_precsd_hum, ndraws = 100)
+dev.off()
+
+png(here("exp1", "img", "rq2_precsd_chi1_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq2_precsd_chi, ndraws = 100)
+dev.off()
+
+png(here("exp1", "img", "rq2_precsd_chi2_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq2_precsd_chi_2, ndraws = 100)
+dev.off()
+
+png(here("exp1", "img", "rq2_precsd_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq2_precsd_hum, type = "intervals_grouped", group = "folder") # might exceed memory limits
+dev.off()
+
+## Posterior Distribution ----
+## Preparation
+group_order <- c(
+  "4m", "6m", "9m", "18m", "adults",
+  "chimp_days", "chimp_trials"
+)
+
+group_labels <- c(
+  "4m"           = "4 Months",
+  "6m"           = "6 Months",
+  "9m"           = "9 Months",
+  "18m"          = "18 Months",
+  "adults"       = "Adults",
+  "chimp_days"   = "Chimpanzees (days)",
+  "chimp_trials" = "Chimpanzees (trials)"
+)
+
+## Humans
+post_hum <- as_draws_df(full_rq2_precsd_hum)
+
+slope_hum <- post_hum |>
+  transmute(
+    `4m`     = `b_folder4m:time_3`,
+    `6m`     = `b_folder6m:time_3`,
+    `9m`     = `b_folder9m:time_3`,
+    `18m`    = `b_folder18m:time_3`,
+    `adults` = `b_folderadults:time_3`
+  ) |>
+  mutate(.draw = row_number()) |>
+  pivot_longer(
+    cols = -.draw,
+    names_to = "group",
+    values_to = "slope"
+  )
+
+## Chimpanzees Days
+post_ch_days <- as_draws_df(full_rq2_precsd_chi)
+
+slope_ch_days <- post_ch_days |>
+  transmute(
+    group = "chimp_days",
+    slope = b_time_3
+  ) |>
+  mutate(.draw = row_number())
+
+## Chimpanzees Trials
+post_ch_trials <- as_draws_df(full_rq2_precsd_chi_2)
+
+slope_ch_trials <- post_ch_trials |>
+  transmute(
+    group = "chimp_trials",
+    slope = b_time_2
+  ) |>
+  mutate(.draw = row_number())
+
+## Combine
+slope_all <- bind_rows(
+  slope_hum |> select(.draw, group, slope),
+  slope_ch_days |> select(.draw, group, slope),
+  slope_ch_trials |> select(.draw, group, slope)
+) |>
+  mutate(group = factor(group, levels = group_order))
+
+## Plot
+posterior_plot_rq2_precsd <- ggplot(
+  slope_all,
+  aes(
+    x = slope,
+    y = factor(group, levels = rev(group_order))
+  )
+) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
+  stat_halfeye(
+    point_interval = "median_qi",
+    .width = c(0, 0.95),
+    alpha = 0.65,
+    height = 1.05,
+    adjust = 1.0,
+    fill = "grey70"
+  ) +
+  scale_y_discrete(labels = group_labels) +
+  scale_x_continuous(
+    breaks = seq(-0.03, 0.03, by = 0.01),
+    limits = c(-0.03, 0.03)
+  ) +
+  labs(
+    x = "Time",
+    y = NULL
+  ) +
+  theme_bw(base_size = 14)
+
+png(here("exp1", "img", "rq2_precsd_posterior.png"), width = 2480, height = 3508/4.5, res = 190)
+posterior_plot_rq2_precsd
+dev.off()
+
+## Descriptives ----
 df_tot |> 
   group_by(folder, group_id, time_3) |> # or time_1 or time_2 or time_3
   summarize(precsd_visd = mean(precsd_visd, na.rm = T)) |> 
@@ -2529,6 +2799,143 @@ plot_rq2(df = df_tot, png_name = "rq2_precsd_day_all.png", out_dir = here::here(
                          ytitle = "Precision (SD)\nin visual degrees", x_label = "Time\n(trials in humans; days in apes)")
 
 # RQ3 (Fixation Duration) -------------------------------------------------
+
+## Define Priors ----
+# Family:
+# mean_fixation_duration contains no zeros and is strictly positive,
+# therefore a Gamma model with a log link is appropriate.
+#
+# Group (folder) main effects:
+# We include 0 + folder so that each sample gets its own baseline
+# expected fixation duration. This avoids forcing all groups to share
+# one global intercept, which would be implausibly restrictive.
+#
+# Fixed-effect priors on group (folder):
+# We assumed that fixations around 150 ms are at the lower plausible end 
+# and that around 1000 ms is already rather long.
+# On the log scale, this corresponds roughly to a broad center around 6.
+# We use the same prior for all groups because we do not have
+# group-specific prior expectations.
+#
+# Slope priors:
+# Priors are centered at zero because we preregistered to use uninformative priors.
+# We use the same prior within each predictor family across groups.
+# The scales differ across predictor families because the predictors are on
+# different raw scales and were not z-standardized.
+#
+# Accuracy and precision:
+# We encode the prior belief that a +1 increase in accuracy / precision should
+# not typically imply more than about +100 ms in fixation duration.
+# Using a rough reference duration of ~400 ms (expected "typical fixation duration"), 
+# +100 ms corresponds to a multiplicative increase of 500 / 400 = 1.25, i.e. log(1.25) = 0.223.
+# Treating this as roughly the outer 95% prior range gives:
+# sd = log(1.25) / 1.96 = 0.114.
+#
+# Robustness:
+# We encode the prior belief that a +0.1 increase in robustness should
+# not typically imply more than about +50 ms in fixation duration.
+# Again using ~400 ms as a rough reference, +50 ms corresponds to
+# 450 / 400 = 1.125, i.e. log(1.125) = 0.118.
+# Because this effect refers to a +0.1 increase in robustness,
+# the corresponding slope per +1 unit is 10 * log(1.125) = 1.177.
+# Treating this as roughly the outer 95% prior range gives:
+# sd = 1.177 / 1.96 = 0.600.
+#
+# Random-effect priors:
+# see RQ1+2.
+#
+# Gamma shape prior:
+# We keep a very broad gamma(0.01, 0.01) prior on the shape parameter.
+# This is intentionally weakly informative and only enforces positivity.
+
+prior_rq3_fixdur <- c(
+  # Sample-specific baseline fixation durations (log-mean scale)
+  # plausible end and that around 1000 ms are already rather long.
+  # This corresponds roughly to log(150) ≈ 5.0 and log(1000) ≈ 6.9, so we center
+  # the prior at 6 with SD = 0.7 to allow a broad but still plausible range.
+  prior(normal(6, 0.7), class = "b", coef = "folder4m"),
+  prior(normal(6, 0.7), class = "b", coef = "folder6m"),
+  prior(normal(6, 0.7), class = "b", coef = "folder9m"),
+  prior(normal(6, 0.7), class = "b", coef = "folder18m"),
+  prior(normal(6, 0.7), class = "b", coef = "folderadults"),
+  prior(normal(6, 0.7), class = "b", coef = "folderchimps"),
+  
+  # Accuracy slopes:
+  # centered at zero; same prior across groups;
+  # scaled so that a +1 increase should not typically imply > ~100 ms
+  prior(normal(0, 0.114), class = "b", coef = "folder4m:acc_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folder6m:acc_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folder9m:acc_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folder18m:acc_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folderadults:acc_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folderchimps:acc_visd"),
+  
+  # Precision RMS slopes:
+  # centered at zero; same prior across groups;
+  # same substantive prior constraint as for accuracy
+  prior(normal(0, 0.114), class = "b", coef = "folder4m:precrms_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folder6m:precrms_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folder9m:precrms_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folder18m:precrms_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folderadults:precrms_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folderchimps:precrms_visd"),
+  
+  # Precision SD slopes:
+  # centered at zero; same prior across groups;
+  # same substantive prior constraint as for accuracy
+  prior(normal(0, 0.114), class = "b", coef = "folder4m:precsd_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folder6m:precsd_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folder9m:precsd_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folder18m:precsd_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folderadults:precsd_visd"),
+  prior(normal(0, 0.114), class = "b", coef = "folderchimps:precsd_visd"),
+  
+  # Robustness slopes:
+  # centered at zero; same prior across groups;
+  # scaled so that a +0.1 increase should not typically imply > ~50 ms
+  prior(normal(0, 0.600), class = "b", coef = "folder4m:robustness_prop_2"),
+  prior(normal(0, 0.600), class = "b", coef = "folder6m:robustness_prop_2"),
+  prior(normal(0, 0.600), class = "b", coef = "folder9m:robustness_prop_2"),
+  prior(normal(0, 0.600), class = "b", coef = "folder18m:robustness_prop_2"),
+  prior(normal(0, 0.600), class = "b", coef = "folderadults:robustness_prop_2"),
+  prior(normal(0, 0.600), class = "b", coef = "folderchimps:robustness_prop_2"),
+  
+  # Position
+  # Centered around zero.
+  # Should not be bigger than about a 25% change in expected fixation duration,
+  # with a log link, log(1.25) = 0.223, so using this as a rough 95% bound gives an SD of about 0.114,
+  # we use 0.15 as a slightly broader weakly informative prior).
+  prior(normal(0, 0.15), class = "b", coef = "positionbot_left"),
+  prior(normal(0, 0.15), class = "b", coef = "positionbot_right"),
+  prior(normal(0, 0.15), class = "b", coef = "positionbottom"),
+  prior(normal(0, 0.15), class = "b", coef = "positiontop"),
+  prior(normal(0, 0.15), class = "b", coef = "positiontop_left"),
+  prior(normal(0, 0.15), class = "b", coef = "positiontop_right"),
+
+  # Random-effect SDs & random-effect correlations:
+  prior(exponential(2), class = "sd"),
+  prior(lkj(2), class = "cor"),
+  
+  # Gamma shape:
+  prior(gamma(0.01, 0.01), class = "shape")
+)
+
+## Full Model ----
+full_rq3_fixdur <- brm(
+  mean_fixation_duration ~ 0 + folder +
+    folder:acc_visd +
+    folder:precrms_visd +
+    folder:precsd_visd +
+    folder:robustness_prop_2 +
+     position +
+    (1 + acc_visd + precrms_visd + precsd_visd + robustness_prop_2 + position | group_id),
+  data   = df_tot,
+  family = Gamma(link = "log"),
+  prior  = prior_rq3_fixdur,
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  sample_prior = "yes",
+  seed = 123
+)
 
 ## Inference ----
 

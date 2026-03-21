@@ -10,6 +10,7 @@ library(marginaleffects)
 library(readxl)
 library(bayesplot)
 library(ggdist)
+library(ggforce)
 
 # Load Functions ----------------------------------------------------------
 source(here("exp1", "R", "descriptives.R"))
@@ -1975,6 +1976,53 @@ plot_rq2(df = df_tot, png_name = "rq2_acc_day_all.png", out_dir = here::here("ex
                          xmax_chimps = 7, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 3, ymax_chimps = 5,
                          ytitle = "Accuracy\nin visual degrees", x_label = "Time\n(trials in humans; days in apes)")
 
+## Supp Plots Per Chimp ----
+df_plot_rq2_acc <- df_tot |> 
+  filter(folder == "chimps") |> 
+  group_by(group_id, time_3) |> 
+  summarize(acc_visd = mean(acc_visd, na.rm = TRUE), .groups = "drop") |> 
+  drop_na(time_3) |> 
+  mutate(group_id_pretty = str_to_title(group_id))
+
+y_range <- range(df_plot_rq2_acc$acc_visd, na.rm = TRUE)
+ncol_plot <- 3
+nrow_plot <- 3
+plots_per_page <- ncol_plot * nrow_plot
+n_pages <- ceiling(n_distinct(df_plot_rq2_acc$group_id_pretty) / plots_per_page)
+
+for (page in 1:n_pages) {
+  
+  p_rq2_acc <- ggplot(df_plot_rq2_acc, aes(x = time_3, y = acc_visd, group = group_id_pretty)) +
+    geom_line(linewidth = 0.6) +
+    geom_point(size = 2) +
+    facet_wrap_paginate(
+      ~ group_id_pretty,
+      ncol = ncol_plot,
+      nrow = nrow_plot,
+      page = page
+    ) +
+    scale_y_continuous(limits = y_range) +
+    scale_x_continuous(breaks = sort(unique(df_plot_rq2_acc$time_3))) +
+    labs(
+      x = "Time",
+      y = "Accuracy"
+    ) +
+    theme_bw(base_size = 12) +
+    theme(
+      strip.text = element_text(face = "bold"),
+      panel.grid.minor = element_blank()
+    )
+  
+  ggsave(
+    filename = file.path(here("exp1", "img", paste0("individual_acc_visd_plots_page_", page, ".png"))
+    ),
+    plot = p_rq2_acc,
+    width = 11,
+    height = 8.5,
+    dpi = 300
+  )
+}
+
 # RQ2 (Precision RMS) -----------------------------------------------------
 # RQ2: (How) does eye-tracking data quality change over time,
 # with time being defined as trials (humans) and testing days (chimpanzees)?
@@ -2376,6 +2424,53 @@ plot_rq2(df = df_tot, png_name = "rq2_precrms_day_all.png", out_dir = here::here
                          group_var = "folder", x_var   = "time_3", y_var = "precrms_visd",
                          xmax_chimps = 7, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 0, ymax_chimps = 2,
                          ytitle = "Precision (RMS)\nin visual degrees", x_label = "Time\n(trials in humans; days in apes)")
+
+## Supp Plots Per Chimp ----
+df_plot_rq2_precrms <- df_tot |> 
+  filter(folder == "chimps") |> 
+  group_by(group_id, time_3) |> 
+  summarize(precrms_visd = mean(precrms_visd, na.rm = TRUE), .groups = "drop") |> 
+  drop_na(time_3) |> 
+  mutate(group_id_pretty = str_to_title(group_id))
+
+y_range <- range(df_plot_rq2_precrms$precrms_visd, na.rm = TRUE)
+ncol_plot <- 3
+nrow_plot <- 3
+plots_per_page <- ncol_plot * nrow_plot
+n_pages <- ceiling(n_distinct(df_plot_rq2_precrms$group_id_pretty) / plots_per_page)
+
+for (page in 1:n_pages) {
+  
+  p_rq2_precrms <- ggplot(df_plot_rq2_precrms, aes(x = time_3, y = precrms_visd, group = group_id_pretty)) +
+    geom_line(linewidth = 0.6) +
+    geom_point(size = 2) +
+    facet_wrap_paginate(
+      ~ group_id_pretty,
+      ncol = ncol_plot,
+      nrow = nrow_plot,
+      page = page
+    ) +
+    scale_y_continuous(limits = y_range) +
+    scale_x_continuous(breaks = sort(unique(df_plot_rq2_precrms$time_3))) +
+    labs(
+      x = "Time",
+      y = "Precision (RMS)"
+    ) +
+    theme_bw(base_size = 12) +
+    theme(
+      strip.text = element_text(face = "bold"),
+      panel.grid.minor = element_blank()
+    )
+  
+  ggsave(
+    filename = file.path(here("exp1", "img", paste0("individual_precrms_visd_plots_page_", page, ".png"))
+    ),
+    plot = p_rq2_precrms,
+    width = 11,
+    height = 8.5,
+    dpi = 300
+  )
+}
 
 # RQ2 (Precision SD) -----------------------------------------------------
 # RQ2: (How) does eye-tracking data quality change over time,
@@ -2827,6 +2922,53 @@ plot_rq2(df = df_tot, png_name = "rq2_precsd_day_all.png", out_dir = here::here(
                          xmax_chimps = 7, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 1.5, ymin_chimps = 0, ymax_chimps = 1.5,
                          ytitle = "Precision (SD)\nin visual degrees", x_label = "Time\n(trials in humans; days in apes)")
 
+## Supp Plots Per Chimp ----
+df_plot_rq2_precsd <- df_tot |> 
+  filter(folder == "chimps") |> 
+  group_by(group_id, time_3) |> 
+  summarize(precsd_visd = mean(precsd_visd, na.rm = TRUE), .groups = "drop") |> 
+  drop_na(time_3) |> 
+  mutate(group_id_pretty = str_to_title(group_id))
+
+y_range <- range(df_plot_rq2_precsd$precsd_visd, na.rm = TRUE)
+ncol_plot <- 3
+nrow_plot <- 3
+plots_per_page <- ncol_plot * nrow_plot
+n_pages <- ceiling(n_distinct(df_plot_rq2_precsd$group_id_pretty) / plots_per_page)
+
+for (page in 1:n_pages) {
+  
+  p_rq2_precsd <- ggplot(df_plot_rq2_precsd, aes(x = time_3, y = precsd_visd, group = group_id_pretty)) +
+    geom_line(linewidth = 0.6) +
+    geom_point(size = 2) +
+    facet_wrap_paginate(
+      ~ group_id_pretty,
+      ncol = ncol_plot,
+      nrow = nrow_plot,
+      page = page
+    ) +
+    scale_y_continuous(limits = y_range) +
+    scale_x_continuous(breaks = sort(unique(df_plot_rq2_precsd$time_3))) +
+    labs(
+      x = "Time",
+      y = "Precision (SD)"
+    ) +
+    theme_bw(base_size = 12) +
+    theme(
+      strip.text = element_text(face = "bold"),
+      panel.grid.minor = element_blank()
+    )
+  
+  ggsave(
+    filename = file.path(here("exp1", "img", paste0("individual_precsd_visd_plots_page_", page, ".png"))
+    ),
+    plot = p_rq2_precsd,
+    width = 11,
+    height = 8.5,
+    dpi = 300
+  )
+}
+
 # RQ3 (Fixation Duration) -------------------------------------------------
 
 df_rq3 <- df_tot |> 
@@ -2849,10 +2991,6 @@ df_rq3 <- df_tot |>
   )
 
 ## Define Priors ----
-# Family:
-# mean_fixation_duration contains no zeros and is strictly positive,
-# therefore a Gamma model with a log link is appropriate.
-#
 # Group (folder) main effects:
 # We include 0 + folder so that each sample gets its own baseline
 # expected fixation duration. This avoids forcing all groups to share
@@ -2942,10 +3080,7 @@ prior_rq3_fixdur <- c(
 
   # Random-effect SDs & random-effect correlations:
   prior(exponential(2), class = "sd"),
-  prior(lkj(2), class = "cor"),
-  
-  # Gamma shape:
-  prior(gamma(0.01, 0.01), class = "shape")
+  prior(lkj(2), class = "cor")
 )
 
 ## Full Model ----
@@ -3065,7 +3200,7 @@ posterior_plot_rq3_fixdur <- ggplot(
   ) +
   facet_wrap(
     ~ predictor,
-    ncol = 2,
+    ncol = 3,
     scales = "free_x",
     labeller = labeller(predictor = predictor_labels)
   ) +
@@ -3076,7 +3211,7 @@ posterior_plot_rq3_fixdur <- ggplot(
   ) +
   theme_bw(base_size = 14)
 
-png(here("exp1", "img", "rq3_fixdur_posterior.png"), width = 2480, height = 3508 / 2.2, res = 250)
+png(here("exp1", "img", "rq3_fixdur_posterior_3c.png"), width = 2480, height = 3508 / 4, res = 250)
 posterior_plot_rq3_fixdur
 dev.off()
 
@@ -3199,15 +3334,7 @@ plot_rq3(df = df_tot, x_var = "robustness_prop_2", y_var = "mean_fixation_durati
 # RQ3 (Fixation Number) ---------------------------------------------------
 
 ## Define Priors ----
-# Family:
-# fixation_number is a count variable . We therefore used a Poisson model with a log link.
-#
 # Group (folder) main effects:
-# We include 0 + folder so that each sample gets its own baseline
-# expected fixation number. This avoids forcing all groups to share
-# one global intercept, which would be implausibly restrictive.
-#
-# Fixed-effect priors on group (folder):
 # We include 0 + folder so that each sample gets its own baseline
 # expected fixation number. This avoids forcing all groups to share
 # one global intercept, which would be implausibly restrictive.
@@ -3380,7 +3507,7 @@ posterior_plot_rq3_fixnum <- ggplot(
   ) +
   facet_wrap(
     ~ predictor,
-    ncol = 2,
+    ncol = 3,
     scales = "free_x",
     labeller = labeller(predictor = predictor_labels)
   ) +
@@ -3391,7 +3518,7 @@ posterior_plot_rq3_fixnum <- ggplot(
   ) +
   theme_bw(base_size = 14)
 
-png(here("exp1", "img", "rq3_fixnum_posterior.png"), width = 2480, height = 3508 / 2.2, res = 250)
+png(here("exp1", "img", "rq3_fixnum_posterior_3c.png"), width = 2480, height = 3508 / 4, res = 250)
 posterior_plot_rq3_fixnum
 dev.off()
 
@@ -3514,6 +3641,270 @@ plot_rq3(df = df_tot, x_var = "robustness_prop_2", y_var = "mean_fixation_number
 
 # RQ3 (Latencies) ---------------------------------------------------------
 
+## Define Priors ----
+# Group (folder) main effects:
+# We include 0 + folder so that each sample gets its own baseline
+# expected fixation number. This avoids forcing all groups to share
+# one global intercept, which would be implausibly restrictive.
+#
+# We assumed a priori that latencies around 1000ms (4M), 500 (6M, 9M, 18M), 250 (Adults) 
+# per trial would be a plausible central value. 
+# On the log scale, this corresponds to log(1000) = 6.91, log(500) ≈ 6.22, log(250) = 5.52.
+# We set SD = 3 to allow a broad range of plausible latencies while keeping the prior weakly informative.
+#
+# Slope priors:
+# Priors are centered at zero because we preregistered to use uninformative priors.
+# We use the same prior within each predictor family across groups.
+# The scales differ across predictor families because the predictors are on
+# different raw scales and were not z-standardized.
+#
+# Random-effect priors:
+# see RQ1+2.
+
+prior_rq3_latencies <- c(
+  # Sample-specific baseline fixation numbers (log-mean scale)
+  prior(normal(6.91, 3), class = "b", coef = "folder4m"),
+  prior(normal(6.22, 3), class = "b", coef = "folder6m"),
+  prior(normal(6.22, 3), class = "b", coef = "folder9m"),
+  prior(normal(6.22, 3), class = "b", coef = "folder18m"),
+  prior(normal(5.52, 3), class = "b", coef = "folderadults"),
+  
+  # Accuracy slopes:
+  # centered at zero; same prior across groups
+  prior(normal(0, 1), class = "b", coef = "folder4m:acc_visd"),
+  prior(normal(0, 1), class = "b", coef = "folder6m:acc_visd"),
+  prior(normal(0, 1), class = "b", coef = "folder9m:acc_visd"),
+  prior(normal(0, 1), class = "b", coef = "folder18m:acc_visd"),
+  prior(normal(0, 1), class = "b", coef = "folderadults:acc_visd"),
+  
+  # Precision RMS slopes:
+  # centered at zero; same prior across groups
+  prior(normal(0, 1.5), class = "b", coef = "folder4m:precrms_visd"),
+  prior(normal(0, 1.5), class = "b", coef = "folder6m:precrms_visd"),
+  prior(normal(0, 1.5), class = "b", coef = "folder9m:precrms_visd"),
+  prior(normal(0, 1.5), class = "b", coef = "folder18m:precrms_visd"),
+  prior(normal(0, 1.5), class = "b", coef = "folderadults:precrms_visd"),
+  
+  # Robustness slopes:
+  # centered at zero; same prior across groups
+  prior(normal(0, 6), class = "b", coef = "folder4m:robustness_prop_2"),
+  prior(normal(0, 6), class = "b", coef = "folder6m:robustness_prop_2"),
+  prior(normal(0, 6), class = "b", coef = "folder9m:robustness_prop_2"),
+  prior(normal(0, 6), class = "b", coef = "folder18m:robustness_prop_2"),
+  prior(normal(0, 6), class = "b", coef = "folderadults:robustness_prop_2"),
+  
+  # Random-effect SDs & random-effect correlations:
+  prior(exponential(2), class = "sd"),
+  prior(lkj(2), class = "cor")
+)
+
+## Full Model ----
+full_rq3_latencies <- brm(
+  latencies ~ 0 + folder +
+    folder:acc_visd +
+    folder:precrms_visd +
+    folder:robustness_prop_2 +
+    (1 + acc_visd + precrms_visd + robustness_prop_2 | group_id),
+  data   = df_rq3,
+  family = Gamma(link = "log"),
+  prior  = prior_rq3_latencies,
+  chains = 4, cores = n_cores - 1, iter = 16000, warmup = 6000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 12),
+  sample_prior = "yes",
+  seed = 123
+)
+
+## Define Priors of Reduced Model ----
+# Group (folder) main effects:
+# We include 0 + folder so that each sample gets its own baseline
+# expected fixation number. This avoids forcing all groups to share
+# one global intercept, which would be implausibly restrictive.
+#
+# We assumed a priori that latencies around 1000ms (4M), 500 (6M, 9M, 18M), 250 (Adults) 
+# per trial would be a plausible central value. 
+# On the log scale, this corresponds to log(1000) = 6.91, log(500) ≈ 6.22, log(250) = 5.52.
+# We set SD = 3 to allow a broad range of plausible latencies while keeping the prior weakly informative.
+#
+# Slope priors:
+# Priors are centered at zero because we preregistered to use uninformative priors.
+# We use the same prior within each predictor family across groups.
+# The scales differ across predictor families because the predictors are on
+# different raw scales and were not z-standardized.
+#
+# Random-effect priors:
+# see RQ1+2.
+
+prior_rq3_latencies_red <- c(
+  # Sample-specific baseline fixation numbers (log-mean scale)
+  prior(normal(6.91, 3), class = "b", coef = "folder4m"),
+  prior(normal(6.22, 3), class = "b", coef = "folder6m"),
+  prior(normal(6.22, 3), class = "b", coef = "folder9m"),
+  prior(normal(6.22, 3), class = "b", coef = "folder18m"),
+  prior(normal(5.52, 3), class = "b", coef = "folderadults"),
+  
+  # Random-effect SDs & random-effect correlations:
+  prior(exponential(2), class = "sd"),
+  prior(lkj(2), class = "cor")
+)
+
+## Reduced Model ----
+red_rq3_latencies <- brm(
+  latencies ~ 0 + folder +
+    (1 + acc_visd + precrms_visd + robustness_prop_2 | group_id),
+  data   = df_rq3,
+  family = Gamma(link = "log"),
+  prior  = prior_rq3_latencies_red,
+  chains = 4, cores = n_cores - 1, iter = 16000, warmup = 6000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 12),
+  sample_prior = "yes",
+  seed = 123
+)
+
+## Model Comparison ----
+loo_full_latencies <- loo(full_rq3_latencies)
+loo_red_latencies <- loo(red_rq3_latencies)
+loo_compare(loo_full_latencies, loo_red_latencies)
+
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
+png(here("exp1", "img", "rq3_latencies_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq3_latencies, ndraws = 100)
+dev.off()
+
+## Posterior Distribution ----
+post_rq3 <- as_draws_df(full_rq3_latencies)
+
+slope_rq3 <- post_rq3 |>
+  transmute(
+    `4m_acc_visd`              = `b_folder4m:acc_visd`,
+    `6m_acc_visd`              = `b_folder6m:acc_visd`,
+    `9m_acc_visd`              = `b_folder9m:acc_visd`,
+    `18m_acc_visd`             = `b_folder18m:acc_visd`,
+    `adults_acc_visd`          = `b_folderadults:acc_visd`,
+    
+    `4m_precrms_visd`          = `b_folder4m:precrms_visd`,
+    `6m_precrms_visd`          = `b_folder6m:precrms_visd`,
+    `9m_precrms_visd`          = `b_folder9m:precrms_visd`,
+    `18m_precrms_visd`         = `b_folder18m:precrms_visd`,
+    `adults_precrms_visd`      = `b_folderadults:precrms_visd`,
+    
+    `4m_robustness_prop_2`     = `b_folder4m:robustness_prop_2`,
+    `6m_robustness_prop_2`     = `b_folder6m:robustness_prop_2`,
+    `9m_robustness_prop_2`     = `b_folder9m:robustness_prop_2`,
+    `18m_robustness_prop_2`    = `b_folder18m:robustness_prop_2`,
+    `adults_robustness_prop_2` = `b_folderadults:robustness_prop_2`
+  ) |>
+  mutate(.draw = row_number()) |>
+  pivot_longer(
+    cols = -.draw,
+    names_to = c("group", "predictor"),
+    names_pattern = "^(4m|6m|9m|18m|adults)_(.*)$",
+    values_to = "slope"
+  ) |>
+  mutate(
+    group = factor(group, levels = group_order),
+    predictor = factor(predictor, levels = predictor_order)
+  )
+
+posterior_plot_rq3_latencies <- ggplot(
+  slope_rq3,
+  aes(
+    x = slope,
+    y = factor(group, levels = rev(group_order))
+  )
+) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
+  stat_halfeye(
+    point_interval = "median_qi",
+    .width = c(0, 0.95),
+    alpha = 0.65,
+    height = 1.05,
+    adjust = 1.0,
+    fill = "grey70"
+  ) +
+  facet_wrap(
+    ~ predictor,
+    ncol = 2,
+    scales = "free_x",
+    labeller = labeller(predictor = predictor_labels)
+  ) +
+  scale_y_discrete(labels = group_labels) +
+  labs(
+    x = "Slope Estimate",
+    y = NULL
+  ) +
+  theme_bw(base_size = 14)
+
+png(here("exp1", "img", "rq3_latencies_posterior.png"), width = 2480, height = 3508 / 4, res = 250)
+posterior_plot_rq3_latencies
+dev.off()
+
+## Posterior Versus Prior Plots ----
+
+# Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
+## Accuracy
+png(here("exp1", "img", "rq3_latencies_posteriorprior_4m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder4m:acc_visd", "prior_b_folder4m:acc_visd"), facet_label = "4-Month-Olds, Accuracy")
+dev.off()
+
+png(here("exp1", "img", "rq3_latencies_posteriorprior_6m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder6m:acc_visd", "prior_b_folder6m:acc_visd"), facet_label = "6-Month-Olds, Accuracy")
+dev.off()
+
+png(here("exp1", "img", "rq3_latencies_posteriorprior_9m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder9m:acc_visd", "prior_b_folder9m:acc_visd"), facet_label = "9-Month-Olds, Accuracy")
+dev.off()
+
+png(here("exp1", "img", "rq3_latencies_posteriorprior_18m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder18m:acc_visd", "prior_b_folder18m:acc_visd"), facet_label = "18-Month-Olds, Accuracy")
+dev.off()
+
+png(here("exp1", "img", "rq3_latencies_posteriorprior_adults_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folderadults:acc_visd", "prior_b_folderadults:acc_visd"), facet_label = "Adults, Accuracy")
+dev.off()
+
+## Precision (RMS)
+png(here("exp1", "img", "rq3_latencies_posteriorprior_4m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder4m:precrms_visd", "prior_b_folder4m:precrms_visd"), facet_label = "4-Month-Olds, Precision (RMS)")
+dev.off()
+
+png(here("exp1", "img", "rq3_latencies_posteriorprior_6m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder6m:precrms_visd", "prior_b_folder6m:precrms_visd"), facet_label = "6-Month-Olds, Precision (RMS)")
+dev.off()
+
+png(here("exp1", "img", "rq3_latencies_posteriorprior_9m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder9m:precrms_visd", "prior_b_folder9m:precrms_visd"), facet_label = "9-Month-Olds, Precision (RMS)")
+dev.off()
+
+png(here("exp1", "img", "rq3_latencies_posteriorprior_18m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder18m:precrms_visd", "prior_b_folder18m:precrms_visd"), facet_label = "18-Month-Olds, Precision (RMS)")
+dev.off()
+
+png(here("exp1", "img", "rq3_latencies_posteriorprior_adults_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folderadults:precrms_visd", "prior_b_folderadults:precrms_visd"), facet_label = "Adults, Precision (RMS)")
+dev.off()
+
+## Robustness
+png(here("exp1", "img", "rq3_latencies_posteriorprior_4m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder4m:robustness_prop_2", "prior_b_folder4m:robustness_prop_2"), facet_label = "4-Month-Olds, Robustness")
+dev.off()
+
+png(here("exp1", "img", "rq3_latencies_posteriorprior_6m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder6m:robustness_prop_2", "prior_b_folder6m:robustness_prop_2"), facet_label = "6-Month-Olds, Robustness")
+dev.off()
+
+png(here("exp1", "img", "rq3_latencies_posteriorprior_9m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder9m:robustness_prop_2", "prior_b_folder9m:robustness_prop_2"), facet_label = "9-Month-Olds, Robustness")
+dev.off()
+
+png(here("exp1", "img", "rq3_latencies_posteriorprior_18m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder18m:robustness_prop_2", "prior_b_folder18m:robustness_prop_2"), facet_label = "18-Month-Olds, Robustness")
+dev.off()
+
+png(here("exp1", "img", "rq3_latencies_posteriorprior_adults_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folderadults:robustness_prop_2", "prior_b_folderadults:robustness_prop_2"), facet_label = "Adults, Robustness")
+dev.off()
+
 ## Descriptives ----
 df_tot |> 
   group_by(folder, group_id) |> 
@@ -3554,6 +3945,271 @@ plot_rq3(df = df_tot, x_var = "robustness_prop_2", y_var = "latencies", width = 
 
 # RQ3 (Relative Looking Time) ---------------------------------------------
 
+## Define Priors ----
+# Group (folder) main effects:
+# We include 0 + folder so that each sample gets its own baseline
+# expected relative looking time. This avoids forcing all groups to share
+# one global intercept, which would be implausibly restrictive.
+#
+# We assumed a priori that around relative looking time of
+# 0.1 (chimpanzees), 0.9 (adults), 0.75 (infants) would be plausible.
+# On the logit scale, this corresponds to qlogis(0.1) ≈ -2.20, qlogis(0.9) ≈ 2.20, qlogis(0.75) ≈ 1.10.
+# We set SD = 1.0 to allow a broad range of plausible baseline counts
+# while keeping the prior weakly informative.
+#
+# Slope priors:
+# Priors are centered at zero because we preregistered to use uninformative priors.
+# We use the same prior within each predictor family across groups.
+# The scales differ across predictor families because the predictors are on
+# different raw scales and were not z-standardized.
+#
+# Random-effect priors:
+# see RQ1+2.
+
+prior_rq3_rel_gaze_in_aoi <- c(
+  # Sample-specific baseline fixation numbers (log-mean scale)
+  prior(normal(1.1, 1.0), class = "b", coef = "folder4m"),
+  prior(normal(1.1, 1.0), class = "b", coef = "folder6m"),
+  prior(normal(1.1, 1.0), class = "b", coef = "folder9m"),
+  prior(normal(1.1, 1.0), class = "b", coef = "folder18m"),
+  prior(normal(2.2, 1.0), class = "b", coef = "folderadults"),
+  prior(normal(-2.2, 1.0), class = "b", coef = "folderchimps"),
+  
+  # Accuracy slopes:
+  # centered at zero; same prior across groups
+  prior(normal(0, 0.4), class = "b", coef = "folder4m:acc_visd"),
+  prior(normal(0, 0.4), class = "b", coef = "folder6m:acc_visd"),
+  prior(normal(0, 0.4), class = "b", coef = "folder9m:acc_visd"),
+  prior(normal(0, 0.4), class = "b", coef = "folder18m:acc_visd"),
+  prior(normal(0, 0.4), class = "b", coef = "folderadults:acc_visd"),
+  prior(normal(0, 0.4), class = "b", coef = "folderchimps:acc_visd"),
+  
+  # Precision RMS slopes:
+  # centered at zero; same prior across groups
+  prior(normal(0, 1.5), class = "b", coef = "folder4m:precrms_visd"),
+  prior(normal(0, 1.5), class = "b", coef = "folder6m:precrms_visd"),
+  prior(normal(0, 1.5), class = "b", coef = "folder9m:precrms_visd"),
+  prior(normal(0, 1.5), class = "b", coef = "folder18m:precrms_visd"),
+  prior(normal(0, 1.5), class = "b", coef = "folderadults:precrms_visd"),
+  prior(normal(0, 1.5), class = "b", coef = "folderchimps:precrms_visd"),
+  
+  # Robustness slopes:
+  # centered at zero; same prior across groups
+  prior(normal(0, 5), class = "b", coef = "folder4m:robustness_prop_2"),
+  prior(normal(0, 5), class = "b", coef = "folder6m:robustness_prop_2"),
+  prior(normal(0, 5), class = "b", coef = "folder9m:robustness_prop_2"),
+  prior(normal(0, 5), class = "b", coef = "folder18m:robustness_prop_2"),
+  prior(normal(0, 5), class = "b", coef = "folderadults:robustness_prop_2"),
+  prior(normal(0, 5), class = "b", coef = "folderchimps:robustness_prop_2"),
+  
+  # Random-effect SDs & random-effect correlations:
+  prior(exponential(2), class = "sd"),
+  prior(lkj(2), class = "cor")
+)
+
+## Full Model ----
+full_rq3_rel_gaze_in_aoi <- brm(
+  rel_gaze_in_aoi ~ 0 + folder +
+    folder:acc_visd +
+    folder:precrms_visd +
+    folder:robustness_prop_2 +
+    (1 + acc_visd + precrms_visd + robustness_prop_2 | group_id),
+  data   = df_rq3,
+  family = Beta(link = "logit"),
+  prior  = prior_rq3_rel_gaze_in_aoi,
+  chains = 4, cores = n_cores - 1, iter = 10000, warmup = 5000, 
+  sample_prior = "yes",
+  seed = 123
+)
+
+## Define Priors of Redunced Model ----
+prior_rq3_rel_gaze_in_aoi_red <- c(
+  # Sample-specific baseline fixation numbers (log-mean scale)
+  prior(normal(1.1, 1.0), class = "b", coef = "folder4m"),
+  prior(normal(1.1, 1.0), class = "b", coef = "folder6m"),
+  prior(normal(1.1, 1.0), class = "b", coef = "folder9m"),
+  prior(normal(1.1, 1.0), class = "b", coef = "folder18m"),
+  prior(normal(2.2, 1.0), class = "b", coef = "folderadults"),
+  prior(normal(-2.2, 1.0), class = "b", coef = "folderchimps"),
+  
+  # Random-effect SDs & random-effect correlations:
+  prior(exponential(2), class = "sd"),
+  prior(lkj(2), class = "cor")
+)
+
+## Reduced Model ----
+red_rq3_rel_gaze_in_aoi <- brm(
+  rel_gaze_in_aoi ~ 0 + folder +
+    (1 + acc_visd + precrms_visd + robustness_prop_2 | group_id),
+  data   = df_rq3,
+  family = Beta(link = "logit"),
+  prior  = prior_rq3_rel_gaze_in_aoi_red,
+  chains = 4, cores = n_cores - 1, iter = 10000, warmup = 5000, 
+  sample_prior = "yes",
+  seed = 123
+)
+
+## Model Comparison ----
+loo_full_rel_gaze_in_aoi <- loo(full_rq3_rel_gaze_in_aoi)
+loo_red_rel_gaze_in_aoi <- loo(red_rq3_rel_gaze_in_aoi)
+loo_compare(loo_full_rel_gaze_in_aoi, loo_red_rel_gaze_in_aoi)
+
+## Model Fit: Posterior Predictive Check ----
+# Check whether model is "match to the data"
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_rq3_rel_gaze_in_aoi, ndraws = 100)
+dev.off()
+
+## Posterior Distribution ----
+post_rq3 <- as_draws_df(full_rq3_rel_gaze_in_aoi)
+
+slope_rq3 <- post_rq3 |>
+  transmute(
+    `4m_acc_visd`              = `b_folder4m:acc_visd`,
+    `6m_acc_visd`              = `b_folder6m:acc_visd`,
+    `9m_acc_visd`              = `b_folder9m:acc_visd`,
+    `18m_acc_visd`             = `b_folder18m:acc_visd`,
+    `adults_acc_visd`          = `b_folderadults:acc_visd`,
+    `chimps_acc_visd`          = `b_folderchimps:acc_visd`,
+    
+    `4m_precrms_visd`          = `b_folder4m:precrms_visd`,
+    `6m_precrms_visd`          = `b_folder6m:precrms_visd`,
+    `9m_precrms_visd`          = `b_folder9m:precrms_visd`,
+    `18m_precrms_visd`         = `b_folder18m:precrms_visd`,
+    `adults_precrms_visd`      = `b_folderadults:precrms_visd`,
+    `chimps_precrms_visd`      = `b_folderchimps:precrms_visd`,
+    
+    `4m_robustness_prop_2`     = `b_folder4m:robustness_prop_2`,
+    `6m_robustness_prop_2`     = `b_folder6m:robustness_prop_2`,
+    `9m_robustness_prop_2`     = `b_folder9m:robustness_prop_2`,
+    `18m_robustness_prop_2`    = `b_folder18m:robustness_prop_2`,
+    `adults_robustness_prop_2` = `b_folderadults:robustness_prop_2`,
+    `chimps_robustness_prop_2` = `b_folderchimps:robustness_prop_2`
+  ) |>
+  mutate(.draw = row_number()) |>
+  pivot_longer(
+    cols = -.draw,
+    names_to = c("group", "predictor"),
+    names_pattern = "^(4m|6m|9m|18m|adults|chimps)_(.*)$",
+    values_to = "slope"
+  ) |>
+  mutate(
+    group = factor(group, levels = group_order),
+    predictor = factor(predictor, levels = predictor_order)
+  )
+
+posterior_plot_rq3_rel_gaze_in_aoi <- ggplot(
+  slope_rq3,
+  aes(
+    x = slope,
+    y = factor(group, levels = rev(group_order))
+  )
+) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
+  stat_halfeye(
+    point_interval = "median_qi",
+    .width = c(0, 0.95),
+    alpha = 0.65,
+    height = 1.05,
+    adjust = 1.0,
+    fill = "grey70"
+  ) +
+  facet_wrap(
+    ~ predictor,
+    ncol = 3,
+    scales = "free_x",
+    labeller = labeller(predictor = predictor_labels)
+  ) +
+  scale_y_discrete(labels = group_labels) +
+  labs(
+    x = "Slope Estimate",
+    y = NULL
+  ) +
+  theme_bw(base_size = 14)
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posterior_3c.png"), width = 2480, height = 3508 / 4, res = 250)
+posterior_plot_rq3_rel_gaze_in_aoi
+dev.off()
+
+## Posterior Versus Prior Plots ----
+
+# Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
+## Accuracy
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_4m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder4m:acc_visd", "prior_b_folder4m:acc_visd"), facet_label = "4-Month-Olds, Accuracy")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_6m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder6m:acc_visd", "prior_b_folder6m:acc_visd"), facet_label = "6-Month-Olds, Accuracy")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_9m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder9m:acc_visd", "prior_b_folder9m:acc_visd"), facet_label = "9-Month-Olds, Accuracy")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_18m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder18m:acc_visd", "prior_b_folder18m:acc_visd"), facet_label = "18-Month-Olds, Accuracy")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_adults_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folderadults:acc_visd", "prior_b_folderadults:acc_visd"), facet_label = "Adults, Accuracy")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_chimps_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folderchimps:acc_visd", "prior_b_folderchimps:acc_visd"), facet_label = "Chimpanzees, Accuracy")
+dev.off()
+
+## Precision (RMS)
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_4m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder4m:precrms_visd", "prior_b_folder4m:precrms_visd"), facet_label = "4-Month-Olds, Precision (RMS)")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_6m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder6m:precrms_visd", "prior_b_folder6m:precrms_visd"), facet_label = "6-Month-Olds, Precision (RMS)")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_9m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder9m:precrms_visd", "prior_b_folder9m:precrms_visd"), facet_label = "9-Month-Olds, Precision (RMS)")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_18m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder18m:precrms_visd", "prior_b_folder18m:precrms_visd"), facet_label = "18-Month-Olds, Precision (RMS)")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_adults_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folderadults:precrms_visd", "prior_b_folderadults:precrms_visd"), facet_label = "Adults, Precision (RMS)")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_chimps_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folderchimps:precrms_visd", "prior_b_folderchimps:precrms_visd"), facet_label = "Chimpanzees, Precision (RMS)")
+dev.off()
+
+## Robustness
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_4m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder4m:robustness_prop_2", "prior_b_folder4m:robustness_prop_2"), facet_label = "4-Month-Olds, Robustness")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_6m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder6m:robustness_prop_2", "prior_b_folder6m:robustness_prop_2"), facet_label = "6-Month-Olds, Robustness")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_9m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder9m:robustness_prop_2", "prior_b_folder9m:robustness_prop_2"), facet_label = "9-Month-Olds, Robustness")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_18m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder18m:robustness_prop_2", "prior_b_folder18m:robustness_prop_2"), facet_label = "18-Month-Olds, Robustness")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_adults_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folderadults:robustness_prop_2", "prior_b_folderadults:robustness_prop_2"), facet_label = "Adults, Robustness")
+dev.off()
+
+png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_chimps_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folderchimps:robustness_prop_2", "prior_b_folderchimps:robustness_prop_2"), facet_label = "Chimpanzees, Robustness")
+dev.off()
+
+
 ## Descriptives ----
 df_tot |> 
   group_by(folder, group_id) |> 
@@ -3591,4 +4247,186 @@ plot_rq3(df = df_tot, x_var = "robustness_prop_2", y_var = "rel_gaze_in_aoi", wi
 # 
 # plot_rq3_all(df = df_tot, x_var = "robustness_prop_2", y_var = "rel_gaze_in_aoi",
 #              png_name = "rq3_all_rob_rellook.png", x_lab = "Robustness\n(in %)", y_lab = "Relative Looking Time\n(in ms)")
+
+
+# Explorative Analyses ----------------------------------------------------
+# Exploratory Analyses ----------------------------------------------------
+library(readxl)
+
+tobii_4m <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 1) |> 
+  mutate(
+    folder = "4m",
+    file = as.character(file),
+    tobii_average_calibration_accuracy_degree = as.numeric(tobii_average_calibration_accuracy_degree),
+    tobii_average_validation_accuracy_degree = as.numeric(tobii_average_validation_accuracy_degree)
+  )
+
+tobii_6m <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 2) |> 
+  mutate(
+    folder = "6m",
+    file = as.character(file),
+    tobii_average_calibration_accuracy_degree = as.numeric(tobii_average_calibration_accuracy_degree),
+    tobii_average_validation_accuracy_degree = as.numeric(tobii_average_validation_accuracy_degree)
+  )
+
+tobii_9m <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 3) |> 
+  mutate(
+    folder = "9m",
+    file = as.character(file),
+    tobii_average_calibration_accuracy_degree = as.numeric(tobii_average_calibration_accuracy_degree),
+    tobii_average_validation_accuracy_degree = as.numeric(tobii_average_validation_accuracy_degree)
+  )
+
+tobii_18m <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 4) |> 
+  mutate(
+    folder = "18m",
+    file = as.character(file),
+    tobii_average_calibration_accuracy_degree = as.numeric(tobii_average_calibration_accuracy_degree),
+    tobii_average_validation_accuracy_degree = as.numeric(tobii_average_validation_accuracy_degree)
+  )
+
+tobii_adults <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 5) |> 
+  mutate(
+    folder = "adults",
+    file = as.character(file),
+    tobii_average_calibration_accuracy_degree = as.numeric(tobii_average_calibration_accuracy_degree),
+    tobii_average_validation_accuracy_degree = as.numeric(tobii_average_validation_accuracy_degree)
+  )
+
+tobii_chimps <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 6) |> 
+  mutate(
+    folder = "chimps",
+    file = as.character(file),
+    tobii_average_calibration_accuracy_degree = as.numeric(tobii_average_calibration_accuracy_degree),
+    tobii_accuracy_validation = NA
+  )
+
+tobii_accuracy <- bind_rows(
+  tobii_4m |> select(folder, file, tobii_average_calibration_accuracy_degree, tobii_average_validation_accuracy_degree),
+  tobii_6m |> select(folder, file, tobii_average_calibration_accuracy_degree, tobii_average_validation_accuracy_degree),
+  tobii_9m |> select(folder, file, tobii_average_calibration_accuracy_degree, tobii_average_validation_accuracy_degree),
+  tobii_18m |> select(folder, file, tobii_average_calibration_accuracy_degree, tobii_average_validation_accuracy_degree),
+  tobii_adults |> select(folder, file, tobii_average_calibration_accuracy_degree, tobii_average_validation_accuracy_degree),
+  tobii_chimps |> select(folder, file, tobii_average_calibration_accuracy_degree, tobii_accuracy_validation)
+) |> 
+  select(
+    folder,
+    file,
+    tobii_average_calibration_accuracy_degree,
+    tobii_average_validation_accuracy_degree
+  ) |> 
+  rename(
+    id = file,
+    tobii_accuracy = tobii_average_calibration_accuracy_degree,
+    tobii_accuracy_validation = tobii_average_validation_accuracy_degree
+  ) |> 
+  mutate(group_id = paste(folder, id, sep = "_")) |> 
+  select(group_id, folder, id, tobii_accuracy, tobii_accuracy_validation) |>
+  mutate(group_id = sub("^chimps_", "", group_id))
+
+calculated_accuracy <- df_tot |> 
+  group_by(group_id) |> 
+  summarize(calculated_accuracy = mean(acc_visd, na.rm = T)) |> 
+  as.data.frame()
+
+plot_dat <- tobii_accuracy |>
+  left_join(calculated_accuracy, by = "group_id") |>
+  mutate(
+    folder_label = recode(
+      folder,
+      "4m" = "4-Month-Olds",
+      "6m" = "6-Month-Olds",
+      "9m" = "9-Month-Olds",
+      "18m" = "18-Month-Olds",
+      "adults" = "Adults",
+      "chimps" = "Chimpanzees"
+    ),
+    folder_label = factor(
+      folder_label,
+      levels = c(
+        "4-Month-Olds",
+        "6-Month-Olds",
+        "9-Month-Olds",
+        "18-Month-Olds",
+        "Adults",
+        "Chimpanzees"
+      )
+    )
+  )
+
+panel_limits <- plot_dat |>
+  group_by(folder_label) |>
+  summarize(panel_max = max(c(tobii_accuracy_validation, calculated_accuracy), na.rm = TRUE)) |>
+  filter(folder_label != "Chimpanzees") |> 
+  # summarize(panel_max = max(c(tobii_accuracy, calculated_accuracy), na.rm = TRUE)) |>
+  ungroup()
+
+plot_dat <- plot_dat |>
+  left_join(panel_limits, by = "folder_label")
+
+lm_coefs <- plot_dat |>
+  filter(folder != "chimps") |>
+  group_by(folder_label) |>
+  summarize(
+    intercept = coef(lm(calculated_accuracy ~ tobii_accuracy_validation))[1],
+    slope = coef(lm(calculated_accuracy ~ tobii_accuracy_validation))[2]
+  )
+# summarize(
+#   intercept = coef(lm(calculated_accuracy ~ tobii_accuracy))[1],
+#   slope = coef(lm(calculated_accuracy ~ tobii_accuracy))[2]
+# )
+
+#png(here("exp1", "img", "explorative_tobii_versus_own.png"), width = 2480, height = 3508/2.5, res = 280)
+png(here("exp1", "img", "explorative_tobiivalidation_versus_own.png"), width = 2480, height = 3508/2.5, res = 280)
+# ggplot(plot_dat, aes(x = tobii_accuracy, y = calculated_accuracy)) +
+ggplot(plot_dat |> filter(folder != "chimps"), aes(x = tobii_accuracy, y = calculated_accuracy)) +
+  geom_blank(aes(x = 0, y = 0)) +
+  geom_blank(aes(x = panel_max, y = panel_max)) +
+  geom_abline(intercept = 0, slope = 1, color = "black", linewidth = 0.7) +
+  geom_abline(
+    data = lm_coefs,
+    aes(intercept = intercept, slope = slope),
+    color = "darkred",
+    linewidth = 0.9
+  ) +
+  geom_point(size = 2, alpha = 0.9) +
+  facet_wrap(~ folder_label, ncol = 3, scales = "free") +
+  labs(
+    x = "Tobii Reported Accuracy (Validation)\n(in visual degrees)",
+    y = "Calculated Accuracy\n(in visual degrees)"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold"),
+    axis.title.x = element_text(lineheight = 0.9),
+    axis.title.y = element_text(lineheight = 0.9)
+  )
+dev.off()
+
+cor.test(plot_dat$tobii_accuracy, plot_dat$calculated_accuracy)
+cor.test(plot_dat |> filter(folder == "4m") |> pull(tobii_accuracy), 
+         plot_dat |> filter(folder == "4m") |> pull(calculated_accuracy))
+cor.test(plot_dat |> filter(folder == "6m") |> pull(tobii_accuracy), 
+         plot_dat |> filter(folder == "6m") |> pull(calculated_accuracy))
+cor.test(plot_dat |> filter(folder == "9m") |> pull(tobii_accuracy), 
+         plot_dat |> filter(folder == "9m") |> pull(calculated_accuracy))
+cor.test(plot_dat |> filter(folder == "18m") |> pull(tobii_accuracy), 
+         plot_dat |> filter(folder == "18m") |> pull(calculated_accuracy))
+cor.test(plot_dat |> filter(folder == "adults") |> pull(tobii_accuracy), 
+         plot_dat |> filter(folder == "adults") |> pull(calculated_accuracy))
+cor.test(plot_dat |> filter(folder == "chimps") |> pull(tobii_accuracy), 
+         plot_dat |> filter(folder == "chimps") |> pull(calculated_accuracy))
+
+cor.test(plot_dat$tobii_accuracy_validation, plot_dat$calculated_accuracy)
+cor.test(plot_dat |> filter(folder == "4m") |> pull(tobii_accuracy_validation), 
+         plot_dat |> filter(folder == "4m") |> pull(calculated_accuracy))
+cor.test(plot_dat |> filter(folder == "6m") |> pull(tobii_accuracy_validation), 
+         plot_dat |> filter(folder == "6m") |> pull(calculated_accuracy))
+cor.test(plot_dat |> filter(folder == "9m") |> pull(tobii_accuracy_validation), 
+         plot_dat |> filter(folder == "9m") |> pull(calculated_accuracy))
+cor.test(plot_dat |> filter(folder == "18m") |> pull(tobii_accuracy_validation), 
+         plot_dat |> filter(folder == "18m") |> pull(calculated_accuracy))
+cor.test(plot_dat |> filter(folder == "adults") |> pull(tobii_accuracy_validation), 
+         plot_dat |> filter(folder == "adults") |> pull(calculated_accuracy))
+
 

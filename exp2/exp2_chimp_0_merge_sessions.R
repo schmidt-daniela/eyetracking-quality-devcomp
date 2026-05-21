@@ -11,7 +11,7 @@ library(here)
 library(tidyverse)
 
 # Adjust Parameter --------------------------------------------------------
-folder <- "human_calibration_9p" # alex_calibration_5p or human_calibration_9p or ape_calibration_2p
+folder <- "ape_calibration_2p" # alex_calibration_5p or human_calibration_9p or ape_calibration_2p
 filenames <- list.files(path = here("exp2", "data", "raw_1", folder))
 apes <-  sub("_.*", "", filenames) |> unique()
 ape_size <- ifelse(folder %in% c("alex_calibration_5p", "human_calibration_9p"), 16, 17)

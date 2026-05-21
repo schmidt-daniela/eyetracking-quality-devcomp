@@ -102,6 +102,53 @@ ggplot(df_sum, aes(x = condition, y = mean, group = 1)) +
   )
 dev.off()
 
+# Plot for Maleen
+df_new <- tibble::tibble(
+  condition = c("Bonobos\n(2 Points)", "Orangs\n(2 Points)"),
+  n = c(9, 6),
+  mean = c(3.15, 3.36),
+  sd = c(1.01, 1.19),
+  se = c(0.336, 0.485),
+  tcrit = c(2.31, 2.57),
+  ci_low = c(2.38, 2.12),
+  ci_high = c(3.93, 4.61)
+)
+
+df_plot <- bind_rows(df_sum, df_new)
+df_plot <- df_plot |> 
+  mutate(condition = factor(condition, levels = c(
+    "Own Ape Calibration\n(2 Points)",
+    "Human Calibration\n(9 Points)",
+    "Other Ape Calibration\n(5 Points)",
+    "Bonobos\n(2 Points)",
+    "Orangs\n(2 Points)"
+  )))
+
+levels(df_plot$condition) <- c(
+  "Chimps\nOwn Calibration\n(2 Points)",
+  "Chimps\nHuman Calibration\n(9 Points)",
+  "Chimps\nOther Chimp Calibration\n(5 Points)",
+  "Bonobos\nOwn Calibration\n(2 Points)",
+  "Orangs\nOwn Calibration\n(2 Points)"
+)
+
+png(here("exp2", "img", "plotformaleen_rejointcomp.png"), width = 1920, height = 1080, res = 220)
+ggplot(df_plot, aes(x = condition, y = mean, group = 1)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 2.5) +
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high),
+                width = 0.12, linewidth = 0.6) +
+  labs(
+    x = "Species & Calibration Condition",
+    y = "Mean Accuracy\n(in visual degrees)"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(size = 11)
+  ) +
+  ylim(0, 7)
+dev.off()
+
 df_plot_pos <- acc_sum_3 |>
   mutate(
     condition = case_when(

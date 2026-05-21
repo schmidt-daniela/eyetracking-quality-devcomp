@@ -202,3 +202,16 @@ brms_group_effects_response <- function(
   
   out
 }
+
+# Calculate probability that group g1 has a higher response than group g2 based on posterior draws
+get_prob <- function(g1, g2, draws) {
+  ratio <- exp(draws[[paste0("b_", g1)]] - draws[[paste0("b_", g2)]])
+  tibble(
+    contrast = paste(g1, "vs", g2),
+    prob_g1_greater = mean(ratio > 1),
+    prob_g2_greater = mean(ratio < 1),
+    median = median(ratio),
+    lo = quantile(ratio, 0.025),
+    hi = quantile(ratio, 0.975)
+  )
+}

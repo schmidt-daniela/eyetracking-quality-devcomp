@@ -14,6 +14,7 @@ source(here("exp1", "R", "utils.R"))
 # Adjust Parameter --------------------------------------------------------
 for (i in c(1:17)) {
   folder <- "chimps" # "chimps"
+  buffer_lt <- 0
   filenames <- list.files(path = here("exp1", "data", "raw_clean_blink", folder))
   n <- i
   filename <- filenames[n]
@@ -666,8 +667,8 @@ for (i in c(1:17)) {
     x = "gaze_point_x",
     y = "gaze_point_y",
     trial = "session_trial",
-    aoi_left_upper = c(757, 323),
-    aoi_right_lower = c(1177, 743),
+    aoi_left_upper = c(877-buffer_lt, 443-buffer_lt),
+    aoi_right_lower = c(1057+buffer_lt, 623+buffer_lt),
     is_00_upleftcorner = TRUE
   ) |> # aoi buffer of 120px is already in aoi_left_upper and aoi_right_lower
     map(
@@ -692,8 +693,8 @@ for (i in c(1:17)) {
     x = "gaze_point_x",
     y = "gaze_point_y",
     trial = "session_trial",
-    aoi_left_upper = c(750, -40),
-    aoi_right_lower = c(1170, 380),
+    aoi_left_upper = c(870-buffer_lt, 80-buffer_lt),
+    aoi_right_lower = c(1050+buffer_lt, 260+buffer_lt),
     is_00_upleftcorner = TRUE
   ) |> # aoi buffer of 120px is already in aoi_left_upper and aoi_right_lower
     map(
@@ -718,8 +719,8 @@ for (i in c(1:17)) {
     x = "gaze_point_x",
     y = "gaze_point_y",
     trial = "session_trial",
-    aoi_left_upper = c(750, 700),
-    aoi_right_lower = c(1170, 1120),
+    aoi_left_upper = c(870-buffer_lt, 820-buffer_lt),
+    aoi_right_lower = c(1050+buffer_lt, 1000+buffer_lt),
     is_00_upleftcorner = TRUE
   ) |> # aoi buffer of 120px is already in aoi_left_upper and aoi_right_lower
     map(
@@ -744,8 +745,8 @@ for (i in c(1:17)) {
     x = "gaze_point_x",
     y = "gaze_point_y",
     trial = "session_trial",
-    aoi_left_upper = c(260, 50),
-    aoi_right_lower = c(700, 490),
+    aoi_left_upper = c(380-buffer_lt, 170-buffer_lt),
+    aoi_right_lower = c(580+buffer_lt, 370+buffer_lt),
     is_00_upleftcorner = TRUE
   ) |> # aoi buffer of 120px is already in aoi_left_upper and aoi_right_lower
     map(
@@ -770,8 +771,8 @@ for (i in c(1:17)) {
     x = "gaze_point_x",
     y = "gaze_point_y",
     trial = "session_trial",
-    aoi_left_upper = c(1220, 50),
-    aoi_right_lower = c(1660, 490),
+    aoi_left_upper = c(1340-buffer_lt, 50-buffer_lt),
+    aoi_right_lower = c(1540+buffer_lt, 250+buffer_lt),
     is_00_upleftcorner = TRUE
   ) |> # aoi buffer of 120px is already in aoi_left_upper and aoi_right_lower
     map(
@@ -796,8 +797,8 @@ for (i in c(1:17)) {
     x = "gaze_point_x",
     y = "gaze_point_y",
     trial = "session_trial",
-    aoi_left_upper = c(260, 590),
-    aoi_right_lower = c(700, 1030),
+    aoi_left_upper = c(380-buffer_lt, 710-buffer_lt),
+    aoi_right_lower = c(580+buffer_lt, 910+buffer_lt),
     is_00_upleftcorner = TRUE
   ) |> # aoi buffer of 120px is already in aoi_left_upper and aoi_right_lower
     map(
@@ -822,8 +823,8 @@ for (i in c(1:17)) {
     x = "gaze_point_x",
     y = "gaze_point_y",
     trial = "session_trial",
-    aoi_left_upper = c(1220, 590),
-    aoi_right_lower = c(1660, 1030),
+    aoi_left_upper = c(1340-buffer_lt, 710-buffer_lt),
+    aoi_right_lower = c(1540+buffer_lt, 910+buffer_lt),
     is_00_upleftcorner = TRUE
   ) |> # aoi buffer of 120px is already in aoi_left_upper and aoi_right_lower
     map(
@@ -848,8 +849,8 @@ for (i in c(1:17)) {
     x = "gaze_point_x",
     y = "gaze_point_y",
     trial = "session_trial",
-    aoi_left_upper = c(740, 320),
-    aoi_right_lower = c(1180, 760),
+    aoi_left_upper = c(860-buffer_lt, 440-buffer_lt),
+    aoi_right_lower = c(1060+buffer_lt, 640+buffer_lt),
     is_00_upleftcorner = TRUE
   ) |> # aoi buffer of 120px is already in aoi_left_upper and aoi_right_lower
     map(

@@ -8,7 +8,7 @@ rm(list = ls())
 # Packages ----------------------------------------------------------------
 library(here)
 library(tidyverse)
-library(gazer) # remotes::install_github("dmirman/gazer")
+library(gazer) # or install.packages("remotes") & remotes::install_github("dmirman/gazer")
 library(ggforce)
 library(readxl)
 

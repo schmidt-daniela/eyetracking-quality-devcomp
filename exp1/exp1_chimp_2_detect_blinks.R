@@ -83,7 +83,7 @@ for(i in 1:length(filenames)){
   df <- add_pupil_velocity(df = df, timestamp_col = "recording_timestamp", timestamp_unit = "s", pupil_left_col = "pupil_diameter_left", pupil_right_col = "pupil_diameter_right")
   
   ## Add Onset Offset of NA Chains ----
-  df <- mark_na_chain_onset_offset(df = df, col = "pupil_diameter_left", onset_col = "pupil_na_onset_left", offset_col = "pupil_na_offset.left", min_run = 2)
+  df <- mark_na_chain_onset_offset(df = df, col = "pupil_diameter_left", onset_col = "pupil_na_onset.left", offset_col = "pupil_na_offset.left", min_run = 2)
   df <- mark_na_chain_onset_offset(df = df, col = "pupil_diameter_right", onset_col = "pupil_na_onset.right", offset_col = "pupil_na_offset.right", min_run = 2)
   
   ## Add Velocity Threshold + Evaluate Whether It Was Crossed ----

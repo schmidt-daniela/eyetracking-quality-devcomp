@@ -11,6 +11,7 @@ library(readxl)
 library(bayesplot)
 library(ggdist)
 library(ggforce)
+library(bayestestR)
 
 # Load Functions ----------------------------------------------------------
 source(here("exp1", "R", "descriptives.R"))
@@ -405,6 +406,27 @@ acc_contr_all_pos
 acc_contr_all_pos |> 
   arrange(desc(ratio_median))
 
+## Posterior Probability Comparisons ----
+draws <- as_draws_df(full_rq1_acc)
+groups <- c("folder4m", "folder6m", "folder9m", "folder18m", "folderadults", "folderchimps")
+pairs <- t(combn(groups, 2)) |> as.data.frame()
+colnames(pairs) <- c("g1", "g2")
+
+results_rq1_acc <- pairs |> 
+  rowwise() |> 
+  do(get_prob(.$g1, .$g2, draws)) |> 
+  ungroup()
+
+results_rq1_acc |> 
+  mutate(
+    contrast = gsub("folder", "", contrast),
+    prob_g1_greater = round(prob_g1_greater, 3),
+    prob_g2_greater = round(prob_g2_greater, 3),
+    median = round(median, 2),
+    lo = round(lo, 2),
+    hi = round(hi, 2)
+  )
+
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
 
@@ -457,7 +479,7 @@ posterior_plot_rq1_acc <- ggplot(
       colour = position)
 ) +
   stat_halfeye(
-    point_interval = "median_qi",
+    point_interval = "median_qi", # median_hdi
     position = position_dodge(width = 0.80),
     .width = c(0, 0.95),
     alpha = 0.65,
@@ -590,6 +612,47 @@ png(here("exp1", "img", "rq1_acc_paperplot.png"), width = 2480/2, height = 3508/
 p_acc
 dev.off()
 
+## Contrasts (Flat Priors) ----
+# Requires another loaded workspace (that contains (...)_adj)
+## Group
+groups <- levels(df_tot$folder)
+acc_contr_all <- brms_group_effects_response(
+  fit   = full_rq1_acc_adj,
+  groups = groups,
+  group_prefix = "folder",
+  type  = "contrasts",
+  ref   = NULL,          # = all pairwise
+  link  = "log",
+  contrast_scale = "ratio"
+)
+
+acc_contr_all
+acc_contr_all |> 
+  arrange(desc(ratio_median))
+
+## Posterior Probability Comparisons (Flat Priors) ----
+# Requires another loaded workspace (that contains (...)_adj)
+draws <- as_draws_df(full_rq1_acc_adj)
+groups <- c("folder4m", "folder6m", "folder9m", "folder18m", "folderadults", "folderchimps")
+pairs <- t(combn(groups, 2)) |> as.data.frame()
+colnames(pairs) <- c("g1", "g2")
+
+results_rq1_acc <- pairs |> 
+  rowwise() |> 
+  do(get_prob(.$g1, .$g2, draws)) |> 
+  ungroup()
+
+results_rq1_acc |> 
+  mutate(
+    contrast = gsub("folder", "", contrast),
+    prob_g1_greater = round(prob_g1_greater, 3),
+    prob_g2_greater = round(prob_g2_greater, 3),
+    median = round(median, 2),
+    lo = round(lo, 2),
+    hi = round(hi, 2)
+  )
+
+
 
 # RQ1 (Precision RMS) -----------------------------------------------------
 
@@ -695,6 +758,7 @@ loo_red_precrms <- loo(red_rq1_precrms)
 loo_compare(loo_full_precrms, loo_red_precrms) # full_rq1_precrms -4.3       7.4 
 
 ## Contrasts ----
+groups <- levels(df_tot$folder)
 precrms_contr_all <- brms_group_effects_response(
   fit   = full_rq1_precrms,
   groups = groups,
@@ -707,7 +771,29 @@ precrms_contr_all <- brms_group_effects_response(
 
 precrms_contr_all
 precrms_contr_all |> 
-  arrange(desc(ratio_median))
+  arrange(desc(ratio_median)) |> 
+  print(n = 30)
+
+## Posterior Probability Comparisons ----
+draws <- as_draws_df(full_rq1_precrms)
+groups <- c("folder4m", "folder6m", "folder9m", "folder18m", "folderadults", "folderchimps")
+pairs <- t(combn(groups, 2)) |> as.data.frame()
+colnames(pairs) <- c("g1", "g2")
+
+results_rq1_precrms <- pairs |> 
+  rowwise() |> 
+  do(get_prob(.$g1, .$g2, draws)) |> 
+  ungroup()
+
+results_rq1_precrms |> 
+  mutate(
+    contrast = gsub("folder", "", contrast),
+    prob_g1_greater = round(prob_g1_greater, 3),
+    prob_g2_greater = round(prob_g2_greater, 3),
+    median = round(median, 2),
+    lo = round(lo, 2),
+    hi = round(hi, 2)
+  )
 
 ## Posterior Predictive Checks ----
 pp_check(full_rq1_precrms, ndraws = 100) # A good model will show the observed data (usually a dark line) closely following the distribution of simulated datasets (lighter lines).
@@ -763,7 +849,7 @@ posterior_plot_rq1_precrms <- ggplot(
       colour = position)
 ) +
   stat_halfeye(
-    point_interval = "median_qi",
+    point_interval = "median_qi", # median_hdi
     position = position_dodge(width = 0.80),
     .width = c(0, 0.95),
     alpha = 0.65,
@@ -933,7 +1019,6 @@ prior_rq1_precsd <- c(
 )
 
 ## Full Model ----
-t0 <- proc.time()
 full_rq1_precsd <- brm(
   precsd_visd ~ 0 + folder + position + (1 + position | group_id),
   data   = df_tot,
@@ -943,9 +1028,6 @@ full_rq1_precsd <- brm(
   chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
   seed = 123
 )
-t1 <- proc.time()
-proc_time_rq1_precsd <- t1 - t0
-rm(t0, t1)
 
 ## Define Priors of Reduced Model----
 # With Gamma(link="log"), coefficients are on the log-mean scale.
@@ -994,6 +1076,7 @@ loo_red_precsd <- loo(red_rq1_precsd)
 loo_compare(loo_full_precsd, loo_red_precsd)
 
 ## Contrasts ----
+groups <- levels(df_tot$folder)
 precsd_contr_all <- brms_group_effects_response(
   fit   = full_rq1_precsd,
   groups = groups,
@@ -1006,7 +1089,29 @@ precsd_contr_all <- brms_group_effects_response(
 
 precsd_contr_all
 precsd_contr_all |> 
-  arrange(desc(ratio_median))
+  arrange(desc(ratio_median)) |> 
+  print(n=30)
+
+## Posterior Probability Comparisons ----
+draws <- as_draws_df(full_rq1_precsd)
+groups <- c("folder4m", "folder6m", "folder9m", "folder18m", "folderadults", "folderchimps")
+pairs <- t(combn(groups, 2)) |> as.data.frame()
+colnames(pairs) <- c("g1", "g2")
+
+results_rq1_precsd <- pairs |> 
+  rowwise() |> 
+  do(get_prob(.$g1, .$g2, draws)) |> 
+  ungroup()
+
+results_rq1_precsd |> 
+  mutate(
+    contrast = gsub("folder", "", contrast),
+    prob_g1_greater = round(prob_g1_greater, 3),
+    prob_g2_greater = round(prob_g2_greater, 3),
+    median = round(median, 2),
+    lo = round(lo, 2),
+    hi = round(hi, 2)
+  )
 
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
@@ -1059,7 +1164,7 @@ posterior_plot_rq1_precsd <- ggplot(
       colour = position)
 ) +
   stat_halfeye(
-    point_interval = "median_qi",
+    point_interval = "median_qi", # median_hdi
     position = position_dodge(width = 0.80),
     .width = c(0, 0.95),
     alpha = 0.65,
@@ -1283,6 +1388,7 @@ loo_red_rob <- loo(red_rq1_rob)
 loo_compare(loo_full_rob, loo_red_rob) # red_rq1_rob  -31.3       5.5 
 
 ## Contrasts ----
+groups <- levels(df_tot$folder)
 rob_contr_all <- brms_group_effects_response(
   fit   = full_rq1_rob,
   groups = groups,
@@ -1294,7 +1400,29 @@ rob_contr_all <- brms_group_effects_response(
 )
 
 rob_contr_all |> 
-  arrange(desc(ratio_median))
+  arrange(desc(ratio_median)) |> 
+  print(n=30)
+
+## Posterior Probability Comparisons ----
+draws <- as_draws_df(full_rq1_rob)
+groups <- c("folder4m", "folder6m", "folder9m", "folder18m", "folderadults", "folderchimps")
+pairs <- t(combn(groups, 2)) |> as.data.frame()
+colnames(pairs) <- c("g1", "g2")
+
+results_rq1_rob <- pairs |> 
+  rowwise() |> 
+  do(get_prob(.$g1, .$g2, draws)) |> 
+  ungroup()
+
+results_rq1_rob |> 
+  mutate(
+    contrast = gsub("folder", "", contrast),
+    prob_g1_greater = round(prob_g1_greater, 3),
+    prob_g2_greater = round(prob_g2_greater, 3),
+    median = round(median, 2),
+    lo = round(lo, 2),
+    hi = round(hi, 2)
+  )
 
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
@@ -1328,7 +1456,7 @@ posterior_plot_rq1_rob <- ggplot(
   rob_long,
   aes(x = .epred,
       y = factor(folder, levels = rev(folder_order)))) +
-  stat_halfeye(point_interval = "median_qi", .width = c(0, 0.95),
+  stat_halfeye(point_interval = "median_qi", .width = c(0, 0.95), # median_hdi
                alpha = 0.65, height = 1.05, adjust = 1.0) +
   scale_y_discrete(labels = folder_labels) +
   labs(x = "Predicted Robustness", y = NULL) +
@@ -1896,7 +2024,7 @@ posterior_plot_rq2_acc <- ggplot(
 ) +
   geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
   stat_halfeye(
-    point_interval = "median_qi",
+    point_interval = "median_hdi", # "median_qi"
     .width = c(0, 0.95),
     alpha = 0.65,
     height = 1.05,
@@ -1958,6 +2086,11 @@ df_tot |>
             sd_acc_visd = sd(acc_visd, na.rm = T)) |> 
   ungroup() |> 
   arrange(folder, time_3) # or time_1 or time_2 or time_3
+
+## HDI ----
+bayestestR::hdi(full_rq2_acc_hum)
+bayestestR::hdi(full_rq2_acc_chi)
+bayestestR::hdi(full_rq2_acc_chi_2)
 
 ## Paper Plot ----
 # Plot showing data quality across time in all tested groups
@@ -2346,7 +2479,7 @@ posterior_plot_rq2_precrms <- ggplot(
 ) +
   geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
   stat_halfeye(
-    point_interval = "median_qi",
+    point_interval = "median_hdi", # "median_qi"
     .width = c(0, 0.95),
     alpha = 0.65,
     height = 1.05,
@@ -2408,6 +2541,11 @@ df_tot |>
             sd_precrms_visd = sd(precrms_visd, na.rm = T)) |> 
   ungroup() |> 
   arrange(folder, time_3) # or time_1 or time_2 or time_3
+
+## HDI ----
+bayestestR::hdi(full_rq2_precrms_hum)
+bayestestR::hdi(full_rq2_precrms_chi)
+bayestestR::hdi(full_rq2_precrms_chi_2)
 
 ## Paper Plot ----
 plot_rq2(df = df_tot, png_name = "rq2_precrms_session_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
@@ -2843,7 +2981,7 @@ posterior_plot_rq2_precsd <- ggplot(
 ) +
   geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
   stat_halfeye(
-    point_interval = "median_qi",
+    point_interval = "median_hdi", # median_qi
     .width = c(0, 0.95),
     alpha = 0.65,
     height = 1.05,
@@ -2905,6 +3043,11 @@ df_tot |>
             sd_precsd_visd = sd(precsd_visd, na.rm = T)) |> 
   ungroup() |> 
   arrange(folder, time_3) # or time_1 or time_2 or time_3
+
+## HDI ----
+bayestestR::hdi(full_rq2_precsd_hum)
+bayestestR::hdi(full_rq2_precsd_chi)
+bayestestR::hdi(full_rq2_precsd_chi_2)
 
 ## Paper Plot ----
 plot_rq2(df = df_tot, png_name = "rq2_precsd_session_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
@@ -2970,7 +3113,6 @@ for (page in 1:n_pages) {
 }
 
 # RQ3 (Fixation Duration) -------------------------------------------------
-
 df_rq3 <- df_tot |> 
   group_by(folder, group_id) |> 
   summarise(
@@ -3191,7 +3333,7 @@ posterior_plot_rq3_fixdur <- ggplot(
 ) +
   geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
   stat_halfeye(
-    point_interval = "median_qi",
+    point_interval = "median_hdi",
     .width = c(0, 0.95),
     alpha = 0.65,
     height = 1.05,
@@ -3304,6 +3446,9 @@ df_tot |>
   as.data.frame() |> 
   ungroup() |> 
   arrange(mean_mean_fixation_duration)
+
+## HDI ----
+bayestestR::hdi(full_rq3_fixdur)
 
 ## Paper Plot ----
 plot_rq3(df = df_tot, x_var = "acc_visd", y_var = "mean_fixation_duration", width = 2480, height = 3508/2, res = 250,
@@ -3498,7 +3643,7 @@ posterior_plot_rq3_fixnum <- ggplot(
 ) +
   geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
   stat_halfeye(
-    point_interval = "median_qi",
+    point_interval = "median_hdi",
     .width = c(0, 0.95),
     alpha = 0.65,
     height = 1.05,
@@ -3612,6 +3757,9 @@ df_tot |>
   as.data.frame() |> 
   ungroup() |>
   slice(3,4,5,2,6,1)
+
+## HDI ----
+bayestestR::hdi(full_rq3_fixnum)
 
 ## Paper Plot ----
 plot_rq3(df = df_tot, x_var = "acc_visd", y_var = "mean_fixation_number", width = 2480, height = 3508/2, res = 250,
@@ -3815,7 +3963,7 @@ posterior_plot_rq3_latencies <- ggplot(
 ) +
   geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
   stat_halfeye(
-    point_interval = "median_qi",
+    point_interval = "median_hdi",
     .width = c(0, 0.95),
     alpha = 0.65,
     height = 1.05,
@@ -3824,7 +3972,7 @@ posterior_plot_rq3_latencies <- ggplot(
   ) +
   facet_wrap(
     ~ predictor,
-    ncol = 2,
+    ncol = 3,
     scales = "free_x",
     labeller = labeller(predictor = predictor_labels)
   ) +
@@ -3835,7 +3983,7 @@ posterior_plot_rq3_latencies <- ggplot(
   ) +
   theme_bw(base_size = 14)
 
-png(here("exp1", "img", "rq3_latencies_posterior.png"), width = 2480, height = 3508 / 4, res = 250)
+png(here("exp1", "img", "rq3_latencies_posterior_3c.png"), width = 2480, height = 3508 / 4, res = 250)
 posterior_plot_rq3_latencies
 dev.off()
 
@@ -3916,6 +4064,9 @@ df_tot |>
   as.data.frame() |> 
   ungroup() |> 
   slice(3,4,5,2,6,1)
+
+## HDI ----
+bayestestR::hdi(full_rq3_latencies)
 
 ## Paper Plot ----
 plot_rq3(df = df_tot, x_var = "acc_visd", y_var = "latencies", width = 2480, height = 3508/2, res = 250,
@@ -4022,7 +4173,7 @@ full_rq3_rel_gaze_in_aoi <- brm(
   seed = 123
 )
 
-## Define Priors of Redunced Model ----
+## Define Priors of Reduced Model ----
 prior_rq3_rel_gaze_in_aoi_red <- c(
   # Sample-specific baseline fixation numbers (log-mean scale)
   prior(normal(1.1, 1.0), class = "b", coef = "folder4m"),
@@ -4107,7 +4258,7 @@ posterior_plot_rq3_rel_gaze_in_aoi <- ggplot(
 ) +
   geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
   stat_halfeye(
-    point_interval = "median_qi",
+    point_interval = "median_hdi",
     .width = c(0, 0.95),
     alpha = 0.65,
     height = 1.05,
@@ -4209,7 +4360,6 @@ png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_chimps_robustness.pn
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folderchimps:robustness_prop_2", "prior_b_folderchimps:robustness_prop_2"), facet_label = "Chimpanzees, Robustness")
 dev.off()
 
-
 ## Descriptives ----
 df_tot |> 
   group_by(folder, group_id) |> 
@@ -4221,6 +4371,28 @@ df_tot |>
   as.data.frame() |> 
   ungroup() |> 
   slice(3,4,5,2,6,1)
+
+## Correlations ----
+df_tot |>
+  group_by(folder, group_id) |>
+  summarize(rel_gaze_in_aoi = mean(rel_gaze_in_aoi, na.rm = T), 
+            acc_visd = mean(acc_visd, na.rm = T),
+            precrms_visd = mean(precrms_visd, na.rm = T),
+            robustness_prop_2 = mean(robustness_prop_2, na.rm = T)) |>
+  as.data.frame() |> 
+  group_by(folder) |> 
+  summarize(
+    r = cor(rel_gaze_in_aoi, robustness_prop_2, use = "complete.obs"),
+    p = cor.test(rel_gaze_in_aoi, robustness_prop_2)$p.value,
+    # r = cor(rel_gaze_in_aoi, precrms_visd, use = "complete.obs"),
+    # p = cor.test(rel_gaze_in_aoi, precrms_visd)$p.value,
+    # r = cor(rel_gaze_in_aoi, acc_visd, use = "complete.obs"),
+    # p = cor.test(rel_gaze_in_aoi, acc_visd)$p.value,
+    .groups = "drop"
+  )
+
+## HDI ----
+bayestestR::hdi(full_rq3_rel_gaze_in_aoi)
 
 ## Paper Plot ----
 plot_rq3(df = df_tot, x_var = "acc_visd", y_var = "rel_gaze_in_aoi", width = 2480, height = 3508/2, res = 250,

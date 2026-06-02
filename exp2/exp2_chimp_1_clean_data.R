@@ -141,11 +141,22 @@ for(i in c(1:ape_size)){
   
   df <- df |> select(-object_location, checkflake_location1, checkflake_location2) # redundant information
   
+  df$participant_name <- df$participant_name |>
+    tolower() |>
+    gsub("1|_", "", x = _)
+
+  if(folder == "human_calibration_9p"){
+    df <- make_trial_num_2(data = df |> filter(stimulus_position != "NA_NA"), recording_col = "participant_name", 
+                            stimulus_col = "stimulus_position", output_col = "trial")
+  }
+  
+  if(folder != "human_calibration_9p"){
   df <- df |> 
     group_by(recording_name) |> 
     mutate(trial = make_trial_num(stimulus, stimulus_position),
            trial = na_if(trial, 0L)) |> 
     ungroup()
+  }
   
   df[is.na(df$stimulus),"trial"] <- NA
   

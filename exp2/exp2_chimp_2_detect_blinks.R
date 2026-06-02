@@ -3,7 +3,7 @@
 ## The identification of eye blink is based on their characteristic of
 ## having a pronounced drop in the pupillary signal, followed by a full loss of signal. 
 # (https://link.springer.com/article/10.3758/s13428-017-1008-1)
-## Jan 19 – Daniela Schmidt
+## May 27 – Daniela Schmidt
 
 # Clear Workspace ---------------------------------------------------------
 rm(list = ls())
@@ -14,22 +14,22 @@ library(tidyverse)
 library(gazer)
 
 # Function ----------------------------------------------------------------
-source(here("exp1", "R", "blink.R"))
+source(here("exp2", "R", "blink.R"))
 
 # Adjust Parameter --------------------------------------------------------
-folder_name <- "chimps"
-filenames <- list.files(path = here("exp1", "data", "raw_clean", folder_name))
+folder_name <- "alex_calibration_5p" # alex_calibration_5p or human_calibration_9p or ape_calibration_2p
+filenames <- list.files(path = here("exp2", "data", "raw_clean", folder_name))
 
 # Read and Manipulate Data ------------------------------------------------
 for(i in 1:length(filenames)){
   nr <- i # nr 1 is first participant
   
   ## Read Data ----
-  raw <- readRDS(here("exp1", "data", "raw_clean", folder_name, filenames[nr]))
+  raw <- readRDS(here("exp2", "data", "raw_clean", folder_name, filenames[nr]))
   df <- raw
   
   ## Save Plot (Pre Smoothing)
-  png(here("exp1", "doc", folder_name, paste0(filenames[i] |> str_replace(".rds",""), "_1_pupil_presmooth", ".png")), width = 2048, height = 1152, res = 300)
+  png(here("exp2", "doc", folder_name, paste0(filenames[i] |> str_replace(".rds",""), "_1_pupil_presmooth", ".png")), width = 2048, height = 1152, res = 300)
   p1 <- ggplot(df |>
                  mutate(time = cumsum(c(0, diff(recording_timestamp)))) |> 
                  mutate(time = cumsum(time)/1000) |> 
@@ -50,7 +50,7 @@ for(i in 1:length(filenames)){
     mutate(pupil_diameter_left = moving_average_pupil(pupil_diameter_left, n = 10))
   
   ## Save Plot (Post Smoothing)
-  png(here("exp1", "doc", folder_name, paste0(filenames[i] |> str_replace(".rds",""), "_2_pupil_postsmooth", ".png")), width = 2048, height = 1152, res = 300)
+  png(here("exp2", "doc", folder_name, paste0(filenames[i] |> str_replace(".rds",""), "_2_pupil_postsmooth", ".png")), width = 2048, height = 1152, res = 300)
   p2 <- ggplot(df |>
                  mutate(time = cumsum(c(0, diff(recording_timestamp)))) |> 
                  mutate(time = cumsum(time)/1000) |> 
@@ -67,7 +67,7 @@ for(i in 1:length(filenames)){
   df <- df |> rowwise() |>  mutate(pupil_diameter_average = mean(c(pupil_diameter_left, pupil_diameter_right), na.rm = T)) |> ungroup()
   
   ## Save Plot (Post Outlierinterpolation)
-  png(here("exp1", "doc", folder_name, paste0(filenames[i] |> str_replace(".rds",""), "_3_pupil_postsmooth_postoutlier", ".png")), width = 2048, height = 1152, res = 300)
+  png(here("exp2", "doc", folder_name, paste0(filenames[i] |> str_replace(".rds",""), "_3_pupil_postsmooth_postoutlier", ".png")), width = 2048, height = 1152, res = 300)
   p3 <- ggplot(df |>
                  mutate(time = cumsum(c(0, diff(recording_timestamp)))) |> 
                  mutate(time = cumsum(time)/1000) |> 
@@ -124,7 +124,7 @@ for(i in 1:length(filenames)){
   save_detected_blinks_pdf(plots, df)
   
   # Write data
-  out_rds <- here("exp1", "data", "raw_clean_blink", folder_name, filenames[nr])
+  out_rds <- here("exp2", "data", "raw_clean_blink", folder_name, filenames[nr])
   saveRDS(df, out_rds, compress = "xz")
   
   print(i)

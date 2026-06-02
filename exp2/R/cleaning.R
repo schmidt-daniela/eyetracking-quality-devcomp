@@ -51,6 +51,36 @@ make_trial_num <- function(stimulus, stimulus_position, start_at = 1L) {
   trial
 }
 
+
+#' Increment Trial Counter Based on Stimulus Changes
+#'
+#' Groups data by a recording column and creates a sequential trial counter that 
+#' increments every time the stimulus position changes. Resets to 1 for each new recording.
+#'
+#' @param data A data frame containing the data. Default is \code{df}.
+#' @param recording_col Column name used to group recordings. Default is \code{"participant_name"}.
+#' @param stimulus_col Column name tracking stimulus position changes. Default is \code{"stimulus_position"}.
+#' @param output_col Column name for the generated trial index. Default is \code{"trial"}.
+#'
+#' @return The original data frame with an additional trial counter column.
+#' @export
+make_trial_num_2 <- function(data = df, 
+                              recording_col = "participant_name", 
+                              stimulus_col = "stimulus_position", 
+                              output_col = "trial") {
+  data <- data |> 
+    group_by(across(all_of(recording_col))) |> 
+    mutate(
+      is_change = .data[[stimulus_col]] != lag(.data[[stimulus_col]], default = first(.data[[stimulus_col]])),
+      is_change = if_else(row_number() == 1, TRUE, is_change),
+      !!output_col := cumsum(is_change)
+    ) |> 
+    select(-is_change) |> # remove helper column
+    ungroup()
+  
+  return(data)
+}
+
 #' Mark an area of interest (AOI) in gaze data.
 #' Assigns an AOI label to all rows in a data frame where gaze coordinates
 #' fall within a specified rectangular region and the stimulus matches

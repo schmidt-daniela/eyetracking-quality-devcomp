@@ -10,6 +10,7 @@ exp2/data/raw_2/
 exp1/data/raw_clean/
 exp2/data/raw_clean/
 exp1/data/raw_clean_blink/
+exp2/data/raw_clean_blink/
 
 # Doc folder
 exp1/doc/4m/
@@ -19,6 +20,10 @@ exp1/doc/18m/
 exp1/doc/adults/
 exp1/doc/chimps/
 exp2/doc/blink_check/
+exp2/doc/alex_calibration_5p
+exp2/doc/ape_calibration_2p
+exp2/doc/human_calibration_9p
+exp2/doc/blink_check
 
 # Local files
 exp1/doc/protocol_decoded.xlsx
@@ -72,3 +77,4 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
+.positai

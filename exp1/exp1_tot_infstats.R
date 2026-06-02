@@ -2156,7 +2156,44 @@ for (page in 1:n_pages) {
   )
 }
 
-# RQ2 (Precision RMS) -----------------------------------------------------
+## Posterior Probability / Directional Certainty ----
+as_draws_df(full_rq2_acc_hum) |>
+  select(contains(":")) |>
+  select(!contains("prior")) |>
+  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
+  group_by(param) |>
+  summarise(posterior_mean = mean(x),
+            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
+  mutate(slope = str_split_i(param, ":", 2),
+         folder = str_split_i(param, ":", 1)) |>
+  arrange(slope, folder) |>
+  select(-slope, -folder)
+
+as_draws_df(full_rq2_acc_chi) |>
+  select(contains("b_time")) |>
+  select(!contains("prior")) |>
+  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
+  group_by(param) |>
+  summarise(posterior_mean = mean(x),
+            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
+  mutate(slope = str_split_i(param, ":", 2),
+         folder = str_split_i(param, ":", 1)) |>
+  arrange(slope, folder) |>
+  select(-slope, -folder)
+
+as_draws_df(full_rq2_acc_chi_2) |>
+  select(contains("b_time")) |>
+  select(!contains("prior")) |>
+  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
+  group_by(param) |>
+  summarise(posterior_mean = mean(x),
+            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
+  mutate(slope = str_split_i(param, ":", 2),
+         folder = str_split_i(param, ":", 1)) |>
+  arrange(slope, folder) |>
+  select(-slope, -folder)
+
+# RQ2 (Precifull_rq2_acc_chi_2# RQ2 (Precision RMS) -----------------------------------------------------
 # RQ2: (How) does eye-tracking data quality change over time,
 # with time being defined as trials (humans) and testing days (chimpanzees)?
 

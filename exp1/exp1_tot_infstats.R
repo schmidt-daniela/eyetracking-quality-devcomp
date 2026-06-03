@@ -3513,6 +3513,19 @@ plot_rq3(df = df_tot, x_var = "robustness_prop_2", y_var = "mean_fixation_durati
 # plot_rq3_all(df = df_tot, x_var = "robustness_prop_2", y_var = "mean_fixation_duration",
 #              png_name = "rq3_all_rob_fixdur.png", x_lab = "Robustness\n(in %)", y_lab = "Mean Fixation Duration\n(in ms)")
 
+## Directional Certainties ----
+as_draws_df(full_rq3_fixdur) |>
+  select(contains(":")) |>
+  select(!contains("prior")) |>
+  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
+  group_by(param) |>
+  summarise(posterior_mean = mean(x),
+            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
+  mutate(slope = str_split_i(param, ":", 2),
+         folder = str_split_i(param, ":", 1)) |>
+  arrange(slope, folder) |>
+  select(-slope, -folder)
+
 # RQ3 (Fixation Number) ---------------------------------------------------
 
 ## Define Priors ----
@@ -3824,6 +3837,19 @@ plot_rq3(df = df_tot, x_var = "robustness_prop_2", y_var = "mean_fixation_number
 # plot_rq3_all(df = df_tot, x_var = "robustness_prop_2", y_var = "mean_fixation_number",
 #              png_name = "rq3_all_rob_fixnum.png", x_lab = "Robustness\n(in %)", y_lab = "Mean Fixation Number")
 
+## Directional Certainties ----
+as_draws_df(full_rq3_fixnum) |>
+  select(contains(":")) |>
+  select(!contains("prior")) |>
+  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
+  group_by(param) |>
+  summarise(posterior_mean = mean(x),
+            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
+  mutate(slope = str_split_i(param, ":", 2),
+         folder = str_split_i(param, ":", 1)) |>
+  arrange(slope, folder) |>
+  select(-slope, -folder)
+
 # RQ3 (Latencies) ---------------------------------------------------------
 
 ## Define Priors ----
@@ -4130,6 +4156,19 @@ plot_rq3(df = df_tot, x_var = "robustness_prop_2", y_var = "latencies", width = 
 # 
 # plot_rq3_all(df = df_tot, x_var = "robustness_prop_2", y_var = "latencies",
 #              png_name = "rq3_all_rob_lat.png", x_lab = "Robustness\n(in %)", y_lab = "Latencies\n(in ms)")
+
+## Directional Certainties ----
+as_draws_df(full_rq3_latencies) |>
+  select(contains(":")) |>
+  select(!contains("prior")) |>
+  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
+  group_by(param) |>
+  summarise(posterior_mean = mean(x),
+            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
+  mutate(slope = str_split_i(param, ":", 2),
+         folder = str_split_i(param, ":", 1)) |>
+  arrange(slope, folder) |>
+  select(-slope, -folder)
 
 # RQ3 (Relative Looking Time) ---------------------------------------------
 
@@ -4457,8 +4496,19 @@ plot_rq3(df = df_tot, x_var = "robustness_prop_2", y_var = "rel_gaze_in_aoi", wi
 # plot_rq3_all(df = df_tot, x_var = "robustness_prop_2", y_var = "rel_gaze_in_aoi",
 #              png_name = "rq3_all_rob_rellook.png", x_lab = "Robustness\n(in %)", y_lab = "Relative Looking Time\n(in ms)")
 
+## Directional Certainties ----
+as_draws_df(full_rq3_rel_gaze_in_aoi) |>
+  select(contains(":")) |>
+  select(!contains("prior")) |>
+  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
+  group_by(param) |>
+  summarise(posterior_mean = mean(x),
+            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
+  mutate(slope = str_split_i(param, ":", 2),
+         folder = str_split_i(param, ":", 1)) |>
+  arrange(slope, folder) |>
+  select(-slope, -folder)
 
-# Explorative Analyses ----------------------------------------------------
 # Exploratory Analyses ----------------------------------------------------
 library(readxl)
 

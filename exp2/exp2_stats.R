@@ -446,6 +446,17 @@ df_tot |>
   ungroup() |> 
   arrange(mean_acc_visd)
 
+# Per individual
+df_tot |> 
+  group_by(folder, group_id) |> 
+  summarize(acc_visd = mean(acc_visd, na.rm = T)) |> 
+  ungroup() |> 
+  pivot_wider(names_from = folder, values_from = acc_visd) |>
+  mutate(
+    diff_2p_5p = ape_calibration_2p - alex_calibration_5p,
+    diff_2p_9p = ape_calibration_2p - human_calibration_9p
+  )
+
 ## Paper Plot ----
 # Aggregate to subject level (mean over time/trials)
 df_subj <- df_tot |>
@@ -680,7 +691,7 @@ posterior_plot_precrms <- ggplot(
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1)) +
   xlim(0,0.9)
 
-png(here("exp2", "img", "precrms_posterior.png"), width = 2480/1.5, height = 3508/2.2, res = 210)
+png(here("exp2", "img", "precrms_posterior.png"),  width = 2480/1.5, height = 3508/2.2, res = 210)
 posterior_plot_precrms
 dev.off() 
 
@@ -936,7 +947,7 @@ posterior_plot_precsd <- ggplot(
         legend.direction = "horizontal") +
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
-png(here("exp2", "img", "precsd_posterior.png"), width = 2480/2, height = 3508/2.5, res = 200)
+png(here("exp2", "img", "precsd_posterior.png"),  width = 2480/1.5, height = 3508/2.2, res = 210)
 posterior_plot_precsd
 dev.off() 
 
@@ -1157,9 +1168,6 @@ posterior_plot_rob <- ggplot(
   theme_bw(base_size = 14)
 
 # Save
-png(here::here("exp2", "img", "rob_posterior.png"), width = 2480, height = 3508/4, res = 250)
-posterior_plot_rob
-dev.off()
 
 ## Posterior Versus Prior Plots ----
 

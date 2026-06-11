@@ -54,17 +54,25 @@ valid_summary <- valid_counts_all |>
   summarise(
     n_participants = n_distinct(group_id),
     
-    mean_acc_visd      = mean(n_valid_acc_visd, na.rm = TRUE),
-    sd_acc_visd        = sd(n_valid_acc_visd, na.rm = TRUE),
+    min_acc      = min(n_valid_acc_visd, na.rm = TRUE),
+    max_acc      = max(n_valid_acc_visd, na.rm = TRUE),
+    mean_acc      = mean(n_valid_acc_visd, na.rm = TRUE),
+    sd_acc        = sd(n_valid_acc_visd, na.rm = TRUE),
     
-    mean_precrms_visd  = mean(n_valid_precrms_visd, na.rm = TRUE),
-    sd_precrms_visd    = sd(n_valid_precrms_visd, na.rm = TRUE),
+    min_precrms  = min(n_valid_precrms_visd, na.rm = TRUE),
+    max_precrms  = max(n_valid_precrms_visd, na.rm = TRUE),
+    mean_precrms  = mean(n_valid_precrms_visd, na.rm = TRUE),
+    sd_precrms    = sd(n_valid_precrms_visd, na.rm = TRUE),
     
-    mean_precsd_visd   = mean(n_valid_precsd_visd, na.rm = TRUE),
-    sd_precsd_visd     = sd(n_valid_precsd_visd, na.rm = TRUE),
+    min_precsd   = min(n_valid_precsd_visd, na.rm = TRUE),
+    max_precsd   = max(n_valid_precsd_visd, na.rm = TRUE),
+    mean_precsd   = mean(n_valid_precsd_visd, na.rm = TRUE),
+    sd_precsd     = sd(n_valid_precsd_visd, na.rm = TRUE),
     
-    mean_robustness_ms = mean(n_valid_robustness_ms, na.rm = TRUE),
-    sd_robustness_ms   = sd(n_valid_robustness_ms, na.rm = TRUE),
+    # min_rob = min(n_valid_robustness_ms, na.rm = TRUE),
+    # max_rob = max(n_valid_robustness_ms, na.rm = TRUE),
+    # mean_rob = mean(n_valid_robustness_ms, na.rm = TRUE),
+    # sd_rob   = sd(n_valid_robustness_ms, na.rm = TRUE),
     
     .groups = "drop"
   )

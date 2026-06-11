@@ -447,16 +447,16 @@ folder_labels <- c(
   "adults"="Adults","chimps"="Chimpanzees"
 )
 
-pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
-pos_labels <- c(
-  "center"="Center",
-  "top_right"="Top Right",
-  "bot_right"="Bottom Right",
-  "bottom"="Bottom",
-  "top_left"="Top Left",
-  "bot_left"="Bottom Left",
-  "top"="Top"
-)
+# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
+# pos_labels <- c(
+#   "center"="Center",
+#   "top_right"="Top Right",
+#   "bot_right"="Bottom Right",
+#   "bottom"="Bottom",
+#   "top_left"="Top Left",
+#   "bot_left"="Bottom Left",
+#   "top"="Top"
+# )
 
 # Create Newdata Grid
 nd_pos <- tidyr::expand_grid(
@@ -475,8 +475,9 @@ posterior_plot_rq1_acc <- ggplot(
   acc_long,
   aes(x = .epred,
       y = factor(folder, levels = rev(folder_order)),
-      fill = position,
-      colour = position)
+      # fill = position,
+      # colour = position
+      )
 ) +
   stat_halfeye(
     point_interval = "median_qi", # median_hdi
@@ -487,17 +488,17 @@ posterior_plot_rq1_acc <- ggplot(
     adjust = 1.0
   ) +
   scale_y_discrete(labels = folder_labels) +
-  scale_fill_discrete(name = "Position", labels = pos_labels) +
-  scale_colour_discrete(name = "Position", labels = pos_labels) +
+  # scale_fill_discrete(name = "Position", labels = pos_labels) +
+  # scale_colour_discrete(name = "Position", labels = pos_labels) +
   labs(x = "Predicted Accuracy", y = NULL) +
   theme_bw(base_size = 14) +
-  theme(legend.position = "bottom",
-        legend.box = "horizontal",
-        legend.direction = "horizontal") +
+  # theme(legend.position = "bottom",
+  #       legend.box = "horizontal",
+  #       legend.direction = "horizontal") +
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
 
-png(here("exp1", "img", "rq1_acc_posterior.png"), width = 2480, height = 3508/3, res = 180)
+png(here("exp1", "img", "rq1_acc_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
 posterior_plot_rq1_acc
 dev.off()
 
@@ -817,16 +818,16 @@ folder_labels <- c(
   "adults"="Adults","chimps"="Chimpanzees"
 )
 
-pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
-pos_labels <- c(
-  "center"="Center",
-  "top_right"="Top Right",
-  "bot_right"="Bottom Right",
-  "bottom"="Bottom",
-  "top_left"="Top Left",
-  "bot_left"="Bottom Left",
-  "top"="Top"
-)
+# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
+# pos_labels <- c(
+#   "center"="Center",
+#   "top_right"="Top Right",
+#   "bot_right"="Bottom Right",
+#   "bottom"="Bottom",
+#   "top_left"="Top Left",
+#   "bot_left"="Bottom Left",
+#   "top"="Top"
+# )
 
 # Create Newdata Grid
 nd_pos <- tidyr::expand_grid(
@@ -845,8 +846,9 @@ posterior_plot_rq1_precrms <- ggplot(
   precrms_long,
   aes(x = .epred,
       y = factor(folder, levels = rev(folder_order)), 
-      fill = position,
-      colour = position)
+      # fill = position,
+      # colour = position
+      )
 ) +
   stat_halfeye(
     point_interval = "median_qi", # median_hdi
@@ -857,16 +859,16 @@ posterior_plot_rq1_precrms <- ggplot(
     adjust = 1.0
   ) +
   scale_y_discrete(labels = folder_labels) +
-  scale_fill_discrete(name = "Position", labels = pos_labels) +
-  scale_colour_discrete(name = "Position", labels = pos_labels) +
+  # scale_fill_discrete(name = "Position", labels = pos_labels) +
+  # scale_colour_discrete(name = "Position", labels = pos_labels) +
   labs(x = "Predicted Precision (RMS)", y = NULL) +
   theme_bw(base_size = 14) +
-  theme(legend.position = "bottom",
-        legend.box = "horizontal",
-        legend.direction = "horizontal") +
+  # theme(legend.position = "bottom",
+  #       legend.box = "horizontal",
+  #       legend.direction = "horizontal") +
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
-png(here("exp1", "img", "rq1_precrms_posterior.png"), width = 2480/2, height = 3508/2.5, res = 200)
+png(here("exp1", "img", "rq1_precrms_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
 posterior_plot_rq1_precrms
 dev.off() 
 
@@ -1132,16 +1134,16 @@ folder_labels <- c(
   "adults"="Adults","chimps"="Chimpanzees"
 )
 
-pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
-pos_labels <- c(
-  "center"="Center",
-  "top_right"="Top Right",
-  "bot_right"="Bottom Right",
-  "bottom"="Bottom",
-  "top_left"="Top Left",
-  "bot_left"="Bottom Left",
-  "top"="Top"
-)
+# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
+# pos_labels <- c(
+#   "center"="Center",
+#   "top_right"="Top Right",
+#   "bot_right"="Bottom Right",
+#   "bottom"="Bottom",
+#   "top_left"="Top Left",
+#   "bot_left"="Bottom Left",
+#   "top"="Top"
+# )
 
 # Create Newdata Grid
 nd_pos <- tidyr::expand_grid(
@@ -1160,8 +1162,9 @@ posterior_plot_rq1_precsd <- ggplot(
   precsd_long,
   aes(x = .epred,
       y = factor(folder, levels = rev(folder_order)),
-      fill = position,
-      colour = position)
+      # fill = position,
+      # colour = position
+      )
 ) +
   stat_halfeye(
     point_interval = "median_qi", # median_hdi
@@ -1172,16 +1175,16 @@ posterior_plot_rq1_precsd <- ggplot(
     adjust = 1.0
   ) +
   scale_y_discrete(labels = folder_labels) +
-  scale_fill_discrete(name = "Position", labels = pos_labels) +
-  scale_colour_discrete(name = "Position", labels = pos_labels) +
+  # scale_fill_discrete(name = "Position", labels = pos_labels) +
+  # scale_colour_discrete(name = "Position", labels = pos_labels) +
   labs(x = "Predicted Precision (SD)", y = NULL) +
   theme_bw(base_size = 14) +
-  theme(legend.position = "bottom",
-        legend.box = "horizontal",
-        legend.direction = "horizontal") +
+  # theme(legend.position = "bottom",
+  #       legend.box = "horizontal",
+  #       legend.direction = "horizontal") +
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
-png(here("exp1", "img", "rq1_precsd_posterior.png"), width = 2480/2, height = 3508/2.5, res = 200)
+png(here("exp1", "img", "rq1_precsd_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
 posterior_plot_rq1_precsd
 dev.off() 
 
@@ -1463,7 +1466,8 @@ posterior_plot_rq1_rob <- ggplot(
   theme_bw(base_size = 14)
 
 # Save
-png(here::here("exp1", "img", "rq1_rob_posterior.png"), width = 2480, height = 3508/3.5, res = 250)
+png(here("exp1", "img", "rq1_rob_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
+#png(here::here("exp1", "img", "rq1_rob_posterior.png"), width = 2480, height = 3508/3.5, res = 250)
 posterior_plot_rq1_rob
 dev.off()
 
@@ -2193,7 +2197,7 @@ as_draws_df(full_rq2_acc_chi_2) |>
   arrange(slope, folder) |>
   select(-slope, -folder)
 
-# RQ2 (Precifull_rq2_acc_chi_2# RQ2 (Precision RMS) -----------------------------------------------------
+# RQ2 (Precision RMS) -----------------------------------------------------
 # RQ2: (How) does eye-tracking data quality change over time,
 # with time being defined as trials (humans) and testing days (chimpanzees)?
 

@@ -5,12 +5,16 @@ exp1/chimp_0_merge_sessions.R
 # Data folder
 exp1/data/raw_1/
 exp2/data/raw_1/
+exp3/data/raw_1/
 exp1/data/raw_2/
 exp2/data/raw_2/
+exp3/data/raw_1/
 exp1/data/raw_clean/
 exp2/data/raw_clean/
+exp3/data/raw_clean/
 exp1/data/raw_clean_blink/
 exp2/data/raw_clean_blink/
+exp3/data/raw_clean_blink/
 
 # Doc folder
 exp1/doc/4m/

@@ -28,6 +28,11 @@ for(i in list.files(here("exp3", "data", "raw_1"))){
       df <- df |> filter(Participant.name != "Adult_Luise")
     }
     
+    if(j == "1_284456.tsv"){
+      df <- df |> 
+        filter(Recording.name %in% c("1_284456_adult", "1_284456_infant", "1_284456_own"))
+    }
+    
     # Remove: c("Export.date", "Recording.date.UTC", "Recording.start.time", "Recording.start.time.UTC", "Recording.date")
     df <- df |>
       select(-c("Export.date", "Recording.date.UTC", "Recording.start.time", "Recording.start.time.UTC", "Recording.date"))

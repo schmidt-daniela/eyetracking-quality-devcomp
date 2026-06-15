@@ -62,11 +62,26 @@ calculate_fixnum <- function(df, gaze_event_col = "Eye.movement.type", media_col
 calculate_ltaoi <- function(df, media_col = "Presented.Media.name", stimulus_vec = c("ATTENTION_Familiarization.mp4", "ATTENTION_Preflooking.mp4"),
                             rectime = "Recording.timestamp", id_col = "Recording.name", trial = "trial",
                             x_fix = "Fixation.point.X", y_fix = "Fixation.point.Y", x = "Gaze.point.X", y = "Gaze.point.Y", 
-                            aoi_left_upper = c(849-40, 417-40), aoi_right_lower = c(1072+40, 672+40), is_00_upleftcorner = T){
+                            aoi_left_upper = c(849-40, 417-40), aoi_right_lower = c(1072+40, 672+40), is_00_upleftcorner = T,
+                            off_exclude_sample = T, off_exclude_fixation = F, screen_height_min = 0, screen_width_min = 0,
+                            screen_height_max = 1080, screen_width_max = 1920, aoi_buffer_px_x = 40, aoi_buffer_px_y = 40){
   
   if(is_00_upleftcorner == F){
     stop("This function only works for eye-tracking data where the (0,0) coordinate is in the upper left corner.
           If this is the case, please change the argument to is_00_upleftcorner = T.")
+  }
+
+  if(off_exclude_sample == T){
+    exclude_rows <- which(df[[x]] < screen_width_min - aoi_buffer_px_x | df[[x]] > screen_width_max + aoi_buffer_px_x |
+                            df[[y]] < screen_height_min - aoi_buffer_px_x | df[[y]] > screen_height_max + aoi_buffer_px_y)
+    if(exclude_rows |> length() > 0){df <- df[-exclude_rows,]}
+    print("screen_only")
+  }
+  
+  if(off_exclude_fixation == T){
+    exclude_rows <- which(df[[x_fix]] < screen_width_min - aoi_buffer_px_x | df[[x_fix]] > screen_width_max + aoi_buffer_px_x |
+                            df[[y_fix]] < screen_height_min - aoi_buffer_px_x | df[[y_fix]] > screen_height_max + aoi_buffer_px_y)
+    if(exclude_rows |> length() > 0){df <- df[-exclude_rows,]}
   }
 
   # Fixation points in AOI? Gaze samples in AOI?

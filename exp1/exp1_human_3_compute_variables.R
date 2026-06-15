@@ -12,7 +12,7 @@ source(here("exp1", "R", "utils.R"))
 
 # Adjust Parameter --------------------------------------------------------
 for (i in c(1:32)) {
-  folder <- "4m" # "4m", "6m", "9m", "18m", or "adults"
+  folder <- "adult" # "4m", "6m", "9m", "18m", or "adults"
   buffer_lt <- 0
   filenames <- list.files(path = here("exp1", "data", "raw_clean_blink", folder))
   n <- i
@@ -683,7 +683,15 @@ for (i in c(1:32)) {
     y = "gaze_point_y",
     aoi_left_upper = c(877-buffer_lt, 443-buffer_lt),
     aoi_right_lower = c(1057+buffer_lt, 623+buffer_lt),
-    is_00_upleftcorner = TRUE
+    is_00_upleftcorner = TRUE,
+    off_exclude_sample = T,
+    off_exclude_fixation = F,
+    screen_height_min = 0,
+    screen_width_min = 0,
+    screen_height_max = 1080,
+    screen_width_max = 1920,
+    aoi_buffer_px_x = 40,
+    aoi_buffer_px_y = 40
   ) |> # aoi buffer of 80px is already in aoi_left_upper and aoi_right_lower
     map(
       ~ mutate(

@@ -38,8 +38,7 @@ for (filename in included_infants) {
     pull(eye_color)
   vp_data <- vp_data |> mutate(eye_color = eye_color)
 
-  write.table(vp_data, here("exp3", "data", "raw_included", age_group, sub("_[0-9]+\\.tsv$", paste0("_", which(included_infants == filename), ".tsv"), filename)), 
-              row.names = F, quote = F, sep = "\t", dec = ".")
+  write.table(vp_data, here("exp3", "data", "raw_included", age_group, filename), row.names = F, quote = F, sep = "\t", dec = ".")
   
   print(paste(filename, "done.", sep = " "))
 }

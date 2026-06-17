@@ -696,21 +696,17 @@ prior_rq1_precrms <- c(
 )
 
 ## Full Model ----
-t0 <- proc.time()
 full_rq1_precrms <- brm(
   precrms_visd ~ 0 + folder + position + (1 + position | group_id),
   data   = df_tot,
   family = Gamma(link="log"),
   prior  = prior_rq1_precrms,
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, cores = n_cores - 1, iter = 6000, warmup = 3000,
   sample_prior = "yes",
   # control = list(adapt_delta = 0.99, max_treedepth = 15),
   seed = 123,
   # save_pars = save_pars(all = TRUE)
 )
-t1 <- proc.time()
-proc_time_rq1_precrms <- t1 - t0
-rm(t0, t1)
 
 ## Define Priors of Reduced Model ----
 # With Gamma(link="log"), coefficients are on the log-mean scale.
@@ -748,7 +744,7 @@ red_rq1_precrms <- brm(
   data   = df_tot,
   family = Gamma(link="log"),
   prior  = prior_rq1_precrms_red,
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, cores = n_cores - 1, iter = 6000, warmup = 3000,
   sample_prior = "yes",
   seed = 123,
 )
@@ -818,16 +814,16 @@ folder_labels <- c(
   "adults"="Adults","chimps"="Chimpanzees"
 )
 
-# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
-# pos_labels <- c(
-#   "center"="Center",
-#   "top_right"="Top Right",
-#   "bot_right"="Bottom Right",
-#   "bottom"="Bottom",
-#   "top_left"="Top Left",
-#   "bot_left"="Bottom Left",
-#   "top"="Top"
-# )
+pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
+pos_labels <- c(
+  "center"="Center",
+  "top_right"="Top Right",
+  "bot_right"="Bottom Right",
+  "bottom"="Bottom",
+  "top_left"="Top Left",
+  "bot_left"="Bottom Left",
+  "top"="Top"
+)
 
 # Create Newdata Grid
 nd_pos <- tidyr::expand_grid(
@@ -868,7 +864,7 @@ posterior_plot_rq1_precrms <- ggplot(
   #       legend.direction = "horizontal") +
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
-png(here("exp1", "img", "rq1_precrms_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
+png(here("exp1", "img", "rq1_precrms_posterior.png"), width = 2480/2, height = 3508/2.5, res = 250)
 posterior_plot_rq1_precrms
 dev.off() 
 

@@ -12,14 +12,14 @@ This repository contains the analysis pipeline and preprocessed data for the upc
 **Schmidt, Visser, Maurits & Thiele et al. (in prep).**
 
 In the spirit of **Open Science**, the primary goal of this repository is to make our analysis fully transparent and reproducible. The project investigates eye-tracking data quality across different human (4-, 6-, 9-, 18-month-olds, and adults) and non-human (chimpanzees) samplesthrough three distinct experiments:
-* **Experiment 1:** Includes chimpanzee (`chimp`) and human (`human`) samples.
-RQ1: (How) Does Eye-Tracking Data Quality Vary Within and Between Groups?
-RQ2: (How) Does Eye-Tracking Data Quality Change Over Time?
-RQ3: Are Eye-Tracking Outcomes Confounded With Data Quality?
-* **Experiment 2:** Includes chimpanzee (`chimp`) sample only.
-RQ4: Can Modifications in the Calibration Procedure Improve Eye-Tracking Data Quality in Chimpanzees?
-* **Experiment 3:** Includes infant (`infant`) samples only.
-RQ5: Can Modifications in the Calibration Procedure Improve Eye-Tracking Data Quality in Human Infants?
+* **Experiment 1:** Includes chimpanzee (`chimp`) and human (`human`) samples.  
+RQ1: (How) Does Eye-Tracking Data Quality Vary Within and Between Groups?  
+RQ2: (How) Does Eye-Tracking Data Quality Change Over Time?  
+RQ3: Are Eye-Tracking Outcomes Confounded With Data Quality?  
+* **Experiment 2:** Includes chimpanzee (`chimp`) sample only.  
+RQ4: Can Modifications in the Calibration Procedure Improve Eye-Tracking Data Quality in Chimpanzees?  
+* **Experiment 3:** Includes infant (`infant`) samples only.  
+RQ5: Can Modifications in the Calibration Procedure Improve Eye-Tracking Data Quality in Human Infants?  
 
 ## 📂 Repository Structure
 The repository is structured by experiment. Each experiment folder (`exp1`, `exp2`, `exp3`) acts as a self-contained environment containing its respective scripts, helper functions, data, documentation, and plots.

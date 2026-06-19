@@ -45,6 +45,7 @@ eyetracking-quality-devcomp/
 ├── LICENSE                 # MIT License
 ├── README.md               # Project documentation
 └── renv.lock               # Exact R package versions for reproducibility
+```
 
 ## 🚀 Getting Started
 

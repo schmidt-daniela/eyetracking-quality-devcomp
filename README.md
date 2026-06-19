@@ -36,7 +36,7 @@ eyetracking-quality-devcomp/
 │   ├── R/, data/, doc/, img/ 
 │   └── exp2_*.R            # Numbered analysis scripts
 ├── exp3/                   # Experiment 3 (Infants)
-│   ├── R/
+│   ├── R/, data/, doc/, img/
 │   └── exp3_*.R            # Numbered analysis scripts
 ├── renv/                   # R environment configuration folder
 ├── .gitignore              # Untracked files to ignore

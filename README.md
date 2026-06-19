@@ -46,4 +46,146 @@ eyetracking-quality-devcomp/
 ├── README.md               # Project documentation
 └── renv.lock               # Exact R package versions for reproducibility
 
+## 🚀 Getting Started
+
+### Requirements
+
+This project was developed using **R 4.5.1** and uses **renv** for dependency management.
+
+After cloning the repository, restore the project environment:
+
+```r
+renv::restore()
+```
+
+### Reproducing the Main Analyses
+
+The repository contains preprocessed datasets that allow users to reproduce the inferential analyses reported in the manuscript without starting from the raw eye-tracking data.
+
+To reproduce the statistical analyses, run the corresponding analysis scripts within each experiment folder.
+
+### Reproducing the Complete Data Processing Pipeline
+
+To reproduce all preprocessing and analysis steps from the raw eye-tracking data, first download the raw datasets from the linked OSF project.
+
+The downloaded files must be placed into the appropriate `data` directories before running the analysis pipeline.
+
+#### Experiment 1
+
+Required folder structure:
+
+```text
+data/
+├── raw_1/
+│   ├── 4m/
+│   ├── 6m/
+│   ├── 9m/
+│   ├── 18m/
+│   ├── adults/
+│   └── chimps/
+├── raw_2/
+│   ├── 4m/
+│   ├── 6m/
+│   ├── 9m/
+│   ├── 18m/
+│   ├── adults/
+│   └── chimps/
+├── raw_clean/
+│   ├── 4m/
+│   ├── 6m/
+│   ├── 9m/
+│   ├── 18m/
+│   ├── adults/
+│   └── chimps/
+├── raw_clean_blink/
+│   ├── 4m/
+│   ├── 6m/
+│   ├── 9m/
+│   ├── 18m/
+│   ├── adults/
+│   └── chimps/
+└── preproc/
+│   ├── 4m/
+│   ├── 6m/
+│   ├── 9m/
+│   ├── 18m/
+│   ├── adults/
+│   └── chimps/
+```
+
+#### Experiment 2
+
+Required folder structure:
+
+```text
+data/
+├── raw_1/
+│   ├── ape_calibration_2p/
+│   ├── human_calibration_9p/
+│   └── alex_calibration_5p/
+├── raw_2/
+│   ├── ape_calibration_2p/
+│   ├── human_calibration_9p/
+│   └── alex_calibration_5p/
+├── raw_clean/
+│   ├── ape_calibration_2p/
+│   ├── human_calibration_9p/
+│   └── alex_calibration_5p/
+├── raw_clean_blink/
+│   ├── ape_calibration_2p/
+│   ├── human_calibration_9p/
+│   └── alex_calibration_5p/
+└── preproc/
+    ├── ape_calibration_2p/
+    ├── human_calibration_9p/
+    └── alex_calibration_5p/
+```
+
+#### Experiment 3
+
+Required folder structure:
+
+```text
+data/
+├── raw_1/
+│   ├── 4mo/
+│   └── 6to18mo/
+├── raw_included/
+│   ├── 4mo/
+│   └── 6to18mo/
+├── raw_2/
+│   ├── 4mo/
+│   └── 6to18mo/
+├── raw_clean/
+│   ├── 4mo/
+│   └── 6to18mo/
+├── raw_clean_blink/
+│   ├── 4mo/
+│   └── 6to18mo/
+└── preproc/
+    ├── 4mo/
+    └── 6to18mo/
+```
+
+### Running the Pipeline
+
+Within each experiment, scripts should be executed sequentially according to their numbering:
+
+```text
+0_*   Initial preprocessing / data preparation
+1_*   Data cleaning
+2_*   Blink detection
+3_*   Variable computation
+```
+
+For example:
+
+```text
+exp1_human_0_anonymize_data.R
+exp1_human_1_clean_data.R
+exp1_human_2_detect_blinks.R
+exp1_human_3_compute_variables.R
+```
+
+The same principle applies to all experiment-specific pipelines.
 

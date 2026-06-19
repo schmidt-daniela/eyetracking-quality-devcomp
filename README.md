@@ -1,8 +1,6 @@
 # Eye-Tracking Data Quality in Developmental & Comparative Research 👶🐒
 
-[![Blinded OSF Project](https://img.shields.io/badge/OSF-Project-blue)]([https://osf.io/u3p8d/](https://osf.io/u3p8d/overview?view_only=a3bcb225f5b5497284727255a81095b6))
-
-![Status: WIP](https://img.shields.io/badge/Status-Work_in_Progress-orange)
+[![Blinded OSF Project](https://img.shields.io/badge/OSF-Project-blue)](https://osf.io/u3p8d/overview?view_only=a3bcb225f5b5497284727255a81095b6)
 
 > ⚠️ **Status:** This project is currently a work in progress.
 

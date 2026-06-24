@@ -188,5 +188,55 @@ exp1_human_2_detect_blinks.R
 exp1_human_3_compute_variables.R
 ```
 
-The same principle applies to all experiment-specific pipelines.
+The same principle applies to all experiment-specific pipelines. 
+
+## 📊 Data Dictionary (`df_tot`)
+
+The following table provides an overview of the variables included in the `df_tot` dataframe (generated in the `exp1_tot_infstats` R-script):
+
+| Variable | Description |
+| :--- | :--- |
+| `group_id` | Participant ID and group (4-, 6-, 9-, 18-month-olds, adults, or chimpanzees). |
+| `stimulus` | Name of the shown stimulus (checkflake = popflake, at = pinwheel, or object). |
+| `position` | Stimulus position on screen (7 levels, e.g., center, top_left). |
+| `accuracy` / `acc_visd` | Eye-tracking data quality metric: Accuracy in pixels / visual degrees. |
+| `precrms` / `precrms_visd` | Eye-tracking data quality metric: Precision (RMS) in pixels / visual degrees. |
+| `precsd` / `precsd_visd` | Eye-tracking data quality metric: Precision (SD) in pixels / visual degrees. |
+| `robustness_ms` / `robustness_prop`| Eye-tracking data quality metric: Preregistered robustness per trial in ms / as a proportion. |
+| `robustness_ms_2` | Eye-tracking data quality metric: Robustness in ms accounting for deviations from preregistration (see paper for details). |
+| `robustness_prop_2` | `robustness_ms_2` Eye-tracking data quality metric: As above, but relative to total experiment duration. |
+| `mean_fixation_duration` | Eye-tracking outcome: Mean duration of fixations. |
+| `mean_fixation_number` | Eye-tracking outcome: Total number of fixations. |
+| `latencies` | Eye-tracking outcome: Time between object onset and first gaze (object-trials only; humans only). |
+| `congruence` | Stimulus details relevant for latency calculation. |
+| `rel_gaze_in_aoi` / `rel_fix_in_aoi` | Eye-tracking outcome: Relative gaze / fixation time within Areas of Interest (AOIs). |
+| `abs_gaze_in_aoi_duration` | Eye-tracking outcome: Absolute gaze duration within AOIs (ms). |
+| `abs_gaze_out_aoi_duration` | Eye-tracking outcome: Absolute gaze duration outside AOIs (ms). |
+| `abs_gaze_recorded_duration` | Eye-tracking outcome: Total recorded gaze duration (inside + outside AOIs). |
+| `abs_fix_in_aoi_duration` | Eye-tracking outcome: Absolute fixation duration within AOIs (ms). |
+| `abs_fix_out_aoi_duration` | Eye-tracking outcome: Absolute fixation duration outside AOIs (ms). |
+| `abs_fix_recorded_duration` | Eye-tracking outcome: Total recorded fixation duration (inside + outside AOIs). |
+| `excluded_100ms` | Inclusion of trial based on the < 100ms latency criterion. |
+| `excluded_3sd` | Inclusion of trial based on the ± 3 SD latency deviation criterion. |
+| `excluded_fixation` | Inclusion of trial based on missing fixation within the AOI + buffer. |
+| `sex` | Participant sex (m/f). |
+| `age` | Participant age (in days for infants, years for adults; humans only). |
+| `order` | Counterbalancing information (humans only). |
+| `experimenter` | Experimenter ID (humans only). |
+| `no_siblings` | Number of siblings (human infants only). |
+| `no_household` | Number of people living in the household (human infants only). |
+| `multilingual` | Indicator for bilingual upbringing (human infants only). |
+| `kindergarten_yn` | Indicator for kindergarten attendance (human infants only). |
+| `tagesmutter_yn` | Indicator for childminder (*Tagesmutter*) attendance (human infants only). |
+| `source_file` | Original filename. |
+| `folder` | Subgroup folder (equals group: 4-, 6-, 9-, 18-month-olds, adults, or chimpanzees). |
+| `session_trial` | Combined session and trial identifier (chimpanzees only). |
+| `session` / `trial` | Session number (chimpanzees only) / Trial number. |
+| `age_y` / `age_classification`| Age in years / Age group (adult/non-adult; chimpanzees only). |
+| `species_group` | A or B group (chimpanzees only). |
+| `time` | Trials (humans). |
+| `time_1` | Trials (humans) & session timeline unit (chimpanzees). |
+| `time_2` | Trials (humans) & trial within session (chimpanzees). |
+| `time_3` | Trials (humans) & testing day sequence (chimpanzees). |
+| `date` / `day` | Testing date / Testing day sequence (chimpanzees only). |
 

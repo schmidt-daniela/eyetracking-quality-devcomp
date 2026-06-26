@@ -20,11 +20,6 @@ for (i in c(1:32)) {
   raw <- readRDS(here("exp3", "data", "raw_clean_blink", folder, filename))
   df <- raw |> mutate(group_id = str_remove(filename, ".rds"))
 
-  if ("excluded" %in% (df |> drop_na(trial_included) |> pull(trial_included) |> unique())) {
-    df <- df |> filter(trial_included == "excluded")
-    print("Trials without at least 1 fixation in target AOI were excluded.")
-  }
-
   # Add Fixation Duration ---------------------------------------------------
   # Why? Because gaze_event_duration refers to the duration of a fixation, irrespective of
   # whether the duration was within one trial or across two trials. The analyses, however,
@@ -37,15 +32,24 @@ for (i in c(1:32)) {
   
   # Add ID Column -----------------------------------------------------------
   df <- df |> 
-    unite(col = "group_id_condition", group_id, recording_name, sep = "_", remove = FALSE)
+    unite(col = "group_id_condition", group_id, recording_name, sep = "_", remove = FALSE) |> 
+    unite(col = "group_id_condition_trial", group_id, recording_name, trial, sep = "_", remove = FALSE)
 
   # [1] Calculate Data Quality ----------------------------------------------
 
   ## [1.1] Accuracy ----
+  
+  if ("no" %in% (df |> drop_na(trial_included) |> pull(trial_included) |> unique())) {
+    df_accuracy <- df |> filter(trial_included == "yes")
+    print("Trials without at least 1 fixation in target AOI were excluded.")
+  } else {
+    df_accuracy <- df
+    print("No trials without at least 1 fixation, therefore, no trials were excluded.")
+  }
 
   ### Attention Getter ----
   df_acc_at <- calculate_accuracy(
-    df |> filter(stimulus == "pinwheel"),
+    df_accuracy |> filter(stimulus == "pinwheel"),
     xmin = 783,
     xmax = 1137,
     ymin = 363,
@@ -68,7 +72,7 @@ for (i in c(1:32)) {
 
   ### Top Object ----
   df_acc_objtop <- calculate_accuracy(
-    df |> filter(stimulus == "object" & position == "top"),
+    df_accuracy |> filter(stimulus == "object" & position == "top"),
     xmin = 790,
     xmax = 1130,
     ymin = 0,
@@ -91,7 +95,7 @@ for (i in c(1:32)) {
 
   ### Bottom Object ----
   df_acc_objbot <- calculate_accuracy(
-    df |> filter(stimulus == "object" & position == "bottom"),
+    df_accuracy |> filter(stimulus == "object" & position == "bottom"),
     xmin = 790,
     xmax = 1130,
     ymin = 740,
@@ -114,7 +118,7 @@ for (i in c(1:32)) {
 
   ### Popflake Top Left ----
   df_acc_poptopleft <- calculate_accuracy(
-    df |> filter(stimulus == "popflake" & position == "topleft"),
+    df_accuracy |> filter(stimulus == "popflake" & position == "topleft"),
     xmin = 300,
     xmax = 660,
     ymin = 90,
@@ -137,7 +141,7 @@ for (i in c(1:32)) {
 
   ### Popflake Top Right ----
   df_acc_poptopright <- calculate_accuracy(
-    df |> filter(stimulus == "popflake" & position == "topright"),
+    df_accuracy |> filter(stimulus == "popflake" & position == "topright"),
     xmin = 1260,
     xmax = 1620,
     ymin = 90,
@@ -160,7 +164,7 @@ for (i in c(1:32)) {
 
   ### Popflake Bottom Left ----
   df_acc_popbotleft <- calculate_accuracy(
-    df |> filter(stimulus == "popflake" & position == "botleft"),
+    df_accuracy |> filter(stimulus == "popflake" & position == "botleft"),
     xmin = 300,
     xmax = 660,
     ymin = 630,
@@ -183,7 +187,7 @@ for (i in c(1:32)) {
 
   ### Popflake Bottom Right ----
   df_acc_popbotright <- calculate_accuracy(
-    df |> filter(stimulus == "popflake" & position == "botright"),
+    df_accuracy |> filter(stimulus == "popflake" & position == "botright"),
     xmin = 1260,
     xmax = 1620,
     ymin = 630,
@@ -206,8 +210,7 @@ for (i in c(1:32)) {
 
   ### Popflake Center ----
   df_acc_popcenter <- calculate_accuracy(
-    df |> 
-      filter(stimulus == "popflake" & position == "center"),
+    df_accuracy |> filter(stimulus == "popflake" & position == "center"),
     xmin = 780,
     xmax = 1140,
     ymin = 360,
@@ -347,7 +350,7 @@ for (i in c(1:32)) {
       AOI_only = FALSE
     ) |>
       mutate(precrms_visd = precrms * onepx_in_visd(60, 92)) |>
-      left_join(df |> select(stimulus, position, trial) |> distinct(), by = "trial")
+      left_join(df |> select(group_id_condition, stimulus, position, trial) |> distinct(), by = c("trial", "group_id_condition"))
 
     assign(param_precrms_objpop$df_name[j], df_precrms_objpop_temp)
     rm(df_precrms_objpop_temp)
@@ -478,7 +481,7 @@ for (i in c(1:32)) {
       AOI_only = FALSE
     ) |>
       mutate(precsd_visd = precsd * onepx_in_visd(60, 92)) |>
-      left_join(df |> select(stimulus, position, trial) |> distinct(), by = "trial")
+      left_join(df |> select(stimulus, position, trial, group_id_condition) |> distinct(), by = c("trial","group_id_condition"))
 
     assign(param_precsd_objpop$df_name[k], df_precsd_objpop_temp)
     rm(df_precsd_objpop_temp)
@@ -515,7 +518,7 @@ for (i in c(1:32)) {
   # duration considered.
   df_robustness_tot <- calculate_robustness(
     df,
-    trial_col             = "trial",
+    trial_col             = "group_id_condition_trial",
     gaze_x_col            = "gaze_point_x",
     gaze_y_col            = "gaze_point_y",
     sample_duration_col   = "gaze_sample_duration",
@@ -527,13 +530,38 @@ for (i in c(1:32)) {
     validity_col          = "sample_validity", 
     relative_robustness = TRUE
   ) |>
-    left_join(df |> select(group_id, stimulus, position, trial) |> distinct(), by = "trial") |>
+    rename(group_id_condition_trial = trial) |> 
+    left_join(df |> select(group_id, stimulus, position, group_id_condition_trial) |> distinct(), by = "group_id_condition_trial") |>
     mutate(data_quality = "robustness") |> 
     drop_na(stimulus)
   
-  df_robustness_tot_2 <- calculate_robustness_2(
-    df,
-    trial_col               = "trial",
+  print("----- ----- ----- ADULTS CALIBRATION ----- ----- -----")
+  print(unique(df$recording_name)[1])
+  
+  df_robustness_tot_2_adult <- calculate_robustness_2(
+    df = df |> filter(recording_name == unique(df$recording_name)[1]),
+    gaze_x_col              = "gaze_point_x",
+    gaze_y_col              = "gaze_point_y",
+    sample_duration_col     = "gaze_sample_duration",
+    blink_left_col          = "blink_detection.left",
+    blink_right_col         = "blink_detection.right",
+    blink_removal           = TRUE,
+    blink_label             = "blink",
+    blink_replacement_value = 99999,
+    robustness_check_col    = "robustness_check",
+    cum_duration_col        = "cum_duration",
+    truncate_at_t_ms        = 5000,
+    print_max_cum           = TRUE) |>
+    mutate(group_id = df$group_id |> unique()) |> 
+    mutate(data_quality = "robustness_2")   |> 
+    mutate(condition = "adult") |> 
+    mutate(recording_name = unique(df$recording_name)[1])
+  
+  print("----- ----- ----- INFANT CALIBRATION ----- ----- -----")
+  print(unique(df$recording_name)[2])
+  
+  df_robustness_tot_2_infant <- calculate_robustness_2(
+    df |> filter(recording_name == unique(df$recording_name)[2]),
     gaze_x_col              = "gaze_point_x",
     gaze_y_col              = "gaze_point_y",
     sample_duration_col     = "gaze_sample_duration",
@@ -545,34 +573,66 @@ for (i in c(1:32)) {
     robustness_check_col    = "robustness_check",
     cum_duration_col        = "cum_duration",
     truncate_at_t_ms        = 53466,
-    print_max_cum           = FALSE) |>
+    print_max_cum           = TRUE) |>
     mutate(group_id = df$group_id |> unique()) |> 
-    mutate(data_quality = "robustness_2")
+    mutate(data_quality = "robustness_2") |> 
+    mutate(condition = "infant") |> 
+    mutate(recording_name = unique(df$recording_name)[2])
+  
+  print("----- ----- ----- OWN CALIBRATION ----- ----- -----")
+  print(unique(df$recording_name)[3])
+  
+  df_robustness_tot_2_own <- calculate_robustness_2(
+    df |> filter(recording_name == unique(df$recording_name)[3]),
+    gaze_x_col              = "gaze_point_x",
+    gaze_y_col              = "gaze_point_y",
+    sample_duration_col     = "gaze_sample_duration",
+    blink_left_col          = "blink_detection.left",
+    blink_right_col         = "blink_detection.right",
+    blink_removal           = TRUE,
+    blink_label             = "blink",
+    blink_replacement_value = 99999,
+    robustness_check_col    = "robustness_check",
+    cum_duration_col        = "cum_duration",
+    truncate_at_t_ms        = 53466,
+    print_max_cum           = TRUE) |>
+    mutate(group_id = df$group_id |> unique()) |> 
+    mutate(data_quality = "robustness_2") |> 
+    mutate(condition = "own") |> 
+    mutate(recording_name = unique(df$recording_name)[3])
+  
+  df_robustness_tot_2 <- df_robustness_tot_2_own |> 
+    bind_rows(df_robustness_tot_2_infant) |> 
+    bind_rows(df_robustness_tot_2_adult)
 
   # Merge All ---------------------------------------------------------------
-  df_tot <- data.frame(trial = 1:79) |>
-    left_join(df_acc_tot |> select(-data_quality), by = "trial") |>
+  df_tot <- expand.grid(group_id_condition = df$group_id_condition |> unique(), trial = 1:24) |> 
+    arrange(group_id_condition) |> 
     left_join(
       df_precrms_tot |>
-        group_by(trial, stimulus, position) |>
+        group_by(group_id_condition, trial, stimulus, position) |>
         summarise(
           precrms = mean(precrms, na.rm = TRUE),
           precrms_visd = mean(precrms_visd, na.rm = TRUE),
           .groups = "drop"
         ),
-      by = c("trial", "stimulus", "position")
+      by = c("group_id_condition", "trial")
     ) |>
     left_join(
       df_precsd_tot |>
-        group_by(trial, stimulus, position) |>
+        group_by(group_id_condition, trial, stimulus, position) |>
         summarise(
           precsd = mean(precsd, na.rm = TRUE),
           precsd_visd = mean(precsd_visd, na.rm = TRUE),
           .groups = "drop"
         ),
-      by = c("trial", "stimulus", "position")
+      by = c("group_id_condition", "trial", "stimulus", "position")
     ) |>
-    left_join(df_robustness_tot |> select(trial, robustness_ms, robustness_prop), by = "trial") |>
+    left_join(df_acc_tot |> select(-data_quality), by = c("group_id_condition", "trial", "stimulus", "position")) |>
+    
+    
+    # next: group_id_condition_trial spalten, so dass group_id_condition und trial zwei spalten, damit joinen klappt
+    left_join(df_robustness_tot |> select(group_id_condition_trial, robustness_ms, robustness_prop), by = c("group_id_condition_trial", "stimulus", "position")) |>
     mutate(group_id = df$group_id |> unique()) |> 
     left_join(df_robustness_tot_2 |> select(robustness_ms_2, group_id), by = "group_id") |>
     add_demo_cols(df = df, folder = folder)

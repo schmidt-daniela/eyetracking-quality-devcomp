@@ -16,21 +16,21 @@ source(here("exp3", "R", "anonymization.R"))
 # Anonymization -----------------------------------------------------------
 for(i in list.files(here("exp3", "data", "raw_1"))){
   
+  if(i == "11mo"){
+    next
+  }
+  
   files <- list.files(here("exp3", "data", "raw_1", i))
   
   for(j in files){
     # Read data
-    df <- read.table(here("exp3", "data", "raw_1", i, j), header = T, sep = "\t")
+    raw <- read.table(here("exp3", "data", "raw_1", i, j), header = T, sep = "\t")
+    df <- raw
 
     # Correct export mistake
     if(j == "1_284456.tsv"){
-      df <- df |> filter(!(Recording.name %in% c("1_123456_adult", "1_123456_infant")))
+      df <- df |> filter(Recording.name %in% c("1_284456_adult", "1_284456_infant", "1_284456_own"))
       df <- df |> filter(Participant.name != "Adult_Luise")
-    }
-    
-    if(j == "1_284456.tsv"){
-      df <- df |> 
-        filter(Recording.name %in% c("1_284456_adult", "1_284456_infant", "1_284456_own"))
     }
     
     # Remove: c("Export.date", "Recording.date.UTC", "Recording.start.time", "Recording.start.time.UTC", "Recording.date")
@@ -49,11 +49,10 @@ for(i in list.files(here("exp3", "data", "raw_1"))){
         TRUE ~ Participant.name
         )
       )
-    print(paste("----", j, "----"))
-    print(df$Participant.name |> unique())
-    print(df$Recording.name |> unique())
     
-    write.table(df, here("exp3", "data", "raw_2", i, paste0(i, "_", which(files == j), ".tsv")), row.names = F, quote = F, sep = "\t", dec = ".")
+    print(paste0("Recording name before:", raw$Recording.name |> unique(), " --- Recording name after:", df$Recording.name |> unique(), " --- Filename:", i, "_", str_replace(j, "_\\d+\\.tsv", ".tsv")))
+
+    write.table(df, here("exp3", "data", "raw_2", i, paste0(i, "_", str_replace(j, "_\\d+\\.tsv", ".tsv"))), row.names = F, quote = F, sep = "\t", dec = ".")
   }
 
 }

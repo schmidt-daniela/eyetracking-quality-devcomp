@@ -628,28 +628,27 @@ for (i in c(1:32)) {
         ),
       by = c("group_id_condition", "trial", "stimulus", "position")
     ) |>
-    left_join(df_acc_tot |> select(-data_quality), by = c("group_id_condition", "trial", "stimulus", "position")) |>
-    
-    
-    # next: group_id_condition_trial spalten, so dass group_id_condition und trial zwei spalten, damit joinen klappt
-    left_join(df_robustness_tot |> select(group_id_condition_trial, robustness_ms, robustness_prop), by = c("group_id_condition_trial", "stimulus", "position")) |>
-    mutate(group_id = df$group_id |> unique()) |> 
-    left_join(df_robustness_tot_2 |> select(robustness_ms_2, group_id), by = "group_id") |>
-    add_demo_cols(df = df, folder = folder)
-  
-  base_cols <- c(
-    "group_id", "trial", "stimulus", "position",
-    "accuracy", "acc_visd",
-    "precrms", "precrms_visd",
-    "precsd", "precsd_visd",
-    "robustness_ms", "robustness_prop", "robustness_ms_2","excluded_fixation",
-    "sex", "age", "order", "experimenter"
-  )
-  
-  extra_cols_nonadult <- c("no_siblings", "no_household", "multilingual", "kindergarten_yn", "tagesmutter_yn")
-  
-  df_tot <- df_tot |>
-    select(any_of(c(base_cols, if (folder != "adult") extra_cols_nonadult)))
+    left_join(df_robustness_tot |> extract(
+          col = group_id_condition_trial, 
+          into = c("group_id_condition", "trial"), 
+          regex = "(.*)_(\\d+)",
+          convert = TRUE, 
+          remove = TRUE
+        ) |> select(group_id_condition, trial, robustness_ms, robustness_prop, stimulus, position),
+        by = c("group_id_condition", "trial", "stimulus", "position")) |>
+    left_join(df_robustness_tot_2 |> 
+                unite(
+                  col = "group_id_condition",
+                  group_id, recording_name,
+                  sep = "_",
+                  remove = TRUE
+                ) |> 
+                select(robustness_ms_2, group_id_condition), by = "group_id_condition") |>
+    left_join(df_acc_tot |> select(group_id_condition, trial, accuracy, acc_visd), by = c("trial", "group_id_condition")) |> 
+    add_demo_cols(df = df, folder = folder) |> 
+    mutate(condition = str_extract(group_id_condition, "[^_]+$"),
+           age_group = str_split_i(group_id_condition, "_", 1) |> str_replace("mo", "M"),
+           id = as.integer(str_split_i(group_id_condition, "_", 2)))
   
   # [3] Merge DF with ET-DQ and ET-Outcomes ---------------------------------
   saveRDS(df_tot, here("exp3", "data", "preproc", folder, filename), compress = "xz")

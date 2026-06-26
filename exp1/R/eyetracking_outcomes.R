@@ -75,7 +75,6 @@ calculate_ltaoi <- function(df, media_col = "Presented.Media.name", stimulus_vec
     exclude_rows <- which(df[[x]] < screen_width_min - aoi_buffer_px_x | df[[x]] > screen_width_max + aoi_buffer_px_x |
                             df[[y]] < screen_height_min - aoi_buffer_px_x | df[[y]] > screen_height_max + aoi_buffer_px_y)
     if(exclude_rows |> length() > 0){df <- df[-exclude_rows,]}
-    print("screen_only")
   }
   
   if(off_exclude_fixation == T){

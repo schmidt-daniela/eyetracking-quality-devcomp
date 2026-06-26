@@ -12,7 +12,7 @@ source(here("exp1", "R", "utils.R"))
 
 # Adjust Parameter --------------------------------------------------------
 for (i in c(1:32)) {
-  folder <- "adult" # "4m", "6m", "9m", "18m", or "adults"
+  folder <- "adults" # "4m", "6m", "9m", "18m", or "adults"
   buffer_lt <- 0
   filenames <- list.files(path = here("exp1", "data", "raw_clean_blink", folder))
   n <- i
@@ -21,11 +21,6 @@ for (i in c(1:32)) {
   # Read Data ---------------------------------------------------------------
   raw <- readRDS(here("exp1", "data", "raw_clean_blink", folder, filename))
   df <- raw |> mutate(group_id = str_remove(filename, ".rds"))
-
-  if ("excluded" %in% (df |> drop_na(excluded_fixation) |> pull(excluded_fixation) |> unique())) {
-    df <- df |> filter(excluded_fixation == "included")
-    print("Trials without at least 1 fixation in target AOI were excluded.")
-  }
 
   # Add Fixation Duration ---------------------------------------------------
   # Why? Because gaze_event_duration refers to the duration of a fixation, irrespective of
@@ -36,6 +31,14 @@ for (i in c(1:32)) {
     group_by(trial, eye_movement_type_index, eye_movement_type) |>
     mutate(gaze_event_duration_revised = sum(gaze_sample_duration)) |>
     ungroup()
+
+  # Exclude Trials Without Fixation in Target AOI ---------------------------
+  if ("excluded" %in% (df |> drop_na(excluded_fixation) |> pull(excluded_fixation) |> unique())) {
+    df_accuracy <- df |> filter(excluded_fixation == "included")
+    print("Trials without at least 1 fixation in target AOI were excluded.")
+  } else {
+    df_accuracy <- df
+  }
 
   # [1] Calculate Data Quality ----------------------------------------------
 
@@ -51,7 +54,7 @@ for (i in c(1:32)) {
 
   ### Attention Getter ----
   df_acc_at <- calculate_accuracy(
-    df |> filter(stimulus == "at"),
+    df_accuracy |> filter(stimulus == "at"),
     xmin = 783,
     xmax = 1137,
     ymin = 363,
@@ -65,7 +68,7 @@ for (i in c(1:32)) {
     y_fix = "fixation_point_y",
     stimulus_height = 354,
     stimulus_width = 354,
-    aoi_buffer_px_x = 0, # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_x = 0, # aoi buffer of 80px is already in xyminmax -> this does not mean that all fixations within AOI + 80px buffer are considered; we only included fixations within AOI + 40px buffer; the xmin etc. values only matter to determine the center of the stimulus, which, in turn, matters to calculate accuracy (as accuracy is the offset from the stimulus center)
     aoi_buffer_px_y = 0 # aoi buffer of 80px is already in xyminmax
   ) |> 
     mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |>
@@ -74,7 +77,7 @@ for (i in c(1:32)) {
 
   ### Top Object ----
   df_acc_objtop <- calculate_accuracy(
-    df |> filter(stimulus == "object" & position == "top"),
+    df_accuracy |> filter(stimulus == "object" & position == "top"),
     xmin = 790,
     xmax = 1130,
     ymin = 0,
@@ -97,7 +100,7 @@ for (i in c(1:32)) {
 
   ### Bottom Object ----
   df_acc_objbot <- calculate_accuracy(
-    df |> filter(stimulus == "object" & position == "bottom"),
+    df_accuracy |> filter(stimulus == "object" & position == "bottom"),
     xmin = 790,
     xmax = 1130,
     ymin = 740,
@@ -120,7 +123,7 @@ for (i in c(1:32)) {
 
   ### Popflake Top Left ----
   df_acc_poptopleft <- calculate_accuracy(
-    df |> filter(stimulus == "checkflake" & position == "top_left"),
+    df_accuracy |> filter(stimulus == "checkflake" & position == "top_left"),
     xmin = 300,
     xmax = 660,
     ymin = 90,
@@ -143,7 +146,7 @@ for (i in c(1:32)) {
 
   ### Popflake Top Right ----
   df_acc_poptopright <- calculate_accuracy(
-    df |> filter(stimulus == "checkflake" & position == "top_right"),
+    df_accuracy |> filter(stimulus == "checkflake" & position == "top_right"),
     xmin = 1260,
     xmax = 1620,
     ymin = 90,
@@ -166,7 +169,7 @@ for (i in c(1:32)) {
 
   ### Popflake Bottom Left ----
   df_acc_popbotleft <- calculate_accuracy(
-    df |> filter(stimulus == "checkflake" & position == "bot_left"),
+    df_accuracy |> filter(stimulus == "checkflake" & position == "bot_left"),
     xmin = 300,
     xmax = 660,
     ymin = 630,
@@ -189,7 +192,7 @@ for (i in c(1:32)) {
 
   ### Popflake Bottom Right ----
   df_acc_popbotright <- calculate_accuracy(
-    df |> filter(stimulus == "checkflake" & position == "bot_right"),
+    df_accuracy |> filter(stimulus == "checkflake" & position == "bot_right"),
     xmin = 1260,
     xmax = 1620,
     ymin = 630,
@@ -212,7 +215,7 @@ for (i in c(1:32)) {
 
   ### Popflake Center ----
   df_acc_popcenter <- calculate_accuracy(
-    df |> 
+    df_accuracy |> 
       filter(stimulus == "checkflake" & position == "center"),
     xmin = 780,
     xmax = 1140,
@@ -227,7 +230,7 @@ for (i in c(1:32)) {
     y_fix = "fixation_point_y",
     stimulus_height = 360,
     stimulus_width = 360,
-    aoi_buffer_px_x = 0, # aoi buffer of 80px is already in xyminmax
+    aoi_buffer_px_x = 0, # aoi buffer of 80px is already in xyminmax 
     aoi_buffer_px_y = 0 # aoi buffer of 80px is already in xyminmax
   ) |> 
     mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |>
@@ -292,7 +295,7 @@ for (i in c(1:32)) {
     ymax = 637,
     off_exclude = TRUE,
     longest_fix_only = FALSE,
-    AOI_only = TRUE
+    AOI_only = FALSE
   ) |>
     mutate(precrms_visd = precrms * onepx_in_visd(60, 92)) |>
     mutate(stimulus = "at") |>
@@ -359,7 +362,7 @@ for (i in c(1:32)) {
       ymax = param_precrms_objpop$ymax[j],
       off_exclude = TRUE,
       longest_fix_only = FALSE,
-      AOI_only = TRUE
+      AOI_only = FALSE
     ) |>
       mutate(precrms_visd = precrms * onepx_in_visd(60, 92)) |>
       left_join(df |> select(stimulus, position, trial) |> distinct(), by = "trial")
@@ -423,7 +426,7 @@ for (i in c(1:32)) {
     ymax = 637,
     off_exclude = TRUE,
     longest_fix_only = FALSE,
-    AOI_only = TRUE
+    AOI_only = FALSE
   ) |>
     mutate(precsd_visd = precsd * onepx_in_visd(60, 92)) |>
     mutate(stimulus = "at") |>
@@ -490,7 +493,7 @@ for (i in c(1:32)) {
       ymax = param_precsd_objpop$ymax[k],
       off_exclude = TRUE,
       longest_fix_only = FALSE,
-      AOI_only = TRUE
+      AOI_only = FALSE
     ) |>
       mutate(precsd_visd = precsd * onepx_in_visd(60, 92)) |>
       left_join(df |> select(stimulus, position, trial) |> distinct(), by = "trial")
@@ -929,7 +932,6 @@ for (i in c(1:32)) {
 
   # Merge All ---------------------------------------------------------------
   df_tot <- data.frame(trial = 1:79) |>
-    left_join(df_acc_tot |> select(-data_quality), by = "trial") |>
     left_join(
       df_precrms_tot |>
         group_by(trial, stimulus, position) |>
@@ -937,8 +939,8 @@ for (i in c(1:32)) {
           precrms = mean(precrms, na.rm = TRUE),
           precrms_visd = mean(precrms_visd, na.rm = TRUE),
           .groups = "drop"
-        ),
-      by = c("trial", "stimulus", "position")
+        ) |> ungroup(),
+      by = c("trial")
     ) |>
     left_join(
       df_precsd_tot |>
@@ -950,6 +952,7 @@ for (i in c(1:32)) {
         ),
       by = c("trial", "stimulus", "position")
     ) |>
+    left_join(df_acc_tot |> select(-data_quality), by = c("trial", "stimulus", "position")) |>
     left_join(df_robustness_tot |> select(trial, robustness_ms, robustness_prop), by = "trial") |>
     mutate(group_id = df$group_id |> unique()) |> 
     left_join(df_robustness_tot_2 |> select(robustness_ms_2, group_id), by = "group_id") |>

@@ -49,6 +49,7 @@ calculate_precision_rms <- function(df, media_col = "Presented.Media.name", gaze
       exclude_rows <- which(coordinates_df_sub[[x_fix]] < screen_width_min - aoi_buffer_px_x | coordinates_df_sub[[x_fix]] > screen_width_max + aoi_buffer_px_x |
                               coordinates_df_sub[[y_fix]] < screen_height_min - aoi_buffer_px_x | coordinates_df_sub[[y_fix]] > screen_height_max + aoi_buffer_px_y)
       if(exclude_rows |> length() > 0){coordinates_df_sub <- coordinates_df_sub[-exclude_rows,]}
+      print("precisionrms_only_onscreen")
       }
   
   if(AOI_only == T){
@@ -56,6 +57,7 @@ calculate_precision_rms <- function(df, media_col = "Presented.Media.name", gaze
     exclude_rows <- which(coordinates_df_sub[[x_fix]] < xmin - aoi_buffer_px_x | coordinates_df_sub[[x_fix]] > xmax + aoi_buffer_px_x |
                             coordinates_df_sub[[y_fix]] < ymin -  aoi_buffer_px_y | coordinates_df_sub[[y_fix]] > ymax + aoi_buffer_px_y )
     if(exclude_rows |> length() > 0){coordinates_df_sub <- coordinates_df_sub[-exclude_rows,]}
+    print("precisionrms_only_AOI")
     }
   
   if(longest_fix_only == T){
@@ -63,6 +65,7 @@ calculate_precision_rms <- function(df, media_col = "Presented.Media.name", gaze
         group_by(.data[[id_col]], .data[[trial]]) |>
         filter(.data[[gaze_event_dur_col]] == max(.data[[gaze_event_dur_col]], na.rm = T)) |> 
         ungroup()
+      print("precisionrms_only_longestfixation")
     }
 
     prec_rms <- coordinates_df_sub |> 

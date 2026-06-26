@@ -194,9 +194,6 @@ for(i in c(1:sample_size)){
       "yes",
       "no"
     ))
-  
-  df <- df |> 
-    filter(trial_included == "yes")
 
   # Add cumulative duration per trial
   df <- df |> 

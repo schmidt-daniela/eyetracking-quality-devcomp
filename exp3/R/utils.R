@@ -38,32 +38,18 @@ onepx_in_visd <- function(screen_distance_cm, screen_dpi) { # If you do not know
 #'
 #' @return `d` with joined columns and standardized `age` column.
 add_demo_cols <- function(d, df, folder) {
-  if (folder != "adults") {
     d |>
       left_join(
         df |>
           select(
-            trial, excluded_100ms, excluded_3sd, excluded_fixation,
-            sex, age_ddd, order, experimenter,
+            group_id_condition, trial, trial_included,
+            sex, age_days, order_adult_first, order_peer_first, experimenter,
             no_siblings, no_household, multilingual, kindergarten_yn, tagesmutter_yn
           ) |>
           distinct(),
-        by = "trial"
+        by = c("group_id_condition", "trial")
       ) |>
-      rename(age = age_ddd)
-  } else {
-    d |>
-      left_join(
-        df |>
-          select(
-            trial, excluded_100ms, excluded_3sd, excluded_fixation,
-            age_md, sex, order, experimenter
-          ) |>
-          distinct(),
-        by = "trial"
-      ) |>
-      rename(age = age_md)
-  }
+      rename(age = age_days)
 }
 
 #' Read one participant .rds file and add provenance columns

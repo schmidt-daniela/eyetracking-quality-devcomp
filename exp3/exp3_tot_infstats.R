@@ -99,19 +99,18 @@ df_tot <- df_tot |>
 ## Accuracy ----
 df_tot |> 
   select(folder, group_id, excluded_fixation, acc_visd) |>
-  #filter(excluded_fixation == "included") |> 
+  filter(excluded_fixation == "included") |> 
   drop_na(acc_visd) |> 
   group_by(group_id, folder) |> 
   count() |> 
   group_by(folder) |> 
   summarize(mean_valid_trials = mean(n),
-            sd_valid_trials = sd(n),
-            min = min(n), max = max(n)) |>
+            sd_valid_trials = sd(n)) |>
   ungroup() |> 
   slice(c(3,4,5,2,6,1))
 
 ## Precision (RMS & SD) & Robustness ----
-variable <- "precsd_visd" # precrms_visd or precsd_visd
+variable <- "precrms_visd" # precrms_visd or precsd_visd
 
 df_tot |>
   select(folder, group_id, time, all_of(variable)) |>
@@ -121,8 +120,7 @@ df_tot |>
   group_by(folder) |>
   summarize(
     mean_valid_trials = mean(n),
-    sd_valid_trials = sd(n),
-    min = min(n), max = max(n)
+    sd_valid_trials = sd(n)
   ) |>
   ungroup() |>
   slice(c(3, 4, 5, 2, 6, 1))
@@ -698,17 +696,21 @@ prior_rq1_precrms <- c(
 )
 
 ## Full Model ----
+t0 <- proc.time()
 full_rq1_precrms <- brm(
   precrms_visd ~ 0 + folder + position + (1 + position | group_id),
   data   = df_tot,
   family = Gamma(link="log"),
   prior  = prior_rq1_precrms,
-  chains = 4, cores = n_cores - 1, iter = 6000, warmup = 3000,
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
   sample_prior = "yes",
   # control = list(adapt_delta = 0.99, max_treedepth = 15),
   seed = 123,
   # save_pars = save_pars(all = TRUE)
 )
+t1 <- proc.time()
+proc_time_rq1_precrms <- t1 - t0
+rm(t0, t1)
 
 ## Define Priors of Reduced Model ----
 # With Gamma(link="log"), coefficients are on the log-mean scale.
@@ -746,7 +748,7 @@ red_rq1_precrms <- brm(
   data   = df_tot,
   family = Gamma(link="log"),
   prior  = prior_rq1_precrms_red,
-  chains = 4, cores = n_cores - 1, iter = 6000, warmup = 3000,
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
   sample_prior = "yes",
   seed = 123,
 )
@@ -754,7 +756,7 @@ red_rq1_precrms <- brm(
 ## Model Comparison ----
 loo_full_precrms <- loo(full_rq1_precrms)
 loo_red_precrms <- loo(red_rq1_precrms)
-loo_compare(loo_full_precrms, loo_red_precrms) # full_rq1_precrms -4.2       8.1 
+loo_compare(loo_full_precrms, loo_red_precrms) # full_rq1_precrms -4.3       7.4 
 
 ## Contrasts ----
 groups <- levels(df_tot$folder)
@@ -816,16 +818,16 @@ folder_labels <- c(
   "adults"="Adults","chimps"="Chimpanzees"
 )
 
-pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
-pos_labels <- c(
-  "center"="Center",
-  "top_right"="Top Right",
-  "bot_right"="Bottom Right",
-  "bottom"="Bottom",
-  "top_left"="Top Left",
-  "bot_left"="Bottom Left",
-  "top"="Top"
-)
+# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
+# pos_labels <- c(
+#   "center"="Center",
+#   "top_right"="Top Right",
+#   "bot_right"="Bottom Right",
+#   "bottom"="Bottom",
+#   "top_left"="Top Left",
+#   "bot_left"="Bottom Left",
+#   "top"="Top"
+# )
 
 # Create Newdata Grid
 nd_pos <- tidyr::expand_grid(
@@ -866,7 +868,7 @@ posterior_plot_rq1_precrms <- ggplot(
   #       legend.direction = "horizontal") +
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
-png(here("exp1", "img", "rq1_precrms_posterior.png"), width = 2480/2, height = 3508/2.5, res = 250)
+png(here("exp1", "img", "rq1_precrms_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
 posterior_plot_rq1_precrms
 dev.off() 
 
@@ -1025,7 +1027,7 @@ full_rq1_precsd <- brm(
   sample_prior = "yes",
   family = Gamma(link="log"),
   prior  = prior_rq1_precsd,
-  chains = 4, cores = n_cores - 1, iter = 6000, warmup = 3000,
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -1066,14 +1068,14 @@ red_rq1_precsd <- brm(
   sample_prior = "yes",
   family = Gamma(link="log"),
   prior  = prior_rq1_precsd_red,
-  chains = 4, cores = n_cores - 1, iter = 6000, warmup = 3000,
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
   seed = 123
 )
 
 ## Model Comparison ----
 loo_full_precsd <- loo(full_rq1_precsd)
 loo_red_precsd <- loo(red_rq1_precsd)
-loo_compare(loo_full_precsd, loo_red_precsd) # red_rq1_precsd  -8.5       8.6  
+loo_compare(loo_full_precsd, loo_red_precsd)
 
 ## Contrasts ----
 groups <- levels(df_tot$folder)
@@ -1132,16 +1134,16 @@ folder_labels <- c(
   "adults"="Adults","chimps"="Chimpanzees"
 )
 
-pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
-pos_labels <- c(
-  "center"="Center",
-  "top_right"="Top Right",
-  "bot_right"="Bottom Right",
-  "bottom"="Bottom",
-  "top_left"="Top Left",
-  "bot_left"="Bottom Left",
-  "top"="Top"
-)
+# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
+# pos_labels <- c(
+#   "center"="Center",
+#   "top_right"="Top Right",
+#   "bot_right"="Bottom Right",
+#   "bottom"="Bottom",
+#   "top_left"="Top Left",
+#   "bot_left"="Bottom Left",
+#   "top"="Top"
+# )
 
 # Create Newdata Grid
 nd_pos <- tidyr::expand_grid(
@@ -1160,8 +1162,8 @@ posterior_plot_rq1_precsd <- ggplot(
   precsd_long,
   aes(x = .epred,
       y = factor(folder, levels = rev(folder_order)),
-      fill = position,
-      colour = position
+      # fill = position,
+      # colour = position
       )
 ) +
   stat_halfeye(
@@ -1173,24 +1175,20 @@ posterior_plot_rq1_precsd <- ggplot(
     adjust = 1.0
   ) +
   scale_y_discrete(labels = folder_labels) +
-  scale_fill_discrete(name = "Position", labels = pos_labels) +
-  scale_colour_discrete(name = "Position", labels = pos_labels) +
+  # scale_fill_discrete(name = "Position", labels = pos_labels) +
+  # scale_colour_discrete(name = "Position", labels = pos_labels) +
   labs(x = "Predicted Precision (SD)", y = NULL) +
   theme_bw(base_size = 14) +
-  theme(legend.position = "bottom",
-        legend.box = "horizontal",
-        legend.direction = "horizontal") +
+  # theme(legend.position = "bottom",
+  #       legend.box = "horizontal",
+  #       legend.direction = "horizontal") +
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
-png(here("exp1", "img", "rq1_precsd_posterior_withposition.png"), width = 2480/2, height = 3508/2.5, res = 250)
+png(here("exp1", "img", "rq1_precsd_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
 posterior_plot_rq1_precsd
 dev.off() 
 
 ## Posterior Versus Prior Plots ----
-png(here("exp1", "img", "rq1_precsd_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folderchimps", "prior_b_folderchimps"), facet_label = "Chimpanzees")
-dev.off()
-
 png(here("exp1", "img", "rq1_precsd_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder4m", "prior_b_folder4m"), facet_label = "4-Month-Olds")
 dev.off()
@@ -2653,43 +2651,6 @@ for (page in 1:n_pages) {
   )
 }
 
-## Posterior Probability / Directional Certainty ----
-as_draws_df(full_rq2_precrms_hum) |>
-  select(contains(":")) |>
-  select(!contains("prior")) |>
-  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
-  group_by(param) |>
-  summarise(posterior_mean = mean(x),
-            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
-  mutate(slope = str_split_i(param, ":", 2),
-         folder = str_split_i(param, ":", 1)) |>
-  arrange(slope, folder) |>
-  select(-slope, -folder)
-
-as_draws_df(full_rq2_precrms_chi) |>
-  select(contains("b_time")) |>
-  select(!contains("prior")) |>
-  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
-  group_by(param) |>
-  summarise(posterior_mean = mean(x),
-            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
-  mutate(slope = str_split_i(param, ":", 2),
-         folder = str_split_i(param, ":", 1)) |>
-  arrange(slope, folder) |>
-  select(-slope, -folder)
-
-as_draws_df(full_rq2_precrms_chi_2) |>
-  select(contains("b_time")) |>
-  select(!contains("prior")) |>
-  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
-  group_by(param) |>
-  summarise(posterior_mean = mean(x),
-            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
-  mutate(slope = str_split_i(param, ":", 2),
-         folder = str_split_i(param, ":", 1)) |>
-  arrange(slope, folder) |>
-  select(-slope, -folder)
-
 # RQ2 (Precision SD) -----------------------------------------------------
 # RQ2: (How) does eye-tracking data quality change over time,
 # with time being defined as trials (humans) and testing days (chimpanzees)?
@@ -3191,43 +3152,6 @@ for (page in 1:n_pages) {
     dpi = 300
   )
 }
-
-## Posterior Probability / Directional Certainty ----
-as_draws_df(full_rq2_precsd_hum) |>
-  select(contains(":")) |>
-  select(!contains("prior")) |>
-  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
-  group_by(param) |>
-  summarise(posterior_mean = mean(x),
-            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
-  mutate(slope = str_split_i(param, ":", 2),
-         folder = str_split_i(param, ":", 1)) |>
-  arrange(slope, folder) |>
-  select(-slope, -folder)
-
-as_draws_df(full_rq2_precsd_chi) |>
-  select(contains("b_time")) |>
-  select(!contains("prior")) |>
-  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
-  group_by(param) |>
-  summarise(posterior_mean = mean(x),
-            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
-  mutate(slope = str_split_i(param, ":", 2),
-         folder = str_split_i(param, ":", 1)) |>
-  arrange(slope, folder) |>
-  select(-slope, -folder)
-
-as_draws_df(full_rq2_precsd_chi_2) |>
-  select(contains("b_time")) |>
-  select(!contains("prior")) |>
-  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
-  group_by(param) |>
-  summarise(posterior_mean = mean(x),
-            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
-  mutate(slope = str_split_i(param, ":", 2),
-         folder = str_split_i(param, ":", 1)) |>
-  arrange(slope, folder) |>
-  select(-slope, -folder)
 
 # RQ3 (Fixation Duration) -------------------------------------------------
 df_rq3 <- df_tot |> 
@@ -4552,16 +4476,16 @@ bayestestR::hdi(full_rq3_rel_gaze_in_aoi)
 
 ## Paper Plot ----
 plot_rq3(df = df_tot, x_var = "acc_visd", y_var = "rel_gaze_in_aoi", width = 2480, height = 3508/2, res = 250,
-         png_name = "rq3_acc_rellook.png", x_lab = "Accuracy\n(in visual degrees)", y_lab = "Relative Looking Time")
+         png_name = "rq3_acc_rellook.png", x_lab = "Accuracy\n(in visual degrees)", y_lab = "Relative Looking Time\n(in ms)")
 
 plot_rq3(df = df_tot, x_var = "precsd_visd", y_var = "rel_gaze_in_aoi", width = 2480, height = 3508/2, res = 250,
-         png_name = "rq3_precsd_rellookt.png", x_lab = "Precision (SD)\n(in visual degrees)", y_lab = "Relative Looking Time")
+         png_name = "rq3_precsd_rellookt.png", x_lab = "Precision (SD)\n(in visual degrees)", y_lab = "Relative Looking Time\n(in ms)")
 
 plot_rq3(df = df_tot, x_var = "precrms_visd", y_var = "rel_gaze_in_aoi", width = 2480, height = 3508/2, res = 250,
-         png_name = "rq3_precrms_rellook.png", x_lab = "Precision (RMS)\n(in visual degrees)", y_lab = "Relative Looking Time")
+         png_name = "rq3_precrms_rellook.png", x_lab = "Precision (RMS)\n(in visual degrees)", y_lab = "Relative Looking Time\n(in ms)")
 
 plot_rq3(df = df_tot, x_var = "robustness_prop_2", y_var = "rel_gaze_in_aoi", width = 2480, height = 3508/2, res = 250,
-         png_name = "rq3_rob_rellook.png", x_lab = "Robustness\n(in %)", y_lab = "Relative Looking Time")
+         png_name = "rq3_rob_rellook.png", x_lab = "Robustness\n(in %)", y_lab = "Relative Looking Time\n(in ms)")
 
 # Optionally not separated by group
 # plot_rq3_all(df = df_tot, x_var = "acc_visd", y_var = "rel_gaze_in_aoi",

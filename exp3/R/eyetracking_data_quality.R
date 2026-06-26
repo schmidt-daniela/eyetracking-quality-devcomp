@@ -282,7 +282,6 @@ calculate_robustness <- function(
 #'
 calculate_robustness_2 <- function(
     df,
-    trial_col               = "trial",
     gaze_x_col              = "gaze_point_x",
     gaze_y_col              = "gaze_point_y",
     sample_duration_col     = "gaze_sample_duration",
@@ -297,7 +296,7 @@ calculate_robustness_2 <- function(
     print_max_cum           = TRUE) {
   
   # Basic Checks ----
-  needed <- c(trial_col, gaze_x_col, gaze_y_col, sample_duration_col, blink_left_col, blink_right_col)
+  needed <- c(gaze_x_col, gaze_y_col, sample_duration_col, blink_left_col, blink_right_col)
   missing_cols <- setdiff(needed, names(df))
   if (length(missing_cols) > 0) {
     stop("Missing required columns: ", paste(missing_cols, collapse = ", "))

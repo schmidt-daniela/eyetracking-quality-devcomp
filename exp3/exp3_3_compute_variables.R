@@ -4,14 +4,16 @@ rm(list = ls())
 # Packages ----------------------------------------------------------------
 library(here)
 library(tidyverse)
+options(dplyr.summarise.inform = FALSE)
 
 # Load Functions ----------------------------------------------------------
 source(here("exp3", "R", "eyetracking_data_quality.R"))
 source(here("exp3", "R", "utils.R"))
 
 # Adjust Parameter --------------------------------------------------------
-for (i in c(1:32)) {
-  folder <- "4mo" # "4mo", "6to18mo"
+sample_size <- 32 # if 4mo, sample_size <- 24; if 6-to-18-month, sample_size <- 32
+for (i in c(1:sample_size)) {
+  folder <- "6to18mo" # "4mo", "6to18mo"
   filenames <- list.files(path = here("exp3", "data", "raw_clean_blink", folder))
   n <- i
   filename <- filenames[n]
@@ -550,7 +552,7 @@ for (i in c(1:32)) {
     blink_replacement_value = 99999,
     robustness_check_col    = "robustness_check",
     cum_duration_col        = "cum_duration",
-    truncate_at_t_ms        = 5000,
+    truncate_at_t_ms        = 15946,
     print_max_cum           = TRUE) |>
     mutate(group_id = df$group_id |> unique()) |> 
     mutate(data_quality = "robustness_2")   |> 
@@ -572,7 +574,7 @@ for (i in c(1:32)) {
     blink_replacement_value = 99999,
     robustness_check_col    = "robustness_check",
     cum_duration_col        = "cum_duration",
-    truncate_at_t_ms        = 53466,
+    truncate_at_t_ms        = 15946,
     print_max_cum           = TRUE) |>
     mutate(group_id = df$group_id |> unique()) |> 
     mutate(data_quality = "robustness_2") |> 
@@ -594,7 +596,7 @@ for (i in c(1:32)) {
     blink_replacement_value = 99999,
     robustness_check_col    = "robustness_check",
     cum_duration_col        = "cum_duration",
-    truncate_at_t_ms        = 53466,
+    truncate_at_t_ms        = 15946,
     print_max_cum           = TRUE) |>
     mutate(group_id = df$group_id |> unique()) |> 
     mutate(data_quality = "robustness_2") |> 

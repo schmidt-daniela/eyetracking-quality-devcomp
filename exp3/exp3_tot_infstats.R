@@ -14,59 +14,38 @@ library(ggforce)
 library(bayestestR)
 
 # Load Functions ----------------------------------------------------------
-source(here("exp1", "R", "descriptives.R"))
-source(here("exp1", "R", "inferentials.R"))
-source(here("exp1", "R", "utils.R"))
-source(here("exp1", "R", "viz.R"))
+source(here("exp3", "R", "descriptives.R"))
+source(here("exp3", "R", "inferentials.R"))
+source(here("exp3", "R", "utils.R"))
+source(here("exp3", "R", "viz.R"))
 
 # Set Parameters ----------------------------------------------------------
 n_cores <- parallel::detectCores()
 
 # Read Data ---------------------------------------------------------------
-folders <- c("4m", "6m", "9m", "18m", "adults", "chimps")
+folders <- c("4mo", "6to18mo")
 
 dfs <- folders |>
   set_names() |>
   map(read_folder)
 
-df_4m     <- dfs[["4m"]] |> mutate(no_siblings  = as.character(no_siblings), no_household = as.character(no_household))
-df_6m     <- dfs[["6m"]] |> mutate(no_siblings  = as.character(no_siblings), no_household = as.character(no_household))
-df_9m     <- dfs[["9m"]] |> mutate(no_household = as.character(no_household))
-df_18m    <- dfs[["18m"]]
-df_adults <- dfs[["adults"]]
-df_chimps <- dfs[["chimps"]]
-
-day_session <- read_excel(here("exp1", "doc", "day_session_apes.xlsx"))
+df_4m     <- dfs[["4mo"]] |> mutate(age = as.numeric(age), 
+                                    no_siblings = as.numeric(no_siblings),
+                                    no_household = as.numeric(no_household)) #|> mutate(no_siblings  = as.character(no_siblings), no_household = as.character(no_household))
+df_6to18m     <- dfs[["6to18mo"]] #|> mutate(no_siblings  = as.character(no_siblings), no_household = as.character(no_household))
 
 # Prepare Data ------------------------------------------------------------
 df_tot <- df_4m |> 
-  bind_rows(df_6m, df_9m, df_18m, df_adults) |> 
-  bind_rows(df_chimps)|> 
+  bind_rows(df_6to18m) |> 
   mutate(
     folder   = factor(folder),
     position = factor(position),
     group_id = factor(group_id)
-  ) |> 
-  mutate(folder = fct_relevel(folder, "chimps"))
-
-table(df_tot$acc_visd == 0, useNA = "ifany") # Check for exact zeros (Gamma can't take zeros, but gamma_hurdle can)
-
-# Create time variable (trial for humans, session_trial for chimps)
-df_tot$time <- ifelse(!is.na(df_tot$session_trial),
-                      df_tot$session_trial,
-                      as.character(df_tot$trial))
-df_tot <- df_tot |>
-  mutate(
-    time_1 = gsub("^session", "", time), # remove leading "session"
-    time_1 = sub("_.*$", "", time_1),    # drop "_" and everything after
-    time_1 = as.numeric(time_1)          # convert to numeric
   )
 
-df_tot <- df_tot |> 
-  mutate(
-    time_2 = if_else(grepl("_", time), sub("^.*_", "", time), time), # remove everything until including _
-    time_2 = as.numeric(time_2)
-  )
+table(df_tot$acc_visd == 0, useNA = "ifany") # Check for exact zeros - there are none (Gamma can't take zeros, but gamma_hurdle can)
+table(df_tot$precrms_visd == 0, useNA = "ifany") # Check for exact zeros - there are none (Gamma can't take zeros, but gamma_hurdle can)
+table(df_tot$precsd_visd == 0, useNA = "ifany") # Check for exact zeros - there are none (Gamma can't take zeros, but gamma_hurdle can)
 
 # Order levels of position (in order to make "center" the reference category)
 position_levels <- c("center", "top_left", "top_right", "bot_left", "bot_right", "top", "bottom")
@@ -76,174 +55,61 @@ df_tot <- df_tot |>
 
 # Scale robustness
 df_tot <- df_tot |> 
-  mutate(robustness_prop_2 = robustness_ms_2 / 53466)
-
-# Change name of group column
-# (in order to make marginaleffects work)
-df_tot <- df_tot |>
-  rename(species_group = group)
-
-# Add day
-df_tot <- df_tot |> 
-  separate(session_trial, into = c("session", "trial"), sep = "_", remove = FALSE) |>
-  left_join(day_session, by = c("group_id", "session", "species_group"))
-
-df_tot <- df_tot |> 
-  mutate(time_3 = if_else(folder == "chimps", as.numeric(day), as.numeric(time)))
-
-# Legend for time:
-# In chimps: time_1 = session, time_2 = trial within session, time_3 = day
+  mutate(robustness_prop_2 = robustness_ms_2 / 15946)
 
 # Trial Contribution ------------------------------------------------------
 
 ## Accuracy ----
 df_tot |> 
-  select(folder, group_id, excluded_fixation, acc_visd) |>
-  filter(excluded_fixation == "included") |> 
+  filter(trial_included == "yes") |> 
   drop_na(acc_visd) |> 
-  group_by(group_id, folder) |> 
+  group_by(folder, id, condition) |> 
   count() |> 
-  group_by(folder) |> 
-  summarize(mean_valid_trials = mean(n),
-            sd_valid_trials = sd(n)) |>
+  group_by(folder, condition) |> 
+  summarize(min = min(n, na.rm = T),
+            max = max(n, na.rm = T),
+            M = mean(n, na.rm = T),
+            SD = sd (n, na.rm = T)) |> 
+  # summarize(mean_valid_trials = mean(n, na.rm = T),
+  #           sd_valid_trials = sd(n, na.rm = T)) |>
   ungroup() |> 
-  slice(c(3,4,5,2,6,1))
-
-## Precision (RMS & SD) & Robustness ----
-variable <- "precrms_visd" # precrms_visd or precsd_visd
-
-df_tot |>
-  select(folder, group_id, time, all_of(variable)) |>
-  drop_na(all_of(variable)) |>
-  group_by(group_id, folder) |>
-  count() |>
-  group_by(folder) |>
-  summarize(
-    mean_valid_trials = mean(n),
-    sd_valid_trials = sd(n)
-  ) |>
-  ungroup() |>
-  slice(c(3, 4, 5, 2, 6, 1))
-
-
-# Chimps Adult versus Non-Adult Plot --------------------------------------
-## Accuracy ----
-df_plot_chimpadults_acc <- df_tot |>  
-  filter(folder == "chimps") |> 
-  filter(!is.na(acc_visd), !is.na(age_classification)) |> 
-  mutate(age_group = case_when(
-    grepl("adult", tolower(age_classification)) ~ "Adult",
-    TRUE ~ "Non-Adult"),
-    age_group = factor(age_group, levels = c("Non-Adult", "Adult"))) |>
-  group_by(group_id, age_group) |>
-  summarize(acc_visd = mean(acc_visd, na.rm = TRUE), .groups = "drop")
-
-p_chimpadult_acc <- ggplot(df_plot_chimpadults_acc, aes(x = age_group, y = acc_visd)) +
-  geom_violin(trim = FALSE, width = 0.9, fill = "white", color = "grey25", alpha = 1, linewidth = 0.8) +
-  geom_jitter(aes(color = age_group), width = 0.08, height = 0, alpha = 0.65, size = 2.2) +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.10, linewidth = 0.8, color = "black") +
-  stat_summary(fun = mean, geom = "point", size = 3.2, color = "black") +
-  labs(x = "Chimpanzee Age Classification", y = "Accuracy\n(in visual degree)", title = NULL) +
-  scale_color_manual(values = c("Non-Adult" = "#F8766D","Adult"     = "#E76BF3")) +
-  guides(color = "none") +
-  theme_classic(base_size = 12)
-
-png(here("exp1", "img", "acc_chimps_adults_nonadults.png"), width = 2480/2, height = 3508/4, res = 210)
-p_chimpadult_acc
-dev.off()
+  slice(3,2,1,6,5,4)
 
 ## Precision (RMS) ----
-df_plot_chimpadults_precrms <- df_tot |>  
-  filter(folder == "chimps") |> 
-  filter(!is.na(precrms_visd), !is.na(age_classification)) |> 
-  mutate(age_group = case_when(
-    grepl("adult", tolower(age_classification)) ~ "Adult",
-    TRUE ~ "Non-Adult"),
-    age_group = factor(age_group, levels = c("Non-Adult", "Adult"))) |>
-  group_by(group_id, age_group) |>
-  summarize(precrms_visd = mean(precrms_visd, na.rm = TRUE), .groups = "drop") |> 
-  ungroup()
-
-p_chimpadult_precrms <- ggplot(df_plot_chimpadults_precrms, aes(x = age_group, y = precrms_visd)) +
-  geom_violin(trim = FALSE, width = 0.9, fill = "white", color = "grey25", alpha = 1, linewidth = 0.8) +
-  geom_jitter(aes(color = age_group), width = 0.08, height = 0, alpha = 0.65, size = 2.2) +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.10, linewidth = 0.8, color = "black") +
-  stat_summary(fun = mean, geom = "point", size = 3.2, color = "black") +
-  labs(x = "Chimpanzee Age Classification", y = "Precision (RMS)\n(in visual degrees)", title = NULL) +
-  scale_color_manual(values = c("Non-Adult" = "#F8766D","Adult"     = "#E76BF3")) +
-  guides(color = "none") +
-  theme_classic(base_size = 12)
-
-png(here("exp1", "img", "precrms_chimps_adults_nonadults.png"), width = 2480/2, height = 3508/4, res = 210)
-p_chimpadult_precrms
-dev.off()
+df_tot |> 
+  drop_na(precrms_visd) |> 
+  group_by(folder, id, condition) |> 
+  count() |> 
+  group_by(folder, condition) |> 
+  summarize(min = min(n, na.rm = T),
+            max = max(n, na.rm = T),
+            M = mean(n, na.rm = T),
+            SD = sd (n, na.rm = T)) |> 
+  # summarize(mean_valid_trials = mean(n, na.rm = T),
+  #           sd_valid_trials = sd(n, na.rm = T)) |>
+  ungroup() |> 
+  slice(3,2,1,6,5,4)
 
 ## Precision (SD) ----
-df_plot_chimpadults_precsd <- df_tot |>  
-  filter(folder == "chimps") |> 
-  filter(!is.na(precsd_visd), !is.na(age_classification)) |> 
-  mutate(age_group = case_when(
-    grepl("adult", tolower(age_classification)) ~ "Adult",
-    TRUE ~ "Non-Adult"),
-    age_group = factor(age_group, levels = c("Non-Adult", "Adult"))) |>
-  group_by(group_id, age_group) |>
-  summarize(precsd_visd = mean(precsd_visd, na.rm = TRUE), .groups = "drop")|> 
-  ungroup()
+df_tot |> 
+  drop_na(precsd_visd) |> 
+  group_by(folder, id, condition) |> 
+  count() |> 
+  group_by(folder, condition) |> 
+  summarize(min = min(n, na.rm = T),
+            max = max(n, na.rm = T),
+            M = mean(n, na.rm = T),
+            SD = sd (n, na.rm = T)) |> 
+  # summarize(mean_valid_trials = mean(n, na.rm = T),
+  #           sd_valid_trials = sd(n, na.rm = T)) |>
+  ungroup() |> 
+  slice(3,2,1,6,5,4)
 
-p_chimpadult_precsd <- ggplot(df_plot_chimpadults_precsd, aes(x = age_group, y = precsd_visd)) +
-  geom_violin(trim = FALSE, width = 0.9, fill = "white", color = "grey25", alpha = 1, linewidth = 0.8) +
-  geom_jitter(aes(color = age_group), width = 0.08, height = 0, alpha = 0.65, size = 2.2) +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.10, linewidth = 0.8, color = "black") +
-  stat_summary(fun = mean, geom = "point", size = 3.2, color = "black") +
-  labs(x = "Chimpanzee Age Classification", y = "Precision (SD)\n(in visual degrees)", title = NULL) +
-  scale_color_manual(values = c("Non-Adult" = "#F8766D","Adult"     = "#E76BF3")) +
-  guides(color = "none") +
-  theme_classic(base_size = 12)
+##### CONTINUE HERE
 
-png(here("exp1", "img", "precsd_chimps_adults_nonadults.png"), width = 2480/2, height = 3508/4, res = 210)
-p_chimpadult_precsd
-dev.off()
-
-## Robustness ----
-df_chimp_agegroup <- df_tot |>
-  filter(folder == "chimps") |>
-  filter(!is.na(group_id), !is.na(age_classification)) |>
-  mutate(
-    age_group = case_when(
-      grepl("adult", tolower(age_classification)) ~ "Adult",
-      TRUE ~ "Non-Adult"
-    ),
-    age_group = factor(age_group, levels = c("Non-Adult", "Adult"))
-  ) |>
-  select(group_id, age_group) |>
-  distinct()
-
-df_plot_chimpadults_rob <- df_tot |>
-  filter(folder == "chimps") |>
-  filter(!is.na(group_id), !is.na(robustness_prop_2)) |>
-  select(group_id, robustness_prop_2) |>
-  distinct() |>
-  left_join(df_chimp_agegroup, by = "group_id") |>
-  filter(!is.na(age_group))
-
-p_chimpadult_rob <- ggplot(df_plot_chimpadults_rob, aes(x = age_group, y = robustness_prop_2)) +
-  geom_violin(trim = FALSE, width = 0.9, fill = "white", color = "grey25", alpha = 1, linewidth = 0.8) +
-  geom_jitter(aes(color = age_group), width = 0.08, height = 0, alpha = 0.65, size = 2.2) +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.10, linewidth = 0.8, color = "black") +
-  stat_summary(fun = mean, geom = "point", size = 3.2, color = "black") +
-  labs(x = "Chimpanzee Age Classification", y = "Robustness\n(in %)", title = NULL) +
-  scale_color_manual(values = c("Non-Adult" = "#F8766D","Adult" = "#E76BF3")) +
-  guides(color = "none") +
-  theme_classic(base_size = 12)
-
-png(here("exp1", "img", "robustness_chimps_adults_nonadults.png"), width = 2480/2, height = 3508/4, res = 210)
-p_chimpadult_rob
-dev.off()
 
 # RQ1 (Accuracy) ----------------------------------------------------------
-# RQ1:  (How) does eye-tracking data quality (accuracy, precision, robustness) 
-# vary within and between groups (4-, 6-, 9-, and 18-month-old human infants, 
-# human adults, and chimpanzees) (Experiment 1)?
+
 
 # Preregistered Model:
 # Dependent variables: accuracy, precision RMS, precision SD, and robustness (in separate GLMMs).
@@ -430,12 +296,12 @@ results_rq1_acc |>
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
 
-png(here("exp1", "img", "rq1_acc_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq1_acc_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq1_acc, ndraws = 100) # rq1 accuracy check, that's fine
 #pp_check(full_rq1_acc, type = "hist") # rq1 accuracy check, that's fine
 dev.off()
 
-png(here("exp1", "img", "rq1_acc_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq1_acc_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq1_acc, type = "intervals_grouped", group = "folder") # might exceed memory limits
 dev.off()
 
@@ -498,34 +364,34 @@ posterior_plot_rq1_acc <- ggplot(
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
 
-png(here("exp1", "img", "rq1_acc_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
+png(here("exp3", "img", "rq1_acc_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
 posterior_plot_rq1_acc
 dev.off()
 
 ## Posterior Versus Prior Plots ----
 
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
-png(here("exp1", "img", "rq1_acc_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_acc_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_acc, pars = c("b_folderchimps", "prior_b_folderchimps"), facet_label = "Chimpanzees")
 dev.off()
 
-png(here("exp1", "img", "rq1_acc_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_acc_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_acc, pars = c("b_folder4m", "prior_b_folder4m"), facet_label = "4-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_acc_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_acc_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_acc, pars = c("b_folder6m", "prior_b_folder6m"), facet_label = "6-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_acc_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_acc_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_acc, pars = c("b_folder9m", "prior_b_folder9m"), facet_label = "9-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_acc_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_acc_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_acc, pars = c("b_folder18m", "prior_b_folder18m"), facet_label = "18-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_acc_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_acc_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_acc, pars = c("b_folderadults", "prior_b_folderadults"), facet_label = "Adults")
 dev.off()
 
@@ -609,7 +475,7 @@ p_acc <- ggplot(df_subj, aes(x = Group, y = acc_visd)) +
   theme_classic(base_size = 14) +
   theme(panel.grid = element_blank())
 
-png(here("exp1", "img", "rq1_acc_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
+png(here("exp3", "img", "rq1_acc_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
 p_acc
 dev.off()
 
@@ -801,12 +667,12 @@ pp_check(full_rq1_precrms, ndraws = 100) # A good model will show the observed d
 
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
-png(here("exp1", "img", "rq1_precrms_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq1_precrms_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq1_precrms, ndraws = 100)
 #pp_check(full_rq1_precrms, type = "hist") 
 dev.off()
 
-png(here("exp1", "img", "rq1_precrms_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq1_precrms_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq1_precrms, type = "intervals_grouped", group = "folder") # might exceed memory limits
 dev.off()
 
@@ -868,33 +734,33 @@ posterior_plot_rq1_precrms <- ggplot(
   #       legend.direction = "horizontal") +
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
-png(here("exp1", "img", "rq1_precrms_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
+png(here("exp3", "img", "rq1_precrms_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
 posterior_plot_rq1_precrms
 dev.off() 
 
 ## Posterior Versus Prior Plots ----
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
-png(here("exp1", "img", "rq1_precrms_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_precrms_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folderchimps", "prior_b_folderchimps"), facet_label = "Chimpanzees")
 dev.off()
 
-png(here("exp1", "img", "rq1_precrms_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_precrms_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folder4m", "prior_b_folder4m"), facet_label = "4-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_precrms_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_precrms_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folder6m", "prior_b_folder6m"), facet_label = "6-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_precrms_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_precrms_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folder9m", "prior_b_folder9m"), facet_label = "9-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_precrms_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_precrms_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folder18m", "prior_b_folder18m"), facet_label = "18-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_precrms_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_precrms_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folderadults", "prior_b_folderadults"), facet_label = "Adults")
 dev.off()
 
@@ -976,7 +842,7 @@ p_precrms <- ggplot(df_subj, aes(x = Group, y = precrms_visd)) +
   theme_classic(base_size = 14) +
   theme(panel.grid = element_blank())
 
-png(here("exp1", "img", "rq1_precrms_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
+png(here("exp3", "img", "rq1_precrms_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
 p_precrms
 dev.off()
 
@@ -1117,12 +983,12 @@ results_rq1_precsd |>
 
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
-png(here("exp1", "img", "rq1_precsd_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq1_precsd_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq1_precsd, ndraws = 100) 
 #pp_check(full_rq1_precsd, type = "hist")
 dev.off()
 
-png(here("exp1", "img", "rq1_precsd_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq1_precsd_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq1_precsd, type = "intervals_grouped", group = "folder") # might exceed memory limits
 dev.off()
 
@@ -1184,28 +1050,28 @@ posterior_plot_rq1_precsd <- ggplot(
   #       legend.direction = "horizontal") +
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
-png(here("exp1", "img", "rq1_precsd_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
+png(here("exp3", "img", "rq1_precsd_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
 posterior_plot_rq1_precsd
 dev.off() 
 
 ## Posterior Versus Prior Plots ----
-png(here("exp1", "img", "rq1_precsd_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_precsd_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder4m", "prior_b_folder4m"), facet_label = "4-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_precsd_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_precsd_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder6m", "prior_b_folder6m"), facet_label = "6-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_precsd_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_precsd_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder9m", "prior_b_folder9m"), facet_label = "9-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_precsd_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_precsd_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder18m", "prior_b_folder18m"), facet_label = "18-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_precsd_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_precsd_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folderadults", "prior_b_folderadults"), facet_label = "Adults")
 dev.off()
 
@@ -1288,7 +1154,7 @@ p_precsd <- ggplot(df_subj, aes(x = Group, y = precsd_visd)) +
   theme_classic(base_size = 14) +
   theme(panel.grid = element_blank())
 
-png(here("exp1", "img", "rq1_precsd_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
+png(here("exp3", "img", "rq1_precsd_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
 p_precsd
 dev.off()
 
@@ -1429,12 +1295,12 @@ results_rq1_rob |>
 
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
-png(here("exp1", "img", "rq1_rob_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq1_rob_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq1_rob, ndraws = 100) 
 #pp_check(full_rq1_rob, type = "hist")
 dev.off()
 
-png(here("exp1", "img", "rq1_rob_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq1_rob_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq1_rob, type = "intervals_grouped", group = "folder") # might exceed memory limits
 dev.off()
 
@@ -1466,35 +1332,35 @@ posterior_plot_rq1_rob <- ggplot(
   theme_bw(base_size = 14)
 
 # Save
-png(here("exp1", "img", "rq1_rob_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
-#png(here::here("exp1", "img", "rq1_rob_posterior.png"), width = 2480, height = 3508/3.5, res = 250)
+png(here("exp3", "img", "rq1_rob_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
+#png(here::here("exp3", "img", "rq1_rob_posterior.png"), width = 2480, height = 3508/3.5, res = 250)
 posterior_plot_rq1_rob
 dev.off()
 
 ## Posterior Versus Prior Plots ----
 
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
-png(here("exp1", "img", "rq1_rob_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_rob_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_rob, pars = c("b_folderchimps", "prior_b_folderchimps"), facet_label = "Chimpanzees")
 dev.off()
 
-png(here("exp1", "img", "rq1_rob_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_rob_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_rob, pars = c("b_folder4m", "prior_b_folder4m"), facet_label = "4-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_rob_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_rob_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_rob, pars = c("b_folder6m", "prior_b_folder6m"), facet_label = "6-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_rob_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_rob_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_rob, pars = c("b_folder9m", "prior_b_folder9m"), facet_label = "9-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_rob_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_rob_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_rob, pars = c("b_folder18m", "prior_b_folder18m"), facet_label = "18-Month-Olds")
 dev.off()
 
-png(here("exp1", "img", "rq1_rob_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq1_rob_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq1_rob, pars = c("b_folderadults", "prior_b_folderadults"), facet_label = "Adults")
 dev.off()
 
@@ -1599,7 +1465,7 @@ p_robust <- ggplot(df_subj, aes(x = Group, y = robustness_prop_2)) +
   theme_classic(base_size = 14) +
   theme(panel.grid = element_blank())
 
-png(here("exp1", "img", "rq1_rob_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
+png(here("exp3", "img", "rq1_rob_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
 p_robust
 dev.off()
 
@@ -1621,7 +1487,7 @@ posterior_robust <- mcmc_areas(ep, pars = rev(pars_order), prob = 0.95) +
   scale_y_discrete(labels = y_labels) +
   ggplot2::labs(x = "Robustness\n(Posterior Predictive Mean; Response Scale)",
                 y = "Group")
-png(here("exp1", "img", "rq1_rob_posteriorplot.png"), width = 2480/2, height = 3508/4, res = 250)
+png(here("exp3", "img", "rq1_rob_posteriorplot.png"), width = 2480/2, height = 3508/4, res = 250)
 posterior_robust
 dev.off()
 
@@ -1939,19 +1805,19 @@ loo_compare(loo_full_acc_rq2_chi_2, loo_red_acc_rq2_chi_2)  # full_rq2_acc_chi_2
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
 
-png(here("exp1", "img", "rq2_acc_hum_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq2_acc_hum_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq2_acc_hum, ndraws = 100)
 dev.off()
 
-png(here("exp1", "img", "rq2_acc_chi1_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq2_acc_chi1_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq2_acc_chi, ndraws = 100)
 dev.off()
 
-png(here("exp1", "img", "rq2_acc_chi2_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq2_acc_chi2_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq2_acc_chi_2, ndraws = 100)
 dev.off()
 
-png(here("exp1", "img", "rq2_acc_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq2_acc_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq2_acc_hum, type = "intervals_grouped", group = "folder") # might exceed memory limits
 dev.off()
 
@@ -2046,38 +1912,38 @@ posterior_plot_rq2_acc <- ggplot(
   ) +
   theme_bw(base_size = 14)
 
-png(here("exp1", "img", "rq2_acc_posterior.png"), width = 2480, height = 3508/4.5, res = 190)
+png(here("exp3", "img", "rq2_acc_posterior.png"), width = 2480, height = 3508/4.5, res = 190)
 posterior_plot_rq2_acc
 dev.off()
 
 ## Posterior Versus Prior Plot ----
 # Humans 
-png(here("exp1", "img", "rq2_acc_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq2_acc_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq2_acc_hum, pars = c("b_folder4m:time_3", "prior_b_folder4m:time_3"), facet_label = "4 Months")
 dev.off()
 
-png(here("exp1", "img", "rq2_acc_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq2_acc_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq2_acc_hum, pars = c("b_folder6m:time_3", "prior_b_folder6m:time_3"), facet_label = "6 Months")
 dev.off()
 
-png(here("exp1", "img", "rq2_acc_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq2_acc_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq2_acc_hum, pars = c("b_folder9m:time_3", "prior_b_folder9m:time_3"), facet_label = "9 Months")
 dev.off()
 
-png(here("exp1", "img", "rq2_acc_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq2_acc_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq2_acc_hum, pars = c("b_folder18m:time_3", "prior_b_folder18m:time_3"), facet_label = "18 Months")
 dev.off()
 
-png(here("exp1", "img", "rq2_acc_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq2_acc_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq2_acc_hum, pars = c("b_folderadults:time_3", "prior_b_folderadults:time_3"), facet_label = "Adults")
 dev.off()
 
 # Chimps
-png(here("exp1", "img", "rq2_acc_posteriorprior_chimps_days.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_acc_posteriorprior_chimps_days.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_acc_chi, pars = c("b_time_3", "prior_b_time_3"), facet_label = "Chimpanzees (Time as Testing Days)")
 dev.off()
 
-png(here("exp1", "img", "rq2_acc_posteriorprior_chimps_trials.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_acc_posteriorprior_chimps_trials.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_acc_chi_2, pars = c("b_time_2", "prior_b_time_2"), facet_label = "Chimpanzees (Time as Trials Within Testing Days)")
 dev.off()
 
@@ -2098,17 +1964,17 @@ bayestestR::hdi(full_rq2_acc_chi_2)
 
 ## Paper Plot ----
 # Plot showing data quality across time in all tested groups
-plot_rq2(df = df_tot, png_name = "rq2_acc_session_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+plot_rq2(df = df_tot, png_name = "rq2_acc_session_all.png", out_dir = here::here("exp3", "img"), width = 2480*1.5, height = 3508, res = 300,
                          group_var = "folder", x_var   = "time_1", y_var = "acc_visd",
                          xmax_chimps = 8, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 3, ymax_chimps = 5,
                          ytitle = "Accuracy\nin visual degrees", x_label = "Time\n(trials in humans; sessions in apes)")
 
-plot_rq2(df = df_tot, png_name = "rq2_acc_trial_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+plot_rq2(df = df_tot, png_name = "rq2_acc_trial_all.png", out_dir = here::here("exp3", "img"), width = 2480*1.5, height = 3508, res = 300,
                          group_var = "folder", x_var   = "time_2", y_var = "acc_visd",
                          xmax_chimps = 11, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 3, ymax_chimps = 5,
                          ytitle = "Accuracy\nin visual degrees", x_label = "Time\n(trials in humans; trials within sessions in apes)")
 
-plot_rq2(df = df_tot, png_name = "rq2_acc_day_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+plot_rq2(df = df_tot, png_name = "rq2_acc_day_all.png", out_dir = here::here("exp3", "img"), width = 2480*1.5, height = 3508, res = 300,
                          group_var = "folder", x_var   = "time_3", y_var = "acc_visd",
                          xmax_chimps = 7, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 3, ymax_chimps = 5,
                          ytitle = "Accuracy\nin visual degrees", x_label = "Time\n(trials in humans; days in apes)")
@@ -2151,7 +2017,7 @@ for (page in 1:n_pages) {
     )
   
   ggsave(
-    filename = file.path(here("exp1", "img", paste0("individual_acc_visd_plots_page_", page, ".png"))
+    filename = file.path(here("exp3", "img", paste0("individual_acc_visd_plots_page_", page, ".png"))
     ),
     plot = p_rq2_acc,
     width = 11,
@@ -2431,19 +2297,19 @@ loo_compare(loo_full_precrms_rq2_chi_2, loo_red_precrms_rq2_chi_2)
 
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
-png(here("exp1", "img", "rq2_precrms_hum_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq2_precrms_hum_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq2_precrms_hum, ndraws = 100)
 dev.off()
 
-png(here("exp1", "img", "rq2_precrms_chi1_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq2_precrms_chi1_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq2_precrms_chi, ndraws = 100)
 dev.off()
 
-png(here("exp1", "img", "rq2_precrms_chi2_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq2_precrms_chi2_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq2_precrms_chi_2, ndraws = 100)
 dev.off()
 
-png(here("exp1", "img", "rq2_precrms_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq2_precrms_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq2_precrms_hum, type = "intervals_grouped", group = "folder") # might exceed memory limits
 dev.off()
 
@@ -2538,38 +2404,38 @@ posterior_plot_rq2_precrms <- ggplot(
   ) +
   theme_bw(base_size = 14)
 
-png(here("exp1", "img", "rq2_precrms_posterior.png"), width = 2480, height = 3508/4.5, res = 190)
+png(here("exp3", "img", "rq2_precrms_posterior.png"), width = 2480, height = 3508/4.5, res = 190)
 posterior_plot_rq2_precrms
 dev.off()
 
 ## Posterior Versus Prior Plot ----
 # Humans 
-png(here("exp1", "img", "rq2_precrms_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precrms_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precrms_hum, pars = c("b_folder4m:time_3", "prior_b_folder4m:time_3"), facet_label = "4 Months")
 dev.off()
 
-png(here("exp1", "img", "rq2_precrms_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precrms_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precrms_hum, pars = c("b_folder6m:time_3", "prior_b_folder6m:time_3"), facet_label = "6 Months")
 dev.off()
 
-png(here("exp1", "img", "rq2_precrms_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precrms_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precrms_hum, pars = c("b_folder9m:time_3", "prior_b_folder9m:time_3"), facet_label = "9 Months")
 dev.off()
 
-png(here("exp1", "img", "rq2_precrms_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precrms_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precrms_hum, pars = c("b_folder18m:time_3", "prior_b_folder18m:time_3"), facet_label = "18 Months")
 dev.off()
 
-png(here("exp1", "img", "rq2_precrms_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precrms_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precrms_hum, pars = c("b_folderadults:time_3", "prior_b_folderadults:time_3"), facet_label = "Adults")
 dev.off()
 
 # Chimps
-png(here("exp1", "img", "rq2_precrms_posteriorprior_chimps_days.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precrms_posteriorprior_chimps_days.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precrms_chi, pars = c("b_time_3", "prior_b_time_3"), facet_label = "Chimpanzees (Time as Testing Days)")
 dev.off()
 
-png(here("exp1", "img", "rq2_precrms_posteriorprior_chimps_trials.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precrms_posteriorprior_chimps_trials.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precrms_chi_2, pars = c("b_time_2", "prior_b_time_2"), facet_label = "Chimpanzees (Time as Trials Within Testing Days)")
 dev.off()
 
@@ -2589,17 +2455,17 @@ bayestestR::hdi(full_rq2_precrms_chi)
 bayestestR::hdi(full_rq2_precrms_chi_2)
 
 ## Paper Plot ----
-plot_rq2(df = df_tot, png_name = "rq2_precrms_session_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+plot_rq2(df = df_tot, png_name = "rq2_precrms_session_all.png", out_dir = here::here("exp3", "img"), width = 2480*1.5, height = 3508, res = 300,
                          group_var = "folder", x_var   = "time_1", y_var = "precrms_visd",
                          xmax_chimps = 8, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 0, ymax_chimps = 2,
                          ytitle = "Precision (RMS)\nin visual degrees", x_label = "Time\n(trials in humans; sessions in apes)")
 
-plot_rq2(df = df_tot, png_name = "rq2_precrms_trial_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+plot_rq2(df = df_tot, png_name = "rq2_precrms_trial_all.png", out_dir = here::here("exp3", "img"), width = 2480*1.5, height = 3508, res = 300,
                          group_var = "folder", x_var   = "time_2", y_var = "precrms_visd",
                          xmax_chimps = 11, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 0, ymax_chimps = 2,
                          ytitle = "Precision (RMS)\nin visual degrees", x_label = "Time\n(trials in humans; trials within sessions in apes)")
 
-plot_rq2(df = df_tot, png_name = "rq2_precrms_day_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+plot_rq2(df = df_tot, png_name = "rq2_precrms_day_all.png", out_dir = here::here("exp3", "img"), width = 2480*1.5, height = 3508, res = 300,
                          group_var = "folder", x_var   = "time_3", y_var = "precrms_visd",
                          xmax_chimps = 7, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 0, ymax_chimps = 2,
                          ytitle = "Precision (RMS)\nin visual degrees", x_label = "Time\n(trials in humans; days in apes)")
@@ -2642,7 +2508,7 @@ for (page in 1:n_pages) {
     )
   
   ggsave(
-    filename = file.path(here("exp1", "img", paste0("individual_precrms_visd_plots_page_", page, ".png"))
+    filename = file.path(here("exp3", "img", paste0("individual_precrms_visd_plots_page_", page, ".png"))
     ),
     plot = p_rq2_precrms,
     width = 11,
@@ -2933,19 +2799,19 @@ loo_compare(loo_full_precsd_rq2_chi_2, loo_red_precsd_rq2_chi_2)
 
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
-png(here("exp1", "img", "rq2_precsd_hum_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq2_precsd_hum_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq2_precsd_hum, ndraws = 100)
 dev.off()
 
-png(here("exp1", "img", "rq2_precsd_chi1_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq2_precsd_chi1_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq2_precsd_chi, ndraws = 100)
 dev.off()
 
-png(here("exp1", "img", "rq2_precsd_chi2_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq2_precsd_chi2_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq2_precsd_chi_2, ndraws = 100)
 dev.off()
 
-png(here("exp1", "img", "rq2_precsd_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq2_precsd_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq2_precsd_hum, type = "intervals_grouped", group = "folder") # might exceed memory limits
 dev.off()
 
@@ -3040,38 +2906,38 @@ posterior_plot_rq2_precsd <- ggplot(
   ) +
   theme_bw(base_size = 14)
 
-png(here("exp1", "img", "rq2_precsd_posterior.png"), width = 2480, height = 3508/4.5, res = 190)
+png(here("exp3", "img", "rq2_precsd_posterior.png"), width = 2480, height = 3508/4.5, res = 190)
 posterior_plot_rq2_precsd
 dev.off()
 
 ## Posterior Versus Prior Plot ----
 # Humans
-png(here("exp1", "img", "rq2_precsd_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precsd_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precsd_hum, pars = c("b_folder4m:time_3", "prior_b_folder4m:time_3"), facet_label = "4 Months")
 dev.off()
 
-png(here("exp1", "img", "rq2_precsd_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precsd_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precsd_hum, pars = c("b_folder6m:time_3", "prior_b_folder6m:time_3"), facet_label = "6 Months")
 dev.off()
 
-png(here("exp1", "img", "rq2_precsd_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precsd_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precsd_hum, pars = c("b_folder9m:time_3", "prior_b_folder9m:time_3"), facet_label = "9 Months")
 dev.off()
 
-png(here("exp1", "img", "rq2_precsd_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precsd_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precsd_hum, pars = c("b_folder18m:time_3", "prior_b_folder18m:time_3"), facet_label = "18 Months")
 dev.off()
 
-png(here("exp1", "img", "rq2_precsd_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precsd_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precsd_hum, pars = c("b_folderadults:time_3", "prior_b_folderadults:time_3"), facet_label = "Adults")
 dev.off()
 
 # Chimps
-png(here("exp1", "img", "rq2_precsd_posteriorprior_chimps_days.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precsd_posteriorprior_chimps_days.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precsd_chi, pars = c("b_time_3", "prior_b_time_3"), facet_label = "Chimpanzees (Time as Testing Days)")
 dev.off()
 
-png(here("exp1", "img", "rq2_precsd_posteriorprior_chimps_trials.png"), width = 2480/2, height = 3508/3, res = 250)
+png(here("exp3", "img", "rq2_precsd_posteriorprior_chimps_trials.png"), width = 2480/2, height = 3508/3, res = 250)
 plot_prior_vs_poster(full_rq2_precsd_chi_2, pars = c("b_time_2", "prior_b_time_2"), facet_label = "Chimpanzees (Time as Trials Within Testing Days)")
 dev.off()
 
@@ -3091,17 +2957,17 @@ bayestestR::hdi(full_rq2_precsd_chi)
 bayestestR::hdi(full_rq2_precsd_chi_2)
 
 ## Paper Plot ----
-plot_rq2(df = df_tot, png_name = "rq2_precsd_session_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+plot_rq2(df = df_tot, png_name = "rq2_precsd_session_all.png", out_dir = here::here("exp3", "img"), width = 2480*1.5, height = 3508, res = 300,
                          group_var = "folder", x_var   = "time_1", y_var = "precsd_visd",
                          xmax_chimps = 8, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 1.5, ymin_chimps = 0, ymax_chimps = 1.5,
                          ytitle = "Precision (SD)\nin visual degrees", x_label = "Time\n(trials in humans; sessions in apes)")
 
-plot_rq2(df = df_tot, png_name = "rq2_precsd_trial_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+plot_rq2(df = df_tot, png_name = "rq2_precsd_trial_all.png", out_dir = here::here("exp3", "img"), width = 2480*1.5, height = 3508, res = 300,
                          group_var = "folder", x_var   = "time_2", y_var = "precsd_visd",
                          xmax_chimps = 11, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 1.5, ymin_chimps = 0, ymax_chimps = 1.5,
                          ytitle = "Precision (SD)\nin visual degrees", x_label = "Time\n(trials in humans; trials within sessions in apes)")
 
-plot_rq2(df = df_tot, png_name = "rq2_precsd_day_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+plot_rq2(df = df_tot, png_name = "rq2_precsd_day_all.png", out_dir = here::here("exp3", "img"), width = 2480*1.5, height = 3508, res = 300,
                          group_var = "folder", x_var   = "time_3", y_var = "precsd_visd",
                          xmax_chimps = 7, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 1.5, ymin_chimps = 0, ymax_chimps = 1.5,
                          ytitle = "Precision (SD)\nin visual degrees", x_label = "Time\n(trials in humans; days in apes)")
@@ -3144,7 +3010,7 @@ for (page in 1:n_pages) {
     )
   
   ggsave(
-    filename = file.path(here("exp1", "img", paste0("individual_precsd_visd_plots_page_", page, ".png"))
+    filename = file.path(here("exp3", "img", paste0("individual_precsd_visd_plots_page_", page, ".png"))
     ),
     plot = p_rq2_precsd,
     width = 11,
@@ -3322,7 +3188,7 @@ loo_compare(loo_full_fixdur, loo_red_fixdur) # red_rq3_fixdur  -47.7      7.0
 
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
-png(here("exp1", "img", "rq3_fixdur_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq3_fixdur_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq3_fixdur, ndraws = 100)
 #pp_check(full_rq3_fixdur, type = "hist")
 dev.off()
@@ -3394,7 +3260,7 @@ posterior_plot_rq3_fixdur <- ggplot(
   ) +
   theme_bw(base_size = 14)
 
-png(here("exp1", "img", "rq3_fixdur_posterior_3c.png"), width = 2480, height = 3508 / 4, res = 250)
+png(here("exp3", "img", "rq3_fixdur_posterior_3c.png"), width = 2480, height = 3508 / 4, res = 250)
 posterior_plot_rq3_fixdur
 dev.off()
 
@@ -3402,77 +3268,77 @@ dev.off()
 
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
 ## Accuracy
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_4m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_4m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folder4m:acc_visd", "prior_b_folder4m:acc_visd"), facet_label = "4-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_6m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_6m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folder6m:acc_visd", "prior_b_folder6m:acc_visd"), facet_label = "6-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_9m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_9m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folder9m:acc_visd", "prior_b_folder9m:acc_visd"), facet_label = "9-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_18m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_18m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folder18m:acc_visd", "prior_b_folder18m:acc_visd"), facet_label = "18-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_adults_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_adults_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folderadults:acc_visd", "prior_b_folderadults:acc_visd"), facet_label = "Adults, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_chimps_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_chimps_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folderchimps:acc_visd", "prior_b_folderchimps:acc_visd"), facet_label = "Chimpanzees, Accuracy")
 dev.off()
 
 ## Precision (RMS)
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_4m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_4m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folder4m:precrms_visd", "prior_b_folder4m:precrms_visd"), facet_label = "4-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_6m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_6m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folder6m:precrms_visd", "prior_b_folder6m:precrms_visd"), facet_label = "6-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_9m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_9m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folder9m:precrms_visd", "prior_b_folder9m:precrms_visd"), facet_label = "9-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_18m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_18m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folder18m:precrms_visd", "prior_b_folder18m:precrms_visd"), facet_label = "18-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_adults_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_adults_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folderadults:precrms_visd", "prior_b_folderadults:precrms_visd"), facet_label = "Adults, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_chimps_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_chimps_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folderchimps:precrms_visd", "prior_b_folderchimps:precrms_visd"), facet_label = "Chimpanzees, Precision (RMS)")
 dev.off()
 
 ## Robustness
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_4m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_4m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folder4m:robustness_prop_2", "prior_b_folder4m:robustness_prop_2"), facet_label = "4-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_6m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_6m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folder6m:robustness_prop_2", "prior_b_folder6m:robustness_prop_2"), facet_label = "6-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_9m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_9m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folder9m:robustness_prop_2", "prior_b_folder9m:robustness_prop_2"), facet_label = "9-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorprior_18m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorprior_18m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folder18m:robustness_prop_2", "prior_b_folder18m:robustness_prop_2"), facet_label = "18-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorpriora_adults_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorpriora_adults_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folderadults:robustness_prop_2", "prior_b_folderadults:robustness_prop_2"), facet_label = "Adults, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixdur_posteriorpriora_chimps_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixdur_posteriorpriora_chimps_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixdur, pars = c("b_folderchimps:robustness_prop_2", "prior_b_folderchimps:robustness_prop_2"), facet_label = "Chimpanzees, Robustness")
 dev.off()
 
@@ -3646,7 +3512,7 @@ loo_compare(loo_full_fixnum, loo_red_fixnum)
 
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
-png(here("exp1", "img", "rq3_fixnum_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq3_fixnum_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq3_fixnum, ndraws = 100)
 dev.off()
 
@@ -3717,7 +3583,7 @@ posterior_plot_rq3_fixnum <- ggplot(
   ) +
   theme_bw(base_size = 14)
 
-png(here("exp1", "img", "rq3_fixnum_posterior_3c.png"), width = 2480, height = 3508 / 4, res = 250)
+png(here("exp3", "img", "rq3_fixnum_posterior_3c.png"), width = 2480, height = 3508 / 4, res = 250)
 posterior_plot_rq3_fixnum
 dev.off()
 
@@ -3725,77 +3591,77 @@ dev.off()
 
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
 ## Accuracy
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_4m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_4m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folder4m:acc_visd", "prior_b_folder4m:acc_visd"), facet_label = "4-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_6m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_6m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folder6m:acc_visd", "prior_b_folder6m:acc_visd"), facet_label = "6-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_9m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_9m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folder9m:acc_visd", "prior_b_folder9m:acc_visd"), facet_label = "9-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_18m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_18m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folder18m:acc_visd", "prior_b_folder18m:acc_visd"), facet_label = "18-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_adults_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_adults_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folderadults:acc_visd", "prior_b_folderadults:acc_visd"), facet_label = "Adults, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_chimps_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_chimps_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folderchimps:acc_visd", "prior_b_folderchimps:acc_visd"), facet_label = "Chimpanzees, Accuracy")
 dev.off()
 
 ## Precision (RMS)
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_4m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_4m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folder4m:precrms_visd", "prior_b_folder4m:precrms_visd"), facet_label = "4-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_6m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_6m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folder6m:precrms_visd", "prior_b_folder6m:precrms_visd"), facet_label = "6-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_9m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_9m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folder9m:precrms_visd", "prior_b_folder9m:precrms_visd"), facet_label = "9-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_18m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_18m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folder18m:precrms_visd", "prior_b_folder18m:precrms_visd"), facet_label = "18-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_adults_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_adults_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folderadults:precrms_visd", "prior_b_folderadults:precrms_visd"), facet_label = "Adults, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_chimps_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_chimps_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folderchimps:precrms_visd", "prior_b_folderchimps:precrms_visd"), facet_label = "Chimpanzees, Precision (RMS)")
 dev.off()
 
 ## Robustness
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_4m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_4m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folder4m:robustness_prop_2", "prior_b_folder4m:robustness_prop_2"), facet_label = "4-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_6m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_6m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folder6m:robustness_prop_2", "prior_b_folder6m:robustness_prop_2"), facet_label = "6-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_9m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_9m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folder9m:robustness_prop_2", "prior_b_folder9m:robustness_prop_2"), facet_label = "9-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_18m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_18m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folder18m:robustness_prop_2", "prior_b_folder18m:robustness_prop_2"), facet_label = "18-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_adults_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_adults_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folderadults:robustness_prop_2", "prior_b_folderadults:robustness_prop_2"), facet_label = "Adults, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_fixnum_posteriorprior_chimps_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_fixnum_posteriorprior_chimps_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_fixnum, pars = c("b_folderchimps:robustness_prop_2", "prior_b_folderchimps:robustness_prop_2"), facet_label = "Chimpanzees, Robustness")
 dev.off()
 
@@ -3982,7 +3848,7 @@ loo_compare(loo_full_latencies, loo_red_latencies)
 
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
-png(here("exp1", "img", "rq3_latencies_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq3_latencies_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq3_latencies, ndraws = 100)
 dev.off()
 
@@ -4050,7 +3916,7 @@ posterior_plot_rq3_latencies <- ggplot(
   ) +
   theme_bw(base_size = 14)
 
-png(here("exp1", "img", "rq3_latencies_posterior_3c.png"), width = 2480, height = 3508 / 4, res = 250)
+png(here("exp3", "img", "rq3_latencies_posterior_3c.png"), width = 2480, height = 3508 / 4, res = 250)
 posterior_plot_rq3_latencies
 dev.off()
 
@@ -4058,65 +3924,65 @@ dev.off()
 
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
 ## Accuracy
-png(here("exp1", "img", "rq3_latencies_posteriorprior_4m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_4m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder4m:acc_visd", "prior_b_folder4m:acc_visd"), facet_label = "4-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_latencies_posteriorprior_6m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_6m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder6m:acc_visd", "prior_b_folder6m:acc_visd"), facet_label = "6-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_latencies_posteriorprior_9m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_9m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder9m:acc_visd", "prior_b_folder9m:acc_visd"), facet_label = "9-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_latencies_posteriorprior_18m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_18m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder18m:acc_visd", "prior_b_folder18m:acc_visd"), facet_label = "18-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_latencies_posteriorprior_adults_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_adults_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folderadults:acc_visd", "prior_b_folderadults:acc_visd"), facet_label = "Adults, Accuracy")
 dev.off()
 
 ## Precision (RMS)
-png(here("exp1", "img", "rq3_latencies_posteriorprior_4m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_4m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder4m:precrms_visd", "prior_b_folder4m:precrms_visd"), facet_label = "4-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_latencies_posteriorprior_6m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_6m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder6m:precrms_visd", "prior_b_folder6m:precrms_visd"), facet_label = "6-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_latencies_posteriorprior_9m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_9m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder9m:precrms_visd", "prior_b_folder9m:precrms_visd"), facet_label = "9-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_latencies_posteriorprior_18m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_18m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder18m:precrms_visd", "prior_b_folder18m:precrms_visd"), facet_label = "18-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_latencies_posteriorprior_adults_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_adults_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folderadults:precrms_visd", "prior_b_folderadults:precrms_visd"), facet_label = "Adults, Precision (RMS)")
 dev.off()
 
 ## Robustness
-png(here("exp1", "img", "rq3_latencies_posteriorprior_4m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_4m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder4m:robustness_prop_2", "prior_b_folder4m:robustness_prop_2"), facet_label = "4-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_latencies_posteriorprior_6m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_6m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder6m:robustness_prop_2", "prior_b_folder6m:robustness_prop_2"), facet_label = "6-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_latencies_posteriorprior_9m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_9m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder9m:robustness_prop_2", "prior_b_folder9m:robustness_prop_2"), facet_label = "9-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_latencies_posteriorprior_18m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_18m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folder18m:robustness_prop_2", "prior_b_folder18m:robustness_prop_2"), facet_label = "18-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_latencies_posteriorprior_adults_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_latencies_posteriorprior_adults_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_latencies, pars = c("b_folderadults:robustness_prop_2", "prior_b_folderadults:robustness_prop_2"), facet_label = "Adults, Robustness")
 dev.off()
 
@@ -4287,7 +4153,7 @@ loo_compare(loo_full_rel_gaze_in_aoi, loo_red_rel_gaze_in_aoi)
 
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_rq3_rel_gaze_in_aoi, ndraws = 100)
 dev.off()
 
@@ -4358,7 +4224,7 @@ posterior_plot_rq3_rel_gaze_in_aoi <- ggplot(
   ) +
   theme_bw(base_size = 14)
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posterior_3c.png"), width = 2480, height = 3508 / 4, res = 250)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posterior_3c.png"), width = 2480, height = 3508 / 4, res = 250)
 posterior_plot_rq3_rel_gaze_in_aoi
 dev.off()
 
@@ -4366,77 +4232,77 @@ dev.off()
 
 # Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
 ## Accuracy
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_4m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_4m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder4m:acc_visd", "prior_b_folder4m:acc_visd"), facet_label = "4-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_6m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_6m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder6m:acc_visd", "prior_b_folder6m:acc_visd"), facet_label = "6-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_9m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_9m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder9m:acc_visd", "prior_b_folder9m:acc_visd"), facet_label = "9-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_18m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_18m_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder18m:acc_visd", "prior_b_folder18m:acc_visd"), facet_label = "18-Month-Olds, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_adults_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_adults_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folderadults:acc_visd", "prior_b_folderadults:acc_visd"), facet_label = "Adults, Accuracy")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_chimps_acc.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_chimps_acc.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folderchimps:acc_visd", "prior_b_folderchimps:acc_visd"), facet_label = "Chimpanzees, Accuracy")
 dev.off()
 
 ## Precision (RMS)
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_4m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_4m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder4m:precrms_visd", "prior_b_folder4m:precrms_visd"), facet_label = "4-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_6m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_6m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder6m:precrms_visd", "prior_b_folder6m:precrms_visd"), facet_label = "6-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_9m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_9m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder9m:precrms_visd", "prior_b_folder9m:precrms_visd"), facet_label = "9-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_18m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_18m_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder18m:precrms_visd", "prior_b_folder18m:precrms_visd"), facet_label = "18-Month-Olds, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_adults_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_adults_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folderadults:precrms_visd", "prior_b_folderadults:precrms_visd"), facet_label = "Adults, Precision (RMS)")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_chimps_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_chimps_precrms.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folderchimps:precrms_visd", "prior_b_folderchimps:precrms_visd"), facet_label = "Chimpanzees, Precision (RMS)")
 dev.off()
 
 ## Robustness
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_4m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_4m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder4m:robustness_prop_2", "prior_b_folder4m:robustness_prop_2"), facet_label = "4-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_6m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_6m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder6m:robustness_prop_2", "prior_b_folder6m:robustness_prop_2"), facet_label = "6-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_9m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_9m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder9m:robustness_prop_2", "prior_b_folder9m:robustness_prop_2"), facet_label = "9-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_18m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_18m_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folder18m:robustness_prop_2", "prior_b_folder18m:robustness_prop_2"), facet_label = "18-Month-Olds, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_adults_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_adults_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folderadults:robustness_prop_2", "prior_b_folderadults:robustness_prop_2"), facet_label = "Adults, Robustness")
 dev.off()
 
-png(here("exp1", "img", "rq3_rel_gaze_in_aoi_posteriorprior_chimps_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
+png(here("exp3", "img", "rq3_rel_gaze_in_aoi_posteriorprior_chimps_robustness.png"), width = 2480/2, height = 3508/3, res = 300)
 plot_prior_vs_poster(full_rq3_rel_gaze_in_aoi, pars = c("b_folderchimps:robustness_prop_2", "prior_b_folderchimps:robustness_prop_2"), facet_label = "Chimpanzees, Robustness")
 dev.off()
 
@@ -4516,7 +4382,7 @@ as_draws_df(full_rq3_rel_gaze_in_aoi) |>
 # Exploratory Analyses ----------------------------------------------------
 library(readxl)
 
-tobii_4m <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 1) |> 
+tobii_4m <- read_excel(here("exp3", "doc", "protocol.xlsx"), sheet = 1) |> 
   mutate(
     folder = "4m",
     file = as.character(file),
@@ -4524,7 +4390,7 @@ tobii_4m <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 1) |>
     tobii_average_validation_accuracy_degree = as.numeric(tobii_average_validation_accuracy_degree)
   )
 
-tobii_6m <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 2) |> 
+tobii_6m <- read_excel(here("exp3", "doc", "protocol.xlsx"), sheet = 2) |> 
   mutate(
     folder = "6m",
     file = as.character(file),
@@ -4532,7 +4398,7 @@ tobii_6m <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 2) |>
     tobii_average_validation_accuracy_degree = as.numeric(tobii_average_validation_accuracy_degree)
   )
 
-tobii_9m <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 3) |> 
+tobii_9m <- read_excel(here("exp3", "doc", "protocol.xlsx"), sheet = 3) |> 
   mutate(
     folder = "9m",
     file = as.character(file),
@@ -4540,7 +4406,7 @@ tobii_9m <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 3) |>
     tobii_average_validation_accuracy_degree = as.numeric(tobii_average_validation_accuracy_degree)
   )
 
-tobii_18m <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 4) |> 
+tobii_18m <- read_excel(here("exp3", "doc", "protocol.xlsx"), sheet = 4) |> 
   mutate(
     folder = "18m",
     file = as.character(file),
@@ -4548,7 +4414,7 @@ tobii_18m <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 4) |>
     tobii_average_validation_accuracy_degree = as.numeric(tobii_average_validation_accuracy_degree)
   )
 
-tobii_adults <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 5) |> 
+tobii_adults <- read_excel(here("exp3", "doc", "protocol.xlsx"), sheet = 5) |> 
   mutate(
     folder = "adults",
     file = as.character(file),
@@ -4556,7 +4422,7 @@ tobii_adults <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 5) |>
     tobii_average_validation_accuracy_degree = as.numeric(tobii_average_validation_accuracy_degree)
   )
 
-tobii_chimps <- read_excel(here("exp1", "doc", "protocol.xlsx"), sheet = 6) |> 
+tobii_chimps <- read_excel(here("exp3", "doc", "protocol.xlsx"), sheet = 6) |> 
   mutate(
     folder = "chimps",
     file = as.character(file),
@@ -4639,8 +4505,8 @@ lm_coefs <- plot_dat |>
 #   slope = coef(lm(calculated_accuracy ~ tobii_accuracy))[2]
 # )
 
-#png(here("exp1", "img", "explorative_tobii_versus_own.png"), width = 2480, height = 3508/2.5, res = 280)
-png(here("exp1", "img", "explorative_tobiivalidation_versus_own.png"), width = 2480, height = 3508/2.5, res = 280)
+#png(here("exp3", "img", "explorative_tobii_versus_own.png"), width = 2480, height = 3508/2.5, res = 280)
+png(here("exp3", "img", "explorative_tobiivalidation_versus_own.png"), width = 2480, height = 3508/2.5, res = 280)
 # ggplot(plot_dat, aes(x = tobii_accuracy, y = calculated_accuracy)) +
 ggplot(plot_dat |> filter(folder != "chimps"), aes(x = tobii_accuracy, y = calculated_accuracy)) +
   geom_blank(aes(x = 0, y = 0)) +

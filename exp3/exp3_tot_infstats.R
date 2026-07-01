@@ -19,9 +19,6 @@ source(here("exp3", "R", "inferentials.R"))
 source(here("exp3", "R", "utils.R"))
 source(here("exp3", "R", "viz.R"))
 
-# Set Parameters ----------------------------------------------------------
-n_cores <- parallel::detectCores()
-
 # Read Data ---------------------------------------------------------------
 folders <- c("4mo", "6to18mo")
 
@@ -48,7 +45,7 @@ table(df_tot$precrms_visd == 0, useNA = "ifany") # Check for exact zeros - there
 table(df_tot$precsd_visd == 0, useNA = "ifany") # Check for exact zeros - there are none (Gamma can't take zeros, but gamma_hurdle can)
 
 # Order levels of position (in order to make "center" the reference category)
-position_levels <- c("center", "top_left", "top_right", "bot_left", "bot_right", "top", "bottom")
+position_levels <- c("center", "topleft", "topright", "botleft", "botright", "top", "bottom")
 
 df_tot <- df_tot |> 
   mutate(position = factor(position, levels = position_levels))
@@ -105,161 +102,148 @@ df_tot |>
   ungroup() |> 
   slice(3,2,1,6,5,4)
 
-##### CONTINUE HERE
+# Accuracy ----------------------------------------------------------------
 
-
-# RQ1 (Accuracy) ----------------------------------------------------------
-
-
-# Preregistered Model:
-# Dependent variables: accuracy, precision RMS, precision SD, and robustness (in separate GLMMs).
-# Fixed effect variables of interest: group (4-, 6-, 9-, 18-month-old human infants, human adults, chimpanzees)
+# Models (one per age group)
+# Dependent variables: accuracy, precision RMS, precision SD, and robustness (one per model).
+# Fixed effect variables of interest: condition (own 5p calibration, peer 9p calibration, adult 9p calibration)
 # Fixed control variables: stimulus position on screen
 # Random intercept: subject id
 # Random slopes: maximal random effect structure
 # 
-# Full model: data quality ~ group + position on screen + random effects
+# Full model: data quality ~ condition + position on screen + random effects
 # Reduced model: data quality ~ position on screen + random effects
-# 
-# Priors (accuracy, fixed effect group): 
-#   Shape: 2.39.
-# Regression coefficients:	
-#   M = 0.50 and SD = 0.48 (4-month-olds),
-# M = 0.50 and SD = 0.48 (6-month-olds),	
-# M = 0.24 and SD = 0.09 (9-month-olds),
-# M = 0.00 and SD = 0.09 (18-month-olds),	
-# M = -0.41 and SD = 0.08 (adults), and
-# M = 0.75 and SD = 0.24 (chimpanzees).
 
-## Define Priors of Full Model ----
-# With Gamma(link="log"), coefficients are on the log-mean scale.
-prior_rq1_acc <- c(
-  # Group parameters (log-mean scale)
-  prior(normal(0.50, 0.48), class = "b", coef = "folder4m"),
-  prior(normal(0.50, 0.48), class = "b", coef = "folder6m"),
-  prior(normal(0.24, 0.09), class = "b", coef = "folder9m"),
-  prior(normal(0.00, 0.09), class = "b", coef = "folder18m"),
-  prior(normal(-0.41, 0.08), class = "b", coef = "folderadults"),
-  prior(normal(0.75, 0.24), class = "b", coef = "folderchimps"),
-  
-  # Position (should not be bigger than half of the difference between adults and 9ms,
-  # that is, -0.41 - 0.24 = -0.65, so half of that is 0.325)
-  prior(normal(0, 0.325), class = "b", coef = "positionbot_left"),
-  prior(normal(0, 0.325), class = "b", coef = "positionbot_right"),
-  prior(normal(0, 0.325), class = "b", coef = "positionbottom"),
-  # prior(normal(0, 0.325), class = "b", coef = "positioncenter"), # center is the reference level
-  prior(normal(0, 0.325), class = "b", coef = "positiontop"),
-  prior(normal(0, 0.325), class = "b", coef = "positiontop_left"),
-  prior(normal(0, 0.325), class = "b", coef = "positiontop_right"),
-  
-  # Gamma shape (estimate = 2.39 and est. error = 0.06 on a natural scale,
-  # which translates to meanlog = 0.87097834 and sdlog = 0.02510065 on log scale,
-  # m <- 2.39
-  # s <- 0.06
-  # sigma2  <- log(1 + (s^2 / m^2))
-  # sdlog   <- sqrt(sigma2)              # 0.02510065
-  # meanlog <- log(m) - sigma2/2         # 0.87097834
-  # c(meanlog = meanlog, sdlog = sdlog)
-  # double the sd to make it wider
-  prior(lognormal(0.87097834, 2*0.02510065), class = "shape"),
+## Priors of Full Model (4M) ----
+prior_acc <- c(
+  prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
+  # that allows for a broad range of plausible effects while still 
+  # providing some regularization to prevent extreme values unless strongly supported by the data.
   
   # Random effects regularization
-  prior(exponential(2), class = "sd"),   # Prior on random-effect SD (log scale with log link): concentrates mass on small-to-moderate heterogeneity
-                                         # (median ~0.35, mean ~0.50) while still allowing larger SDs if supported by the data.
-  prior(lkj(2), class = "cor") # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
-                               # supported, improving computational stability in random-slope models
-)
-
-## Full Model ----
-t0 <- proc.time()
-full_rq1_acc <- brm(
-  acc_visd ~ 0 + folder + position + (1 + position | group_id),
-  data   = df_tot,
-  family = hurdle_gamma(link = "log"),
-  prior  = prior_rq1_acc,
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
-  sample_prior="yes",
-  seed = 123,
-)
-t1 <- proc.time()
-proc_time_rq1_acc <- t1 - t0
-rm(t0, t1)
-
-## Define Priors of Reduced Model ----
-# With Gamma(link="log"), coefficients are on the log-mean scale.
-prior_rq1_acc_red <- c(
-  # Position (should not be bigger than half of the difference between adults and 9ms,
-  # that is, -0.41 - 0.24 = -0.65, so half of that is 0.325)
-  prior(normal(0, 0.325), class = "b", coef = "positionbot_left"),
-  prior(normal(0, 0.325), class = "b", coef = "positionbot_right"),
-  prior(normal(0, 0.325), class = "b", coef = "positionbottom"),
-  prior(normal(0, 0.325), class = "b", coef = "positioncenter"), # center is the reference level
-  prior(normal(0, 0.325), class = "b", coef = "positiontop"),
-  prior(normal(0, 0.325), class = "b", coef = "positiontop_left"),
-  prior(normal(0, 0.325), class = "b", coef = "positiontop_right"),
-  
-  # Gamma shape (estimate = 2.39 and est. error = 0.06 on a natural scale,
-  # which translates to meanlog = 0.87097834 and sdlog = 0.02510065 on log scale,
-  # m <- 2.39
-  # s <- 0.06
-  # sigma2  <- log(1 + (s^2 / m^2))
-  # sdlog   <- sqrt(sigma2)              # 0.02510065
-  # meanlog <- log(m) - sigma2/2         # 0.87097834
-  # c(meanlog = meanlog, sdlog = sdlog)
-  # double the sd to make it wider
-  prior(lognormal(0.87097834, 2*0.02510065), class = "shape"),
-  
-  # Random effects regularization
-  prior(exponential(2), class = "sd"),   # Prior on random-effect SD (log scale with log link): concentrates mass on small-to-moderate heterogeneity
-  # (median ~0.35, mean ~0.50) while still allowing larger SDs if supported by the data.
-  prior(lkj(2), class = "cor") # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
+  prior(lkj(2), class = "cor"), # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
   # supported, improving computational stability in random-slope models
+  
+  prior(exponential(0.5), class = "shape") # shape parameter of gamma distribution
 )
 
-## Reduced Model ----
-t0 <- proc.time()
-red_rq1_acc <- brm(
-  acc_visd ~ position + (1 + position | group_id),
-  data   = df_tot,
-  family = hurdle_gamma(link = "log"),
-  prior  = prior_rq1_acc_red,
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
-  sample_prior="yes",
-  # control = list(adapt_delta = 0.99, max_treedepth = 15),
+## Full Model (4M) ----
+full_acc_4m <- brm(
+  acc_visd ~ 0 + condition + position + (1 + position | group_id),
+  data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "4M"),
+  family = Gamma(link="log"),
+  prior  = prior_acc,
+  chains = 4, iter = 4000, warmup = 2000,
+  sample_prior = "yes",
   seed = 123,
-  # save_pars = save_pars(all = TRUE)
 )
-t1 <- proc.time()
-proc_time_rq1_acc <- t1 - t0
-rm(t0, t1)
 
-## Model Comparison ----
-loo_full <- loo(full_rq1_acc)
-loo_red <- loo(red_rq1_acc)
-loo_compare(loo_full, loo_red) # red_rq1_acc: elpd_diff = -9.1 & se_diff = 4.4.
-                               # moderate evidence that the full model is better (difference is ~2 SE away from 0).
+## Priors of Full Model (6-18M) ----
+prior_acc <- c(
+  prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
+  # that allows for a broad range of plausible effects while still 
+  # providing some regularization to prevent extreme values unless strongly supported by the data.
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
+  prior(lkj(2), class = "cor"), # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  # supported, improving computational stability in random-slope models
+  
+  prior(exponential(0.5), class = "shape") # shape parameter of gamma distribution
+)
 
-## Contrasts ----
+## Full Model (6-18M) ----
+full_acc_6to18m <- brm(
+  acc_visd ~ 0 + condition + position + (1 + position | group_id),
+  data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "6to18M"),
+  family = Gamma(link="log"),
+  prior  = prior_acc,
+  chains = 4, iter = 4000, warmup = 2000,
+  sample_prior = "yes",
+  seed = 123,
+)
+
+## Define Priors of Reduced Model (4M) ----
+prior_acc_red <- c(
+  prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
+  # that allows for a broad range of plausible effects while still 
+  # providing some regularization to prevent extreme values unless strongly supported by the data.
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
+  prior(lkj(2), class = "cor"), # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  # supported, improving computational stability in random-slope models
+  
+  prior(exponential(0.5), class = "shape") # shape parameter of gamma distribution
+)
+
+## Reduced Model (4M) ----
+red_acc_4m <- brm(
+  acc_visd ~ 0 + position + (1 + position | group_id),
+  data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "4M"),
+  family = Gamma(link="log"),
+  prior  = prior_acc_red,
+  chains = 4, iter = 4000, warmup = 2000,
+  sample_prior = "yes",
+  seed = 123,
+)
+
+## Define Priors of Reduced Model (6-18M) ----
+prior_acc_red <- c(
+  prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
+  # that allows for a broad range of plausible effects while still 
+  # providing some regularization to prevent extreme values unless strongly supported by the data.
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
+  prior(lkj(2), class = "cor"), # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  # supported, improving computational stability in random-slope models
+  
+  prior(exponential(0.5), class = "shape") # shape parameter of gamma distribution
+)
+
+## Reduced Model (6-18M) ----
+red_acc_6to18m <- brm(
+  acc_visd ~ 0 + position + (1 + position | group_id),
+  data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "6to18M"),
+  family = Gamma(link="log"),
+  prior  = prior_acc_red,
+  chains = 4, iter = 4000, warmup = 2000,
+  sample_prior = "yes",
+  seed = 123,
+)
+
+## Model Comparison (4M) ----
+loo_full_4m <- loo(full_acc_4m)
+loo_red_4m <- loo(red_acc_4m)
+loo_compare(loo_full_4m, loo_red_4m)
+
+## Model Comparison (6-18M) ----
+loo_full_6to18m <- loo(full_acc_6to18m)
+loo_red_6to18m <- loo(red_acc_6to18m)
+loo_compare(loo_full_6to18m, loo_red_6to18m)
+
+## Contrasts (4M)----
 ## Group
-groups <- levels(df_tot$folder)
+groups <- unique(df_tot$condition)
 acc_contr_all <- brms_group_effects_response(
-  fit   = full_rq1_acc,
+  fit   = full_acc_4m,
   groups = groups,
-  group_prefix = "folder",
+  group_prefix = "condition",
   type  = "contrasts",
   ref   = NULL,          # = all pairwise
   link  = "log",
   contrast_scale = "ratio"
 )
 
-acc_contr_all
 acc_contr_all |> 
   arrange(desc(ratio_median))
 
-## Position
+## Position (4M)
 positions <- levels(df_tot$position)[2:7]
 acc_contr_all_pos <- brms_group_effects_response(
-  fit   = full_rq1_acc,
+  fit   = full_acc_4m,
   groups = positions,
   group_prefix = "position",
   type  = "contrasts",
@@ -268,9 +252,42 @@ acc_contr_all_pos <- brms_group_effects_response(
   contrast_scale = "ratio"
 )
 
-acc_contr_all_pos
 acc_contr_all_pos |> 
   arrange(desc(ratio_median))
+
+## Contrasts (6-18M)----
+## Group
+groups <- unique(df_tot$condition)
+acc_contr_all <- brms_group_effects_response(
+  fit   = full_acc_6to18m,
+  groups = groups,
+  group_prefix = "condition",
+  type  = "contrasts",
+  ref   = NULL,          # = all pairwise
+  link  = "log",
+  contrast_scale = "ratio"
+)
+
+acc_contr_all |> 
+  arrange(desc(ratio_median))
+
+## Position (6-18M)
+positions <- levels(df_tot$position)[2:7]
+acc_contr_all_pos <- brms_group_effects_response(
+  fit   = full_acc_6to18m,
+  groups = positions,
+  group_prefix = "position",
+  type  = "contrasts",
+  ref   = NULL,
+  link  = "log",
+  contrast_scale = "ratio"
+)
+
+acc_contr_all_pos |> 
+  arrange(desc(ratio_median))
+
+
+### CONTINUE HERE
 
 ## Posterior Probability Comparisons ----
 draws <- as_draws_df(full_rq1_acc)
@@ -416,26 +433,32 @@ mean(post_samples_rq1_acc$b_folder9m > post_samples_rq1_acc$b_folder6m) # 99.35%
 mean(post_samples_rq1_acc$Yesb_folder6m > post_samples_rq1_acc$b_folderadults) # 99.9875%
 
 ## Paper Plot ----
-# Aggregate to subject level (mean over time/trials)
+# Aggregate to subject level (mean over trials)
 df_subj <- df_tot |>
-  filter(!is.na(folder), !is.na(group_id), !is.na(time), !is.na(acc_visd)) |>
-  group_by(folder, group_id) |>
+  filter(!is.na(acc_visd)) |>
+  group_by(condition, age_group, id) |>
   summarise(
     acc_visd = mean(acc_visd, na.rm = TRUE),
     .groups = "drop"
   ) |>
   mutate(
     Group = factor(
-      folder,
-      levels = c("4m", "6m", "9m", "18m", "adults", "chimps"),
-      labels = c("4 Months", "6 Months", "9 Months", "18 Months", "Adults", "Chimpanzees")
-      # labels = c("4M", "6M", "9M", "18M", "Adults", "Chimpanzees")
+      age_group,
+      levels = c("4M", "6to18M"),
+      labels = c("4 Months", "6 to 18 Months")
+    ),
+    Condition = factor(
+      condition,
+      levels = c("own", "adult", "infant"),
+      labels = c("Own 5-Point Calibration", 
+                 "9-Point Adult Calibration", 
+                 "9-Point Infant Calibration")
     )
   )
 
-# Mean + 95% CI across subjects (per group)
+# Mean + 95% CI across subjects (per group & condition)
 sum_df <- df_subj |>
-  group_by(Group) |>
+  group_by(Group, Condition) |>
   summarise(
     n = n(),
     mean = mean(acc_visd),
@@ -447,35 +470,48 @@ sum_df <- df_subj |>
     .groups = "drop"
   )
 
-p_acc <- ggplot(df_subj, aes(x = Group, y = acc_visd)) +
-  geom_violin(trim = FALSE, alpha = 0.25) +
+pd <- position_dodge(width = 0.8)
+pd_jitter <- position_jitterdodge(jitter.width = 0.15, dodge.width = 0.8)
+
+p_acc <- ggplot(df_subj, aes(x = Group, y = acc_visd, group = interaction(Group, Condition))) +
+  geom_violin(trim = FALSE, color = "black", fill = NA, position = pd) +
+  
   geom_point(
-    aes(color = Group),
-    position = position_jitter(width = 0.12, height = 0),
+    aes(color = Condition),
+    position = pd_jitter,
     size = 0.5,
-    show.legend = FALSE
+    alpha = 0.7
   ) +
+  
   geom_errorbar(
     data = sum_df,
-    aes(x = Group, ymin = ci_low, ymax = ci_high),
-    width = 0.12,
+    aes(x = Group, ymin = ci_low, ymax = ci_high, group = Condition),
+    width = 0.15,
     linewidth = 0.5,
+    color = "black",
+    position = pd,
     inherit.aes = FALSE
   ) +
+  
   geom_point(
     data = sum_df,
-    aes(x = Group, y = mean),
-    size = 0.5,
+    aes(x = Group, y = mean, group = Condition),
+    size = 1.5,
+    color = "black",
+    position = pd,
     inherit.aes = FALSE
   ) +
+  
   labs(
     x = "Group",
-    y = "Accuracy\nin visual degrees"
+    y = "Accuracy\nin visual degrees",
+    color = "Condition" # Sorgt dafür, dass die Legende "Condition" heißt
   ) +
+  
   theme_classic(base_size = 14) +
   theme(panel.grid = element_blank())
 
-png(here("exp3", "img", "rq1_acc_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
+png(here("exp3", "img", "acc_paperplot.png"), width = 2480, height = 3508/4, res = 200)
 p_acc
 dev.off()
 
@@ -568,7 +604,7 @@ full_rq1_precrms <- brm(
   data   = df_tot,
   family = Gamma(link="log"),
   prior  = prior_rq1_precrms,
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   sample_prior = "yes",
   # control = list(adapt_delta = 0.99, max_treedepth = 15),
   seed = 123,
@@ -614,7 +650,7 @@ red_rq1_precrms <- brm(
   data   = df_tot,
   family = Gamma(link="log"),
   prior  = prior_rq1_precrms_red,
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   sample_prior = "yes",
   seed = 123,
 )
@@ -893,7 +929,7 @@ full_rq1_precsd <- brm(
   sample_prior = "yes",
   family = Gamma(link="log"),
   prior  = prior_rq1_precsd,
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -934,7 +970,7 @@ red_rq1_precsd <- brm(
   sample_prior = "yes",
   family = Gamma(link="log"),
   prior  = prior_rq1_precsd_red,
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -1215,7 +1251,7 @@ full_rq1_rob <- brm(
   family = Beta(link = "logit"),
   prior  = priors_rq1_rob,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123,
   control = list(adapt_delta = 0.99, max_treedepth = 15)
 )
@@ -1246,7 +1282,7 @@ red_rq1_rob <- brm(
   family = Beta(link = "logit"),
   prior  = priors_rq1_rob_red,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123,
   control = list(adapt_delta = 0.99, max_treedepth = 15)
 )
@@ -1637,7 +1673,7 @@ full_rq2_acc_hum <- brm(
   family = hurdle_gamma(link="log"),
   prior  = priors_rq2_acc_hum,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -1647,7 +1683,7 @@ full_rq2_acc_chi <- brm(
   family = hurdle_gamma(link="log"),
   prior  = priors_rq2_acc_chi,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -1657,7 +1693,7 @@ full_rq2_acc_chi_2 <- brm(
   family = hurdle_gamma(link="log"),
   prior  = priors_rq2_acc_chi_2,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -1762,7 +1798,7 @@ red_rq2_acc_hum <- brm(
   family = hurdle_gamma(link="log"),
   prior  = priors_rq2_acc_hum_red,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -1772,7 +1808,7 @@ red_rq2_acc_chi <- brm(
   family = hurdle_gamma(link="log"),
   prior  = priors_rq2_acc_chi_red,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -1782,7 +1818,7 @@ red_rq2_acc_chi_2 <- brm(
   family = hurdle_gamma(link="log"),
   prior  = priors_rq2_acc_chi_2_red,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -2160,7 +2196,7 @@ full_rq2_precrms_hum <- brm(
   family = Gamma(link = "log"),
   prior  = priors_rq2_precrms_hum,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -2170,7 +2206,7 @@ full_rq2_precrms_chi <- brm(
   family = Gamma(link = "log"),
   prior  = priors_rq2_precrms_chi,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -2180,7 +2216,7 @@ full_rq2_precrms_chi_2 <- brm(
   family = Gamma(link = "log"),
   prior  = priors_rq2_precrms_chi_2,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -2255,7 +2291,7 @@ red_rq2_precrms_hum <- brm(
   family = Gamma(link = "log"),
   prior  = priors_rq2_precrms_hum_red,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -2265,7 +2301,7 @@ red_rq2_precrms_chi <- brm(
   family = Gamma(link = "log"),
   prior  = priors_rq2_precrms_chi_red,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -2275,7 +2311,7 @@ red_rq2_precrms_chi_2 <- brm(
   family = Gamma(link = "log"),
   prior  = priors_rq2_precrms_chi_2_red,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -2638,7 +2674,7 @@ full_rq2_precsd_hum <- brm(
   family = Gamma(link = "log"),
   prior  = priors_rq2_precsd_hum,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -2648,7 +2684,7 @@ full_rq2_precsd_chi <- brm(
   family = Gamma(link = "log"),
   prior  = priors_rq2_precsd_chi,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -2658,7 +2694,7 @@ full_rq2_precsd_chi_2 <- brm(
   family = Gamma(link = "log"),
   prior  = priors_rq2_precsd_chi_2,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -2757,7 +2793,7 @@ red_rq2_precsd_hum <- brm(
   family = Gamma(link = "log"),
   prior  = priors_rq2_precsd_hum_red,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -2767,7 +2803,7 @@ red_rq2_precsd_chi <- brm(
   family = Gamma(link = "log"),
   prior  = priors_rq2_precsd_chi_red,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -2777,7 +2813,7 @@ red_rq2_precsd_chi_2 <- brm(
   family = Gamma(link = "log"),
   prior  = priors_rq2_precsd_chi_2_red,
   sample_prior = "yes",
-  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  chains = 4, iter = 4000, warmup = 2000,
   seed = 123
 )
 
@@ -3142,7 +3178,7 @@ full_rq3_fixdur <- brm(
   data   = df_rq3,
   family = Gamma(link = "log"),
   prior  = prior_rq3_fixdur,
-  chains = 4, cores = n_cores - 1, iter = 16000, warmup = 6000, 
+  chains = 4, iter = 16000, warmup = 6000, 
   control = list(adapt_delta = 0.99, max_treedepth = 12),
   sample_prior = "yes",
   seed = 123
@@ -3176,7 +3212,7 @@ red_rq3_fixdur <- brm(
   data   = df_rq3,
   family = Gamma(link = "log"),
   prior  = prior_rq3_fixdur_red,
-  chains = 4, cores = n_cores - 1, iter = 10000, warmup = 4000,
+  chains = 4, iter = 10000, warmup = 4000,
   sample_prior = "yes",
   seed = 123
 )
@@ -3471,7 +3507,7 @@ full_rq3_fixnum <- brm(
   data   = df_rq3,
   family = Gamma(link = "log"),
   prior  = prior_rq3_fixnum,
-  chains = 4, cores = n_cores - 1, iter = 16000, warmup = 6000, 
+  chains = 4, iter = 16000, warmup = 6000, 
   control = list(adapt_delta = 0.99, max_treedepth = 12),
   sample_prior = "yes",
   seed = 123
@@ -3499,7 +3535,7 @@ full_rq3_fixnum_red <- brm(
   data   = df_rq3,
   family = Gamma(link = "log"),
   prior  = prior_rq3_fixnum_red,
-  chains = 4, cores = n_cores - 1, iter = 16000, warmup = 6000, 
+  chains = 4, iter = 16000, warmup = 6000, 
   control = list(adapt_delta = 0.99, max_treedepth = 12),
   sample_prior = "yes",
   seed = 123
@@ -3789,7 +3825,7 @@ full_rq3_latencies <- brm(
   data   = df_rq3,
   family = Gamma(link = "log"),
   prior  = prior_rq3_latencies,
-  chains = 4, cores = n_cores - 1, iter = 16000, warmup = 6000, 
+  chains = 4, iter = 16000, warmup = 6000, 
   control = list(adapt_delta = 0.99, max_treedepth = 12),
   sample_prior = "yes",
   seed = 123
@@ -3835,7 +3871,7 @@ red_rq3_latencies <- brm(
   data   = df_rq3,
   family = Gamma(link = "log"),
   prior  = prior_rq3_latencies_red,
-  chains = 4, cores = n_cores - 1, iter = 16000, warmup = 6000, 
+  chains = 4, iter = 16000, warmup = 6000, 
   control = list(adapt_delta = 0.99, max_treedepth = 12),
   sample_prior = "yes",
   seed = 123
@@ -4114,7 +4150,7 @@ full_rq3_rel_gaze_in_aoi <- brm(
   data   = df_rq3,
   family = Beta(link = "logit"),
   prior  = prior_rq3_rel_gaze_in_aoi,
-  chains = 4, cores = n_cores - 1, iter = 10000, warmup = 5000, 
+  chains = 4, iter = 10000, warmup = 5000, 
   sample_prior = "yes",
   seed = 123
 )
@@ -4141,7 +4177,7 @@ red_rq3_rel_gaze_in_aoi <- brm(
   data   = df_rq3,
   family = Beta(link = "logit"),
   prior  = prior_rq3_rel_gaze_in_aoi_red,
-  chains = 4, cores = n_cores - 1, iter = 10000, warmup = 5000, 
+  chains = 4, iter = 10000, warmup = 5000, 
   sample_prior = "yes",
   seed = 123
 )

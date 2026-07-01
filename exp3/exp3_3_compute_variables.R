@@ -11,9 +11,9 @@ source(here("exp3", "R", "eyetracking_data_quality.R"))
 source(here("exp3", "R", "utils.R"))
 
 # Adjust Parameter --------------------------------------------------------
-sample_size <- 32 # if 4mo, sample_size <- 24; if 6-to-18-month, sample_size <- 32
+sample_size <- 24 # if 4mo, sample_size <- 24; if 6-to-18-month, sample_size <- 32
 for (i in c(1:sample_size)) {
-  folder <- "6to18mo" # "4mo", "6to18mo"
+  folder <- "4mo" # "4mo", "6to18mo"
   filenames <- list.files(path = here("exp3", "data", "raw_clean_blink", folder))
   n <- i
   filename <- filenames[n]
@@ -138,8 +138,7 @@ for (i in c(1:sample_size)) {
     aoi_buffer_px_y = 0 # aoi buffer of 80px is already in xyminmax
   ) |> 
     mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |>
-    mutate(stimulus = "popflake") |>
-    mutate(position = "top_left")
+    mutate(stimulus = "popflake")
 
   ### Popflake Top Right ----
   df_acc_poptopright <- calculate_accuracy(
@@ -161,8 +160,7 @@ for (i in c(1:sample_size)) {
     aoi_buffer_px_y = 0 # aoi buffer of 80px is already in xyminmax
   ) |> 
     mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |>
-    mutate(stimulus = "popflake") |>
-    mutate(position = "top_right")
+    mutate(stimulus = "popflake")
 
   ### Popflake Bottom Left ----
   df_acc_popbotleft <- calculate_accuracy(
@@ -185,7 +183,7 @@ for (i in c(1:sample_size)) {
   ) |> 
     mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |>
     mutate(stimulus = "popflake") |>
-    mutate(position = "bot_left")
+    mutate(position = "botleft")
 
   ### Popflake Bottom Right ----
   df_acc_popbotright <- calculate_accuracy(
@@ -208,7 +206,7 @@ for (i in c(1:sample_size)) {
   ) |> 
     mutate(acc_visd = accuracy * onepx_in_visd(60, 92)) |>
     mutate(stimulus = "popflake") |>
-    mutate(position = "bot_right")
+    mutate(position = "botright")
 
   ### Popflake Center ----
   df_acc_popcenter <- calculate_accuracy(

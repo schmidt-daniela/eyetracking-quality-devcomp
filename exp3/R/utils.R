@@ -82,7 +82,7 @@ read_one_participant <- function(file_path) {
 #'
 #' @return A tibble combining all participants in the folder.
 read_folder <- function(folder,
-                        base_dir = here("exp1", "data", "preproc")) {
+                        base_dir = here("exp3", "data", "preproc")) {
   folder_path <- file.path(base_dir, folder)
   
   files <- list.files(folder_path, pattern = "\\.rds$", full.names = TRUE)

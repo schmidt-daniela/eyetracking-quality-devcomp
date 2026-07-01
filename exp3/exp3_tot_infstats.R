@@ -286,21 +286,18 @@ acc_contr_all_pos <- brms_group_effects_response(
 acc_contr_all_pos |> 
   arrange(desc(ratio_median))
 
-
-### CONTINUE HERE
-
-## Posterior Probability Comparisons ----
-draws <- as_draws_df(full_rq1_acc)
-groups <- c("folder4m", "folder6m", "folder9m", "folder18m", "folderadults", "folderchimps")
+## Posterior Probability Comparisons (4M) ----
+draws <- as_draws_df(full_acc_4m)
+groups <- c("conditionown", "conditionadult", "conditioninfant")
 pairs <- t(combn(groups, 2)) |> as.data.frame()
 colnames(pairs) <- c("g1", "g2")
 
-results_rq1_acc <- pairs |> 
+results_acc_4m <- pairs |> 
   rowwise() |> 
   do(get_prob(.$g1, .$g2, draws)) |> 
   ungroup()
 
-results_rq1_acc |> 
+results_acc_4m |> 
   mutate(
     contrast = gsub("folder", "", contrast),
     prob_g1_greater = round(prob_g1_greater, 3),
@@ -310,54 +307,86 @@ results_rq1_acc |>
     hi = round(hi, 2)
   )
 
-## Model Fit: Posterior Predictive Check ----
+## Posterior Probability Comparisons (6-18M) ----
+draws <- as_draws_df(full_acc_6to18m)
+groups <- c("conditionown", "conditionadult", "conditioninfant")
+pairs <- t(combn(groups, 2)) |> as.data.frame()
+colnames(pairs) <- c("g1", "g2")
+
+results_acc_6to18m <- pairs |> 
+  rowwise() |> 
+  do(get_prob(.$g1, .$g2, draws)) |> 
+  ungroup()
+
+results_acc_6to18m |> 
+  mutate(
+    contrast = gsub("folder", "", contrast),
+    prob_g1_greater = round(prob_g1_greater, 3),
+    prob_g2_greater = round(prob_g2_greater, 3),
+    median = round(median, 2),
+    lo = round(lo, 2),
+    hi = round(hi, 2)
+  )
+
+## Model Fit: Posterior Predictive Check (4M) ----
 # Check whether model is "match to the data"
 
-png(here("exp3", "img", "rq1_acc_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
-pp_check(full_rq1_acc, ndraws = 100) # rq1 accuracy check, that's fine
+png(here("exp3", "img", "acc_4m_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_acc_4m, ndraws = 100)
 #pp_check(full_rq1_acc, type = "hist") # rq1 accuracy check, that's fine
 dev.off()
 
-png(here("exp3", "img", "rq1_acc_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
-pp_check(full_rq1_acc, type = "intervals_grouped", group = "folder") # might exceed memory limits
+png(here("exp3", "img", "acc_4m_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_acc_4m, type = "intervals_grouped", group = "condition")
 dev.off()
 
-## Posterior Distribution ----
-# Preparation
-folder_order  <- c("4m","6m","9m","18m","adults","chimps")
-folder_labels <- c(
-  "4m"="4 Months","6m"="6 Months","9m"="9 Months","18m"="18 Months",
-  "adults"="Adults","chimps"="Chimpanzees"
-)
+## Model Fit: Posterior Predictive Check (6-18M) ----
+# Check whether model is "match to the data"
 
-# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
-# pos_labels <- c(
-#   "center"="Center",
-#   "top_right"="Top Right",
-#   "bot_right"="Bottom Right",
-#   "bottom"="Bottom",
-#   "top_left"="Top Left",
-#   "bot_left"="Bottom Left",
-#   "top"="Top"
-# )
+png(here("exp3", "img", "acc_6to18m_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_acc_6to18m, ndraws = 100)
+#pp_check(full_rq1_acc, type = "hist") # rq1 accuracy check, that's fine
+dev.off()
+
+png(here("exp3", "img", "acc_6to18m_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_acc_6to18m, type = "intervals_grouped", group = "condition")
+dev.off()
+
+### CONTINUE HERE
+
+## Posterior Distribution (4M) ----
+# Preparation
+condition_order  <- c("own", "infant", "adult")
+condition_labels <- c("own"= "Own 5-Point Calibration", "infant" = "Infant 9-Point Calibration", "adult" = "Adult 9-Point Calibration")
+
+pos_order <- c("center","topright","botright","bottom","topleft","botleft","top")
+pos_labels <- c(
+  "center"="Center",
+  "topright"="Top Right",
+  "botright"="Bottom Right",
+  "bottom"="Bottom",
+  "topleft"="Top Left",
+  "botleft"="Bottom Left",
+  "top"="Top"
+)
 
 # Create Newdata Grid
 nd_pos <- tidyr::expand_grid(
-  folder   = factor(folder_order, levels = folder_order),
+  condition   = factor(condition_order, levels = condition_order),
   position = factor(pos_order, levels = pos_order)
 ) |>
-  mutate(position = factor(position, levels = levels(full_rq1_acc$data$position))) |>
+  mutate(position = factor(position, levels = levels(full_acc_4m$data$position))) |>
   filter(!is.na(position))
 
 # Create Predictions
-ep_acc   <- posterior_epred(full_rq1_acc, newdata = nd_pos, re_formula = NA)
+ep_acc   <- posterior_epred(full_acc_4m, newdata = nd_pos, re_formula = NA)
 acc_long <- epred_to_long(ep_acc, nd_pos)
 
 # Create Plot
-posterior_plot_rq1_acc <- ggplot(
+posterior_plot_acc_4m <- ggplot(
   acc_long,
   aes(x = .epred,
-      y = factor(folder, levels = rev(folder_order)),
+      y = factor(condition, levels = rev(condition_order)),
       # fill = position,
       # colour = position
       )
@@ -370,7 +399,7 @@ posterior_plot_rq1_acc <- ggplot(
     height = 1.05, 
     adjust = 1.0
   ) +
-  scale_y_discrete(labels = folder_labels) +
+  scale_y_discrete(labels = condition_labels) +
   # scale_fill_discrete(name = "Position", labels = pos_labels) +
   # scale_colour_discrete(name = "Position", labels = pos_labels) +
   labs(x = "Predicted Accuracy", y = NULL) +
@@ -381,9 +410,71 @@ posterior_plot_rq1_acc <- ggplot(
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
 
-png(here("exp3", "img", "rq1_acc_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
-posterior_plot_rq1_acc
+png(here("exp3", "img", "acc_4m_posterior_withoutposition.png"), width = 2480/2, height = 3508/2.5, res = 250)
+posterior_plot_acc_4m
 dev.off()
+
+## Posterior Distribution (6-18M) ----
+# Preparation
+condition_order  <- c("own", "infant", "adult")
+condition_labels <- c("own"= "Own 5-Point Calibration", "infant" = "Infant 9-Point Calibration", "adult" = "Adult 9-Point Calibration")
+
+pos_order <- c("center","topright","botright","bottom","topleft","botleft","top")
+pos_labels <- c(
+  "center"="Center",
+  "topright"="Top Right",
+  "botright"="Bottom Right",
+  "bottom"="Bottom",
+  "topleft"="Top Left",
+  "botleft"="Bottom Left",
+  "top"="Top"
+)
+
+# Create Newdata Grid
+nd_pos <- tidyr::expand_grid(
+  condition   = factor(condition_order, levels = condition_order),
+  position = factor(pos_order, levels = pos_order)
+) |>
+  mutate(position = factor(position, levels = levels(full_acc_6to18m$data$position))) |>
+  filter(!is.na(position))
+
+# Create Predictions
+ep_acc   <- posterior_epred(full_acc_6to18m, newdata = nd_pos, re_formula = NA)
+acc_long <- epred_to_long(ep_acc, nd_pos)
+
+# Create Plot
+posterior_plot_acc_6to18m <- ggplot(
+  acc_long,
+  aes(x = .epred,
+      y = factor(condition, levels = rev(condition_order)),
+      # fill = position,
+      # colour = position
+  )
+) +
+  stat_halfeye(
+    point_interval = "median_qi", # median_hdi
+    position = position_dodge(width = 0.80),
+    .width = c(0, 0.95),
+    alpha = 0.65,
+    height = 1.05, 
+    adjust = 1.0
+  ) +
+  scale_y_discrete(labels = condition_labels) +
+  # scale_fill_discrete(name = "Position", labels = pos_labels) +
+  # scale_colour_discrete(name = "Position", labels = pos_labels) +
+  labs(x = "Predicted Accuracy", y = NULL) +
+  theme_bw(base_size = 14) +
+  # theme(legend.position = "bottom",
+  #       legend.box = "horizontal",
+  #       legend.direction = "horizontal") +
+  guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
+
+
+png(here("exp3", "img", "acc_6to18m_posterior_withoutposition.png"), width = 2480/2, height = 3508/2.5, res = 250)
+posterior_plot_acc_6to18m
+dev.off()
+
+### CONTINUE HERE ----
 
 ## Posterior Versus Prior Plots ----
 
@@ -414,9 +505,9 @@ dev.off()
 
 ## Descriptives ----
 df_tot |> 
-  group_by(folder, group_id) |> 
+  group_by(age_group, condition, id) |> 
   summarize(acc_visd = mean(acc_visd, na.rm = T)) |> 
-  group_by(folder) |> 
+  group_by(age_group, condition) |> 
   summarize(mean_acc_visd = mean(acc_visd, na.rm = T),
             sd_acc_visd = sd(acc_visd, na.rm = T)) |> 
   ungroup() |> 

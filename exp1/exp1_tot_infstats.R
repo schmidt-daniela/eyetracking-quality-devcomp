@@ -449,7 +449,7 @@ folder_labels <- c(
   "adults"="Adults","chimps"="Chimpanzees"
 )
 
-# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
+pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
 # pos_labels <- c(
 #   "center"="Center",
 #   "top_right"="Top Right",
@@ -806,7 +806,6 @@ folder_labels <- c(
   "adults"="Adults","chimps"="Chimpanzees"
 )
 
-pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
 pos_labels <- c(
   "center"="Center",
   "top_right"="Top Right",
@@ -1114,7 +1113,6 @@ folder_labels <- c(
   "adults"="Adults","chimps"="Chimpanzees"
 )
 
-pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
 pos_labels <- c(
   "center"="Center",
   "top_right"="Top Right",

@@ -541,16 +541,6 @@ df_tot |>
   ungroup() |> 
   arrange(mean_acc_visd)
 
-## Others ----
-# Calculate posterior probability that accuracy in A is higher than in B
-mean(post_samples_rq1_acc$b_folderchimps > post_samples_rq1_acc$b_folder4m) # 1 # 
-# "The posterior probability that chimpanzees have a worse accuracy than 4-month-old infants, is 1."
-mean(post_samples_rq1_acc$b_folder4m > post_samples_rq1_acc$b_folder9m) # 96%
-mean(post_samples_rq1_acc$b_folder9m > post_samples_rq1_acc$b_folder18m) # 90%
-mean(post_samples_rq1_acc$b_folder18m > post_samples_rq1_acc$b_folder6m) # 89%
-mean(post_samples_rq1_acc$b_folder9m > post_samples_rq1_acc$b_folder6m) # 99.35%
-mean(post_samples_rq1_acc$Yesb_folder6m > post_samples_rq1_acc$b_folderadults) # 99.9875%
-
 ## Paper Plot ----
 # Aggregate to subject level (mean over time/trials)
 df_subj <- df_tot |>
@@ -906,14 +896,6 @@ df_tot |>
   ungroup() |> 
   arrange(mean_precrms_visd)
 
-## Others ----
-# Calculate posterior probability that precision (RMS) in A is higher than in B
-mean(post_samples_rq1_precrms$b_folderadults < post_samples_rq1_precrms$b_folderchimps) # 1
-mean(post_samples_rq1_precrms$b_folderchimps < post_samples_rq1_precrms$b_folder9m) # 0
-mean(post_samples_rq1_precrms$b_folder9m < post_samples_rq1_precrms$b_folder18m) # 0.06075
-mean(post_samples_rq1_precrms$b_folder18m < post_samples_rq1_precrms$b_folder6m) # 1
-mean(post_samples_rq1_precrms$b_folder6m < post_samples_rq1_precrms$b_folder4m) # 0.96225
-
 ## Paper Plot ----
 # Aggregate to subject level (mean over time/trials)
 df_subj <- df_tot |>
@@ -1221,14 +1203,6 @@ df_tot |>
   ungroup() |> 
   arrange(mean_precsd_visd)
 
-## Others ----
-# Calculate posterior probability that precision (SD) in A is higher than in B
-mean(post_samples_rq1_precsd$b_folderadults < post_samples_rq1_precsd$b_folder9m) # 1
-mean(post_samples_rq1_precsd$b_folder9m < post_samples_rq1_precsd$b_folder18m) # 0.4295
-mean(post_samples_rq1_precsd$b_folder18m < post_samples_rq1_precsd$b_folder6m) # 0.99975
-mean(post_samples_rq1_precsd$b_folder6m < post_samples_rq1_precsd$b_folderchimps) # 0.98575
-mean(post_samples_rq1_precsd$b_folderchimps < post_samples_rq1_precsd$b_folder4m) # 0.61275
-
 ## Paper Plot ----
 
 # Aggregate to subject level (mean over time/trials)
@@ -1530,15 +1504,6 @@ df_tot |>
 #             sd_robustness_prop = sd(robustness_prop, na.rm = T)) |> 
 #   ungroup() |> 
 #   arrange(mean_robustness_prop)
-
-## Others ----
-# Calculate posterior probability that Robustness in A is higher than in B
-mean(post_samples_rq1_rob$b_folderadults > post_samples_rq1_rob$b_folder18m) # 1 
-# "The posterior probability that adults have a better robustness than 18-month-old infants, is 1."
-mean(post_samples_rq1_rob$b_folder18m > post_samples_rq1_rob$b_folder9m) # 0.928%
-mean(post_samples_rq1_rob$b_folder9m > post_samples_rq1_rob$b_folder6m) # 0.7595%
-mean(post_samples_rq1_rob$b_folder6m > post_samples_rq1_rob$b_folderchimps) # 0.5656%
-mean(post_samples_rq1_rob$b_folderchimps > post_samples_rq1_rob$b_folder4m) # 0.67825%
 
 ## Paper Plot ----
 # Aggregate to subject level (mean over time/trials)

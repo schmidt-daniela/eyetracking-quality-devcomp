@@ -329,7 +329,7 @@ prior_rq1_acc_red <- c(
   prior(normal(0, 0.325), class = "b", coef = "positionbot_left"),
   prior(normal(0, 0.325), class = "b", coef = "positionbot_right"),
   prior(normal(0, 0.325), class = "b", coef = "positionbottom"),
-  prior(normal(0, 0.325), class = "b", coef = "positioncenter"), # center is the reference level
+#  prior(normal(0, 0.325), class = "b", coef = "positioncenter"), # center is the reference level
   prior(normal(0, 0.325), class = "b", coef = "positiontop"),
   prior(normal(0, 0.325), class = "b", coef = "positiontop_left"),
   prior(normal(0, 0.325), class = "b", coef = "positiontop_right"),

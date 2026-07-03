@@ -3410,6 +3410,7 @@ pp_check(full_rq3_fixdur, ndraws = 100)
 dev.off()
 
 ## Posterior Distribution ----
+predictor_order <- c("acc_visd", "precrms_visd", "precsd_visd", "robustness_prop_2")
 post_rq3 <- as_draws_df(full_rq3_fixdur)
 
 slope_rq3 <- post_rq3 |>
@@ -3447,6 +3448,7 @@ slope_rq3 <- post_rq3 |>
     predictor = factor(predictor, levels = predictor_order)
   )
 
+predictor_labels <- c("acc_visd", "precrms_visd", "precsd_visd", "robustness_prop_2")
 posterior_plot_rq3_fixdur <- ggplot(
   slope_rq3,
   aes(

@@ -605,6 +605,49 @@ png(here("exp1", "img", "rq1_acc_paperplot.png"), width = 2480/2, height = 3508/
 p_acc
 dev.off()
 
+# Model with Flatter Priors ----
+# The only change is, that I double the SD for 9Ms and 18Ms
+## Priors ----
+prior_rq1_acc_adj <- c(
+  # Group parameters (log-mean scale) (preregistered values; based on Emipirical Bayes approach)
+  prior(normal(0.50, 0.48), class = "b", coef = "folder4m"),
+  prior(normal(0.50, 0.48), class = "b", coef = "folder6m"),
+  prior(normal(0.24, 0.09*2), class = "b", coef = "folder9m"),
+  prior(normal(0.00, 0.09*2), class = "b", coef = "folder18m"),
+  prior(normal(-0.41, 0.08), class = "b", coef = "folderadults"),
+  prior(normal(0.75, 0.24), class = "b", coef = "folderchimps"),
+
+  # Position (should not be bigger than half of the difference between adults and 9ms,
+  # that is, -0.41 - 0.24 = -0.65, so half of that is 0.325)
+  prior(normal(0, 0.325), class = "b", coef = "positionbot_left"),
+  prior(normal(0, 0.325), class = "b", coef = "positionbot_right"),
+  prior(normal(0, 0.325), class = "b", coef = "positionbottom"),
+  # prior(normal(0, 0.325), class = "b", coef = "positioncenter"), # center is the reference level
+  prior(normal(0, 0.325), class = "b", coef = "positiontop"),
+  prior(normal(0, 0.325), class = "b", coef = "positiontop_left"),
+  prior(normal(0, 0.325), class = "b", coef = "positiontop_right"),
+
+  # Gamma shape (based on Empirical Bayes approach, but with doubled SD)
+  prior(lognormal(0.87097834, 2*0.02510065), class = "shape"),
+
+  # Random effects regularization
+  prior(exponential(2), class = "sd"), # Prior on random-effect SD (log scale with log link): concentrates mass on small-to-moderate heterogeneity
+  # (median ~0.35, mean ~0.50) while still allowing larger SDs if supported by the data.
+  prior(lkj(2), class = "cor") # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly
+  # supported, improving computational stability in random-slope models
+)
+
+## Model ----
+full_rq1_acc_adj <- brm(
+  acc_visd ~ 0 + folder + position + (1 + position | group_id),
+  data   = df_tot,
+  family = hurdle_gamma(link = "log"),
+  prior  = prior_rq1_acc_adj,
+  chains = 4, cores = n_cores - 1, iter = 4000, warmup = 2000,
+  sample_prior="yes",
+  seed = 123,
+)
+
 ## Contrasts (Flat Priors) ----
 # Requires another loaded workspace (that contains (...)_adj)
 ## Group

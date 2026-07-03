@@ -3711,7 +3711,7 @@ prior_rq3_fixnum_red <- c(
 )
 
 ## Reduced Model ----
-full_rq3_fixnum_red <- brm(
+red_rq3_fixnum <- brm(
   mean_fixation_number ~ 0 + folder +
     (1 + acc_visd + precrms_visd + robustness_prop_2 | group_id),
   data   = df_rq3,

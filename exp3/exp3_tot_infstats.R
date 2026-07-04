@@ -115,7 +115,7 @@ df_tot |>
 # Reduced model: data quality ~ position on screen + random effects
 
 ## Priors of Full Model (4M) ----
-prior_acc <- c(
+prior_acc_4m <- c(
   prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
   # that allows for a broad range of plausible effects while still 
   # providing some regularization to prevent extreme values unless strongly supported by the data.
@@ -133,14 +133,14 @@ full_acc_4m <- brm(
   acc_visd ~ 0 + condition + position + (1 + position | group_id),
   data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "4M"),
   family = Gamma(link="log"),
-  prior  = prior_acc,
+  prior  = prior_acc_4m,
   chains = 4, iter = 4000, warmup = 2000,
   sample_prior = "yes",
-  seed = 123,
+  seed = 123
 )
 
 ## Priors of Full Model (6-18M) ----
-prior_acc <- c(
+prior_acc_6to18m <- c(
   prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
   # that allows for a broad range of plausible effects while still 
   # providing some regularization to prevent extreme values unless strongly supported by the data.
@@ -158,14 +158,14 @@ full_acc_6to18m <- brm(
   acc_visd ~ 0 + condition + position + (1 + position | group_id),
   data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "6to18M"),
   family = Gamma(link="log"),
-  prior  = prior_acc,
+  prior  = prior_acc_6to18m,
   chains = 4, iter = 4000, warmup = 2000,
   sample_prior = "yes",
-  seed = 123,
+  seed = 123
 )
 
 ## Define Priors of Reduced Model (4M) ----
-prior_acc_red <- c(
+prior_acc_red_4m <- c(
   prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
   # that allows for a broad range of plausible effects while still 
   # providing some regularization to prevent extreme values unless strongly supported by the data.
@@ -180,17 +180,17 @@ prior_acc_red <- c(
 
 ## Reduced Model (4M) ----
 red_acc_4m <- brm(
-  acc_visd ~ 0 + position + (1 + position | group_id),
+  acc_visd ~ position + (1 + position | group_id),
   data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "4M"),
   family = Gamma(link="log"),
-  prior  = prior_acc_red,
+  prior  = prior_acc_red_4m,
   chains = 4, iter = 4000, warmup = 2000,
   sample_prior = "yes",
   seed = 123,
 )
 
 ## Define Priors of Reduced Model (6-18M) ----
-prior_acc_red <- c(
+prior_acc_red_6to18m <- c(
   prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
   # that allows for a broad range of plausible effects while still 
   # providing some regularization to prevent extreme values unless strongly supported by the data.
@@ -205,26 +205,26 @@ prior_acc_red <- c(
 
 ## Reduced Model (6-18M) ----
 red_acc_6to18m <- brm(
-  acc_visd ~ 0 + position + (1 + position | group_id),
+  acc_visd ~ position + (1 + position | group_id),
   data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "6to18M"),
   family = Gamma(link="log"),
-  prior  = prior_acc_red,
+  prior  = prior_acc_red_6to18m,
   chains = 4, iter = 4000, warmup = 2000,
   sample_prior = "yes",
   seed = 123,
 )
 
 ## Model Comparison (4M) ----
-loo_full_4m <- loo(full_acc_4m)
-loo_red_4m <- loo(red_acc_4m)
-loo_compare(loo_full_4m, loo_red_4m)
+loo_full_acc_4m <- loo(full_acc_4m)
+loo_red_acc_4m <- loo(red_acc_4m)
+loo_compare(loo_full_acc_4m, loo_red_acc_4m)
 
 ## Model Comparison (6-18M) ----
-loo_full_6to18m <- loo(full_acc_6to18m)
-loo_red_6to18m <- loo(red_acc_6to18m)
-loo_compare(loo_full_6to18m, loo_red_6to18m)
+loo_full_acc_6to18m <- loo(full_acc_6to18m)
+loo_red_acc_6to18m <- loo(red_acc_6to18m)
+loo_compare(loo_full_acc_6to18m, loo_red_acc_6to18m)
 
-## Contrasts (4M)----
+## Contrasts (4M) ----
 ## Group
 groups <- unique(df_tot$condition)
 acc_contr_all <- brms_group_effects_response(
@@ -255,7 +255,7 @@ acc_contr_all_pos <- brms_group_effects_response(
 acc_contr_all_pos |> 
   arrange(desc(ratio_median))
 
-## Contrasts (6-18M)----
+## Contrasts (6-18M) ----
 ## Group
 groups <- unique(df_tot$condition)
 acc_contr_all <- brms_group_effects_response(
@@ -333,7 +333,7 @@ results_acc_6to18m |>
 
 png(here("exp3", "img", "acc_4m_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_acc_4m, ndraws = 100)
-#pp_check(full_rq1_acc, type = "hist") # rq1 accuracy check, that's fine
+#pp_check(full_rq1_acc, type = "hist") 
 dev.off()
 
 png(here("exp3", "img", "acc_4m_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
@@ -345,14 +345,12 @@ dev.off()
 
 png(here("exp3", "img", "acc_6to18m_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_acc_6to18m, ndraws = 100)
-#pp_check(full_rq1_acc, type = "hist") # rq1 accuracy check, that's fine
+#pp_check(full_rq1_acc, type = "hist")
 dev.off()
 
 png(here("exp3", "img", "acc_6to18m_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
 pp_check(full_acc_6to18m, type = "intervals_grouped", group = "condition")
 dev.off()
-
-### CONTINUE HERE
 
 ## Posterior Distribution (4M) ----
 # Preparation
@@ -474,33 +472,30 @@ png(here("exp3", "img", "acc_6to18m_posterior_withoutposition.png"), width = 248
 posterior_plot_acc_6to18m
 dev.off()
 
-### CONTINUE HERE ----
-
-## Posterior Versus Prior Plots ----
-
-# Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
-png(here("exp3", "img", "rq1_acc_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_acc, pars = c("b_folderchimps", "prior_b_folderchimps"), facet_label = "Chimpanzees")
+## Posterior Versus Prior Plots (4M) ----
+png(here("exp3", "img", "acc_4m_posteriorprior_own.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_acc_4m, pars = c("b_conditionown", "prior_b"), facet_label = "Own 5-Point Calibration")
 dev.off()
 
-png(here("exp3", "img", "rq1_acc_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_acc, pars = c("b_folder4m", "prior_b_folder4m"), facet_label = "4-Month-Olds")
+png(here("exp3", "img", "acc_4m_posteriorprior_adult.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_acc_4m, pars = c("b_conditionadult", "prior_b"), facet_label = "Adult 9-Point Calibration")
 dev.off()
 
-png(here("exp3", "img", "rq1_acc_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_acc, pars = c("b_folder6m", "prior_b_folder6m"), facet_label = "6-Month-Olds")
+png(here("exp3", "img", "acc_4m_posteriorprior_peer.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_acc_4m, pars = c("b_conditioninfant", "prior_b"), facet_label = "Peer 9-Point Calibration")
 dev.off()
 
-png(here("exp3", "img", "rq1_acc_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_acc, pars = c("b_folder9m", "prior_b_folder9m"), facet_label = "9-Month-Olds")
+## Posterior Versus Prior Plots (6-18M) ----
+png(here("exp3", "img", "acc_6to18m_posteriorprior_own.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_acc_6to18m, pars = c("b_conditionown", "prior_b"), facet_label = "Own 5-Point Calibration")
 dev.off()
 
-png(here("exp3", "img", "rq1_acc_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_acc, pars = c("b_folder18m", "prior_b_folder18m"), facet_label = "18-Month-Olds")
+png(here("exp3", "img", "acc_6to18m_posteriorprior_adult.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_acc_6to18m, pars = c("b_conditionadult", "prior_b"), facet_label = "Adult 9-Point Calibration")
 dev.off()
 
-png(here("exp3", "img", "rq1_acc_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_acc, pars = c("b_folderadults", "prior_b_folderadults"), facet_label = "Adults")
+png(here("exp3", "img", "acc_6to18m_posteriorprior_peer.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_acc_6to18m, pars = c("b_conditioninfant", "prior_b"), facet_label = "Peer 9-Point Calibration")
 dev.off()
 
 ## Descriptives ----
@@ -511,17 +506,7 @@ df_tot |>
   summarize(mean_acc_visd = mean(acc_visd, na.rm = T),
             sd_acc_visd = sd(acc_visd, na.rm = T)) |> 
   ungroup() |> 
-  arrange(mean_acc_visd)
-
-## Others ----
-# Calculate posterior probability that accuracy in A is higher than in B
-mean(post_samples_rq1_acc$b_folderchimps > post_samples_rq1_acc$b_folder4m) # 1 # 
-# "The posterior probability that chimpanzees have a worse accuracy than 4-month-old infants, is 1."
-mean(post_samples_rq1_acc$b_folder4m > post_samples_rq1_acc$b_folder9m) # 96%
-mean(post_samples_rq1_acc$b_folder9m > post_samples_rq1_acc$b_folder18m) # 90%
-mean(post_samples_rq1_acc$b_folder18m > post_samples_rq1_acc$b_folder6m) # 89%
-mean(post_samples_rq1_acc$b_folder9m > post_samples_rq1_acc$b_folder6m) # 99.35%
-mean(post_samples_rq1_acc$Yesb_folder6m > post_samples_rq1_acc$b_folderadults) # 99.9875%
+  slice(3,1,2,6,4,5)
 
 ## Paper Plot ----
 # Aggregate to subject level (mean over trials)
@@ -542,8 +527,8 @@ df_subj <- df_tot |>
       condition,
       levels = c("own", "adult", "infant"),
       labels = c("Own 5-Point Calibration", 
-                 "9-Point Adult Calibration", 
-                 "9-Point Infant Calibration")
+                 "Adult 9-Point Calibration", 
+                 "Infant 9-Point Calibration")
     )
   )
 
@@ -596,7 +581,7 @@ p_acc <- ggplot(df_subj, aes(x = Group, y = acc_visd, group = interaction(Group,
   labs(
     x = "Group",
     y = "Accuracy\nin visual degrees",
-    color = "Condition" # Sorgt dafür, dass die Legende "Condition" heißt
+    color = "Condition"
   ) +
   
   theme_classic(base_size = 14) +
@@ -606,180 +591,154 @@ png(here("exp3", "img", "acc_paperplot.png"), width = 2480, height = 3508/4, res
 p_acc
 dev.off()
 
-## Contrasts (Flat Priors) ----
-# Requires another loaded workspace (that contains (...)_adj)
-## Group
-groups <- levels(df_tot$folder)
-acc_contr_all <- brms_group_effects_response(
-  fit   = full_rq1_acc_adj,
-  groups = groups,
-  group_prefix = "folder",
-  type  = "contrasts",
-  ref   = NULL,          # = all pairwise
-  link  = "log",
-  contrast_scale = "ratio"
-)
+# Precision (RMS) ---------------------------------------------------------
 
-acc_contr_all
-acc_contr_all |> 
-  arrange(desc(ratio_median))
-
-## Posterior Probability Comparisons (Flat Priors) ----
-# Requires another loaded workspace (that contains (...)_adj)
-draws <- as_draws_df(full_rq1_acc_adj)
-groups <- c("folder4m", "folder6m", "folder9m", "folder18m", "folderadults", "folderchimps")
-pairs <- t(combn(groups, 2)) |> as.data.frame()
-colnames(pairs) <- c("g1", "g2")
-
-results_rq1_acc <- pairs |> 
-  rowwise() |> 
-  do(get_prob(.$g1, .$g2, draws)) |> 
-  ungroup()
-
-results_rq1_acc |> 
-  mutate(
-    contrast = gsub("folder", "", contrast),
-    prob_g1_greater = round(prob_g1_greater, 3),
-    prob_g2_greater = round(prob_g2_greater, 3),
-    median = round(median, 2),
-    lo = round(lo, 2),
-    hi = round(hi, 2)
-  )
-
-
-
-# RQ1 (Precision RMS) -----------------------------------------------------
-
-## Define Priors of Full Model ----
-# With Gamma(link="log"), coefficients are on the log-mean scale.
-prior_rq1_precrms <- c(
-  # Group parameters (log-mean scale)
-  prior(normal(-0.88, 0.32), class = "b", coef = "folder4m"),
-  prior(normal(-0.88, 0.32), class = "b", coef = "folder6m"),
-  prior(normal(-1.64, 0.08), class = "b", coef = "folder9m"),
-  prior(normal(-1.82, 0.07), class = "b", coef = "folder18m"),
-  prior(normal(-2.03, 0.07), class = "b", coef = "folderadults"),
-  prior(normal(-0.11, 0.16), class = "b", coef = "folderchimps"),
-  
-  # Position (should not be bigger than half of the difference between adults and 9ms,
-  # that is, -2.03 - (-1.64) = -0.39, so half of that is 0.195)
-  prior(normal(0, 0.195), class = "b", coef = "positionbot_left"),
-  prior(normal(0, 0.195), class = "b", coef = "positionbot_right"),
-  prior(normal(0, 0.195), class = "b", coef = "positionbottom"),
-  # prior(normal(0, 0.195), class = "b", coef = "positioncenter"), # center is the reference level
-  prior(normal(0, 0.195), class = "b", coef = "positiontop"),
-  prior(normal(0, 0.195), class = "b", coef = "positiontop_left"),
-  prior(normal(0, 0.195), class = "b", coef = "positiontop_right"),
-  
-  # Gamma shape (estimate = 7.42 and est. error = 0.19 on a natural scale,
-  # which translates to meanlog = 2.004 and sdlog = 0.0256 on log scale,
-  # m <- 7.42
-  # s <- 0.19
-  # sigma2  <- log(1 + (s^2 / m^2))
-  # sdlog   <- sqrt(sigma2)              # 0.0256
-  # meanlog <- log(m) - sigma2/2         # 2.004 (approx)
-  # c(meanlog = meanlog, sdlog = sdlog)
-  # double the sd to make it wider
-  prior(lognormal(2.004, 2*0.0256), class = "shape"),
+## Priors of Full Model (4M) ----
+prior_precrms_4m <- c(
+  prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
   
   # Random effects regularization
   prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
-  prior(lkj(2), class = "cor") # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  prior(lkj(2), class = "cor"), # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
   # supported, improving computational stability in random-slope models
+  
+  prior(exponential(0.5), class = "shape") # shape parameter of gamma distribution
 )
 
-## Full Model ----
-t0 <- proc.time()
-full_rq1_precrms <- brm(
-  precrms_visd ~ 0 + folder + position + (1 + position | group_id),
-  data   = df_tot,
+## Full Model (4M) ----
+full_precrms_4m <- brm(
+  precrms_visd ~ 0 + condition + position + (1 + position | group_id),
+  data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "4M"),
   family = Gamma(link="log"),
-  prior  = prior_rq1_precrms,
+  prior  = prior_precrms_4m,
   chains = 4, iter = 4000, warmup = 2000,
   sample_prior = "yes",
-  # control = list(adapt_delta = 0.99, max_treedepth = 15),
   seed = 123,
-  # save_pars = save_pars(all = TRUE)
 )
-t1 <- proc.time()
-proc_time_rq1_precrms <- t1 - t0
-rm(t0, t1)
 
-## Define Priors of Reduced Model ----
-# With Gamma(link="log"), coefficients are on the log-mean scale.
-prior_rq1_precrms_red <- c(
-  # Position (should not be bigger than half of the difference between adults and 9ms,
-  # that is, -2.03 - (-1.64) = -0.39, so half of that is 0.195)
-  prior(normal(0, 0.195), class = "b", coef = "positionbot_left"),
-  prior(normal(0, 0.195), class = "b", coef = "positionbot_right"),
-  prior(normal(0, 0.195), class = "b", coef = "positionbottom"),
-  # prior(normal(0, 0.195), class = "b", coef = "positioncenter"), # center is the reference level
-  prior(normal(0, 0.195), class = "b", coef = "positiontop"),
-  prior(normal(0, 0.195), class = "b", coef = "positiontop_left"),
-  prior(normal(0, 0.195), class = "b", coef = "positiontop_right"),
-  
-  # Gamma shape (estimate = 7.42 and est. error = 0.19 on a natural scale,
-  # which translates to meanlog = 2.004 and sdlog = 0.0256 on log scale,
-  # m <- 7.42
-  # s <- 0.19
-  # sigma2  <- log(1 + (s^2 / m^2))
-  # sdlog   <- sqrt(sigma2)              # 0.0256
-  # meanlog <- log(m) - sigma2/2         # 2.004 (approx)
-  # c(meanlog = meanlog, sdlog = sdlog)
-  # double the sd to make it wider
-  prior(lognormal(2.004, 2*0.0256), class = "shape"),
+## Priors of Full Model (6-18M) ----
+prior_precrms_6to18m <- c(
+  prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
   
   # Random effects regularization
   prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
-  prior(lkj(2), class = "cor") # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  prior(lkj(2), class = "cor"), # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
   # supported, improving computational stability in random-slope models
+  
+  prior(exponential(0.5), class = "shape") # shape parameter of gamma distribution
 )
 
-## Reduced Model ----
-red_rq1_precrms <- brm(
+## Full Model (6-18M) ----
+full_precrms_6to18m <- brm(
+  precrms_visd ~ 0 + condition + position + (1 + position | group_id),
+  data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "6to18M"),
+  family = Gamma(link="log"),
+  prior  = prior_precrms_6to18m,
+  chains = 4, iter = 4000, warmup = 2000,
+  sample_prior = "yes",
+  seed = 123
+)
+
+## Define Priors of Reduced Model (4M) ----
+prior_precrms_red_4m <- c(
+  prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
+  prior(lkj(2), class = "cor"), # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  # supported, improving computational stability in random-slope models
+  
+  prior(exponential(0.5), class = "shape") # shape parameter of gamma distribution
+)
+
+## Reduced Model (4M) ----
+red_precrms_4m <- brm(
   precrms_visd ~ position + (1 + position | group_id),
-  data   = df_tot,
+  data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "4M"),
   family = Gamma(link="log"),
-  prior  = prior_rq1_precrms_red,
+  prior  = prior_precrms_red_4m,
   chains = 4, iter = 4000, warmup = 2000,
   sample_prior = "yes",
-  seed = 123,
+  seed = 123
 )
 
-## Model Comparison ----
-loo_full_precrms <- loo(full_rq1_precrms)
-loo_red_precrms <- loo(red_rq1_precrms)
-loo_compare(loo_full_precrms, loo_red_precrms) # full_rq1_precrms -4.3       7.4 
+## Define Priors of Reduced Model (6-18M) ----
+prior_precrms_red_6to18m <- c(
+  prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
+  prior(lkj(2), class = "cor"), # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  # supported, improving computational stability in random-slope models
+  
+  prior(exponential(0.5), class = "shape") # shape parameter of gamma distribution
+)
 
-## Contrasts ----
-groups <- levels(df_tot$folder)
+## Reduced Model (6-18M) ----
+red_precrms_6to18m <- brm(
+  precrms_visd ~ position + (1 + position | group_id),
+  data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "6to18M"),
+  family = Gamma(link="log"),
+  prior  = prior_precrms_red_6to18m,
+  chains = 4, iter = 4000, warmup = 2000,
+  sample_prior = "yes",
+  seed = 123
+)
+
+## Model Comparison (4M) ----
+loo_full_precrms_4m <- loo(full_precrms_4m)
+loo_red_precrms_4m <- loo(red_precrms_4m)
+loo_compare(loo_full_precrms_4m, loo_red_precrms_4m)
+
+## Model Comparison (6-18M) ----
+loo_full_precrms_6to18m <- loo(full_precrms_6to18m)
+loo_red_precrms_6to18m <- loo(red_precrms_6to18m)
+loo_compare(loo_full_precrms_6to18m, loo_red_precrms_6to18m)
+
+## Contrasts (4M) ----
+groups <- unique(df_tot$condition)
 precrms_contr_all <- brms_group_effects_response(
-  fit   = full_rq1_precrms,
+  fit   = full_precrms_4m,
   groups = groups,
-  group_prefix = "folder",
+  group_prefix = "condition",
   type  = "contrasts",
   ref   = NULL,          # => all pairwise
   link  = "log",
   contrast_scale = "ratio"
 )
 
-precrms_contr_all
 precrms_contr_all |> 
   arrange(desc(ratio_median)) |> 
   print(n = 30)
 
-## Posterior Probability Comparisons ----
-draws <- as_draws_df(full_rq1_precrms)
-groups <- c("folder4m", "folder6m", "folder9m", "folder18m", "folderadults", "folderchimps")
+## Contrasts (6-18M) ----
+groups <- unique(df_tot$condition)
+precrms_contr_all <- brms_group_effects_response(
+  fit   = full_precrms_6to18m,
+  groups = groups,
+  group_prefix = "condition",
+  type  = "contrasts",
+  ref   = NULL,          # => all pairwise
+  link  = "log",
+  contrast_scale = "ratio"
+)
+
+precrms_contr_all |> 
+  arrange(desc(ratio_median)) |> 
+  print(n = 30)
+
+## Posterior Probability Comparisons (4M) ----
+draws <- as_draws_df(full_precrms_4m)
+groups <- c("conditionown", "conditionadult", "conditioninfant")
 pairs <- t(combn(groups, 2)) |> as.data.frame()
 colnames(pairs) <- c("g1", "g2")
 
-results_rq1_precrms <- pairs |> 
+results_precrms_4m <- pairs |> 
   rowwise() |> 
   do(get_prob(.$g1, .$g2, draws)) |> 
   ungroup()
 
-results_rq1_precrms |> 
+results_precrms_4m |> 
   mutate(
     contrast = gsub("folder", "", contrast),
     prob_g1_greater = round(prob_g1_greater, 3),
@@ -789,69 +748,97 @@ results_rq1_precrms |>
     hi = round(hi, 2)
   )
 
-## Posterior Predictive Checks ----
-pp_check(full_rq1_precrms, ndraws = 100) # A good model will show the observed data (usually a dark line) closely following the distribution of simulated datasets (lighter lines).
+## Posterior Probability Comparisons (6-18M) ----
+draws <- as_draws_df(full_precrms_6to18m)
+groups <- c("conditionown", "conditionadult", "conditioninfant")
+pairs <- t(combn(groups, 2)) |> as.data.frame()
+colnames(pairs) <- c("g1", "g2")
 
-## Model Fit: Posterior Predictive Check ----
+results_precrms_6to18m <- pairs |> 
+  rowwise() |> 
+  do(get_prob(.$g1, .$g2, draws)) |> 
+  ungroup()
+
+results_precrms_6to18m |> 
+  mutate(
+    contrast = gsub("folder", "", contrast),
+    prob_g1_greater = round(prob_g1_greater, 3),
+    prob_g2_greater = round(prob_g2_greater, 3),
+    median = round(median, 2),
+    lo = round(lo, 2),
+    hi = round(hi, 2)
+  )
+
+## Model Fit: Posterior Predictive Check (4M) ----
 # Check whether model is "match to the data"
-png(here("exp3", "img", "rq1_precrms_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
-pp_check(full_rq1_precrms, ndraws = 100)
-#pp_check(full_rq1_precrms, type = "hist") 
+
+png(here("exp3", "img", "precrms_4m_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_precrms_4m, ndraws = 100)
+#pp_check(full_rq1_precrms, type = "hist")
 dev.off()
 
-png(here("exp3", "img", "rq1_precrms_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
-pp_check(full_rq1_precrms, type = "intervals_grouped", group = "folder") # might exceed memory limits
+png(here("exp3", "img", "precrms_4m_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_precrms_4m, type = "intervals_grouped", group = "condition")
 dev.off()
 
-## Posterior Distribution ----
+## Model Fit: Posterior Predictive Check (6-18M) ----
+# Check whether model is "match to the data"
+
+png(here("exp3", "img", "precrms_6to18m_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_precrms_6to18m, ndraws = 100)
+#pp_check(full_rq1_precrms, type = "hist")
+dev.off()
+
+png(here("exp3", "img", "precrms_6to18m_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_precrms_6to18m, type = "intervals_grouped", group = "condition")
+dev.off()
+
+## Posterior Distribution (4M) ----
 # Preparation
-folder_order  <- c("4m","6m","9m","18m","adults","chimps")
-folder_labels <- c(
-  "4m"="4 Months","6m"="6 Months","9m"="9 Months","18m"="18 Months",
-  "adults"="Adults","chimps"="Chimpanzees"
-)
+condition_order  <- c("own", "infant", "adult")
+condition_labels <- c("own"= "Own 5-Point Calibration", "infant" = "Infant 9-Point Calibration", "adult" = "Adult 9-Point Calibration")
 
-# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
-# pos_labels <- c(
-#   "center"="Center",
-#   "top_right"="Top Right",
-#   "bot_right"="Bottom Right",
-#   "bottom"="Bottom",
-#   "top_left"="Top Left",
-#   "bot_left"="Bottom Left",
-#   "top"="Top"
-# )
+pos_order <- c("center","topright","botright","bottom","topleft","botleft","top")
+pos_labels <- c(
+  "center"="Center",
+  "topright"="Top Right",
+  "botright"="Bottom Right",
+  "bottom"="Bottom",
+  "topleft"="Top Left",
+  "botleft"="Bottom Left",
+  "top"="Top"
+)
 
 # Create Newdata Grid
 nd_pos <- tidyr::expand_grid(
-  folder   = factor(folder_order, levels = folder_order),
+  condition   = factor(condition_order, levels = condition_order),
   position = factor(pos_order, levels = pos_order)
 ) |>
-  mutate(position = factor(position, levels = levels(full_rq1_precrms$data$position))) |>
+  mutate(position = factor(position, levels = levels(full_precrms_4m$data$position))) |>
   filter(!is.na(position))
 
 # Create Predictions
-ep_precrms   <- posterior_epred(full_rq1_precrms, newdata = nd_pos, re_formula = NA)
+ep_precrms   <- posterior_epred(full_precrms_4m, newdata = nd_pos, re_formula = NA)
 precrms_long <- epred_to_long(ep_precrms, nd_pos)
 
 # Create Plot
-posterior_plot_rq1_precrms <- ggplot(
+posterior_plot_precrms_4m <- ggplot(
   precrms_long,
   aes(x = .epred,
-      y = factor(folder, levels = rev(folder_order)), 
+      y = factor(condition, levels = rev(condition_order)),
       # fill = position,
       # colour = position
-      )
+  )
 ) +
   stat_halfeye(
     point_interval = "median_qi", # median_hdi
     position = position_dodge(width = 0.80),
     .width = c(0, 0.95),
     alpha = 0.65,
-    height = 1.05,
+    height = 1.05, 
     adjust = 1.0
   ) +
-  scale_y_discrete(labels = folder_labels) +
+  scale_y_discrete(labels = condition_labels) +
   # scale_fill_discrete(name = "Position", labels = pos_labels) +
   # scale_colour_discrete(name = "Position", labels = pos_labels) +
   labs(x = "Predicted Precision (RMS)", y = NULL) +
@@ -861,75 +848,134 @@ posterior_plot_rq1_precrms <- ggplot(
   #       legend.direction = "horizontal") +
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
-png(here("exp3", "img", "rq1_precrms_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
-posterior_plot_rq1_precrms
-dev.off() 
 
-## Posterior Versus Prior Plots ----
-# Plot prior and posterior distribution to see how sensitive the results are to the choice of priors
-png(here("exp3", "img", "rq1_precrms_posteriorprior_chimps.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folderchimps", "prior_b_folderchimps"), facet_label = "Chimpanzees")
+png(here("exp3", "img", "precrms_4m_posterior_withoutposition.png"), width = 2480/2, height = 3508/2.5, res = 250)
+posterior_plot_precrms_4m
 dev.off()
 
-png(here("exp3", "img", "rq1_precrms_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folder4m", "prior_b_folder4m"), facet_label = "4-Month-Olds")
+## Posterior Distribution (6-18M) ----
+# Preparation
+condition_order  <- c("own", "infant", "adult")
+condition_labels <- c("own"= "Own 5-Point Calibration", "infant" = "Infant 9-Point Calibration", "adult" = "Adult 9-Point Calibration")
+
+pos_order <- c("center","topright","botright","bottom","topleft","botleft","top")
+pos_labels <- c(
+  "center"="Center",
+  "topright"="Top Right",
+  "botright"="Bottom Right",
+  "bottom"="Bottom",
+  "topleft"="Top Left",
+  "botleft"="Bottom Left",
+  "top"="Top"
+)
+
+# Create Newdata Grid
+nd_pos <- tidyr::expand_grid(
+  condition   = factor(condition_order, levels = condition_order),
+  position = factor(pos_order, levels = pos_order)
+) |>
+  mutate(position = factor(position, levels = levels(full_precrms_6to18m$data$position))) |>
+  filter(!is.na(position))
+
+# Create Predictions
+ep_precrms   <- posterior_epred(full_precrms_6to18m, newdata = nd_pos, re_formula = NA)
+precrms_long <- epred_to_long(ep_precrms, nd_pos)
+
+# Create Plot
+posterior_plot_precrms_6to18m <- ggplot(
+  precrms_long,
+  aes(x = .epred,
+      y = factor(condition, levels = rev(condition_order)),
+      # fill = position,
+      # colour = position
+  )
+) +
+  stat_halfeye(
+    point_interval = "median_qi", # median_hdi
+    position = position_dodge(width = 0.80),
+    .width = c(0, 0.95),
+    alpha = 0.65,
+    height = 1.05, 
+    adjust = 1.0
+  ) +
+  scale_y_discrete(labels = condition_labels) +
+  # scale_fill_discrete(name = "Position", labels = pos_labels) +
+  # scale_colour_discrete(name = "Position", labels = pos_labels) +
+  labs(x = "Predicted Precision (RMS)", y = NULL) +
+  theme_bw(base_size = 14) +
+  # theme(legend.position = "bottom",
+  #       legend.box = "horizontal",
+  #       legend.direction = "horizontal") +
+  guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
+
+
+png(here("exp3", "img", "precrms_6to18m_posterior_withoutposition.png"), width = 2480/2, height = 3508/2.5, res = 250)
+posterior_plot_precrms_6to18m
 dev.off()
 
-png(here("exp3", "img", "rq1_precrms_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folder6m", "prior_b_folder6m"), facet_label = "6-Month-Olds")
+## Posterior Versus Prior Plots (4M) ----
+png(here("exp3", "img", "precrms_4m_posteriorprior_own.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_precrms_4m, pars = c("b_conditionown", "prior_b"), facet_label = "Own 5-Point Calibration")
 dev.off()
 
-png(here("exp3", "img", "rq1_precrms_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folder9m", "prior_b_folder9m"), facet_label = "9-Month-Olds")
+png(here("exp3", "img", "precrms_4m_posteriorprior_adult.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_precrms_4m, pars = c("b_conditionadult", "prior_b"), facet_label = "Adult 9-Point Calibration")
 dev.off()
 
-png(here("exp3", "img", "rq1_precrms_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folder18m", "prior_b_folder18m"), facet_label = "18-Month-Olds")
+png(here("exp3", "img", "precrms_4m_posteriorprior_peer.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_precrms_4m, pars = c("b_conditioninfant", "prior_b"), facet_label = "Peer 9-Point Calibration")
 dev.off()
 
-png(here("exp3", "img", "rq1_precrms_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_precrms, pars = c("b_folderadults", "prior_b_folderadults"), facet_label = "Adults")
+## Posterior Versus Prior Plots (6-18M) ----
+png(here("exp3", "img", "precrms_6to18m_posteriorprior_own.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_precrms_6to18m, pars = c("b_conditionown", "prior_b"), facet_label = "Own 5-Point Calibration")
+dev.off()
+
+png(here("exp3", "img", "precrms_6to18m_posteriorprior_adult.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_precrms_6to18m, pars = c("b_conditionadult", "prior_b"), facet_label = "Adult 9-Point Calibration")
+dev.off()
+
+png(here("exp3", "img", "precrms_6to18m_posteriorprior_peer.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_precrms_6to18m, pars = c("b_conditioninfant", "prior_b"), facet_label = "Peer 9-Point Calibration")
 dev.off()
 
 ## Descriptives ----
 df_tot |> 
-  group_by(folder, group_id) |> 
+  group_by(age_group, condition, id) |> 
   summarize(precrms_visd = mean(precrms_visd, na.rm = T)) |> 
-  group_by(folder) |> 
+  group_by(age_group, condition) |> 
   summarize(mean_precrms_visd = mean(precrms_visd, na.rm = T),
             sd_precrms_visd = sd(precrms_visd, na.rm = T)) |> 
   ungroup() |> 
-  arrange(mean_precrms_visd)
-
-## Others ----
-# Calculate posterior probability that precision (RMS) in A is higher than in B
-mean(post_samples_rq1_precrms$b_folderadults < post_samples_rq1_precrms$b_folderchimps) # 1
-mean(post_samples_rq1_precrms$b_folderchimps < post_samples_rq1_precrms$b_folder9m) # 0
-mean(post_samples_rq1_precrms$b_folder9m < post_samples_rq1_precrms$b_folder18m) # 0.06075
-mean(post_samples_rq1_precrms$b_folder18m < post_samples_rq1_precrms$b_folder6m) # 1
-mean(post_samples_rq1_precrms$b_folder6m < post_samples_rq1_precrms$b_folder4m) # 0.96225
+  slice(3,1,2,6,4,5)
 
 ## Paper Plot ----
-# Aggregate to subject level (mean over time/trials)
+# Aggregate to subject level (mean over trials)
 df_subj <- df_tot |>
-  filter(!is.na(folder), !is.na(group_id), !is.na(time), !is.na(precrms_visd)) |>
-  group_by(folder, group_id) |>
+  filter(!is.na(precrms_visd)) |>
+  group_by(condition, age_group, id) |>
   summarise(
     precrms_visd = mean(precrms_visd, na.rm = TRUE),
     .groups = "drop"
   ) |>
   mutate(
     Group = factor(
-      folder,
-      levels = c("4m", "6m", "9m", "18m", "adults", "chimps"),
-      # labels = c("4M", "6M", "9M", "18M", "Adults", "Chimpanzees")
-      labels = c("4 Months", "6 Months", "9 Months", "18 Months", "Adults", "Chimpanzees")
+      age_group,
+      levels = c("4M", "6to18M"),
+      labels = c("4 Months", "6 to 18 Months")
+    ),
+    Condition = factor(
+      condition,
+      levels = c("own", "adult", "infant"),
+      labels = c("Own 5-Point Calibration", 
+                 "Adult 9-Point Calibration", 
+                 "Infant 9-Point Calibration")
     )
   )
 
-# Mean + 95% CI across subjects (per group)
+# Mean + 95% CI across subjects (per group & condition)
 sum_df <- df_subj |>
-  group_by(Group) |>
+  group_by(Group, Condition) |>
   summarise(
     n = n(),
     mean = mean(precrms_visd),
@@ -941,164 +987,199 @@ sum_df <- df_subj |>
     .groups = "drop"
   )
 
-p_precrms <- ggplot(df_subj, aes(x = Group, y = precrms_visd)) +
-  geom_violin(trim = FALSE, alpha = 0.25) +
+pd <- position_dodge(width = 0.8)
+pd_jitter <- position_jitterdodge(jitter.width = 0.15, dodge.width = 0.8)
+
+p_acc <- ggplot(df_subj, aes(x = Group, y = precrms_visd, group = interaction(Group, Condition))) +
+  geom_violin(trim = FALSE, color = "black", fill = NA, position = pd) +
+  
   geom_point(
-    aes(color = Group),
-    position = position_jitter(width = 0.12, height = 0),
+    aes(color = Condition),
+    position = pd_jitter,
     size = 0.5,
-    show.legend = FALSE
+    alpha = 0.7
   ) +
+  
   geom_errorbar(
     data = sum_df,
-    aes(x = Group, ymin = ci_low, ymax = ci_high),
-    width = 0.12,
+    aes(x = Group, ymin = ci_low, ymax = ci_high, group = Condition),
+    width = 0.15,
     linewidth = 0.5,
+    color = "black",
+    position = pd,
     inherit.aes = FALSE
   ) +
+  
   geom_point(
     data = sum_df,
-    aes(x = Group, y = mean),
-    size = 0.5,
+    aes(x = Group, y = mean, group = Condition),
+    size = 1.5,
+    color = "black",
+    position = pd,
     inherit.aes = FALSE
   ) +
+  
   labs(
     x = "Group",
-    y = "Precision (RMS)\nin visual degrees"
+    y = "Precision (RMS)\nin visual degrees",
+    color = "Condition"
   ) +
+  
   theme_classic(base_size = 14) +
   theme(panel.grid = element_blank())
 
-png(here("exp3", "img", "rq1_precrms_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
-p_precrms
+png(here("exp3", "img", "precrmspaperplot.png"), width = 2480, height = 3508/4, res = 200)
+p_acc
 dev.off()
 
-# RQ1 (Precision SD) ------------------------------------------------------
+# Precision (SD) ----------------------------------------------------------
 
-## Define Priors of Full Model ----
-# With Gamma(link="log"), coefficients are on the log-mean scale.
-prior_rq1_precsd <- c(
-  # Group parameters (log-mean scale)
-  prior(normal(-1.03, 0.28), class = "b", coef = "folder4m"),
-  prior(normal(-1.03, 0.28), class = "b", coef = "folder6m"),
-  prior(normal(-1.61, 0.06), class = "b", coef = "folder9m"),
-  prior(normal(-1.68, 0.06), class = "b", coef = "folder18m"),
-  prior(normal(-1.87, 0.05), class = "b", coef = "folderadults"),
-  prior(normal(-0.45, 0.14), class = "b", coef = "folderchimps"),
-  
-  # Position (should not be bigger than half of the difference between adults and 9ms,
-  # that is, -1.87 - (-1.61) = 0.26, so half of it is 0.13)
-  prior(normal(0, 0.13), class = "b", coef = "positionbot_left"),
-  prior(normal(0, 0.13), class = "b", coef = "positionbot_right"),
-  prior(normal(0, 0.13), class = "b", coef = "positionbottom"),
-  # prior(normal(0, 0.13), class = "b", coef = "positioncenter"), # center is the reference level
-  prior(normal(0, 0.13), class = "b", coef = "positiontop"),
-  prior(normal(0, 0.13), class = "b", coef = "positiontop_left"),
-  prior(normal(0, 0.13), class = "b", coef = "positiontop_right"),
-  
-  # Gamma shape (estimate = 6.16 and est. error = 0.15 on a natural scale,
-  # which translates to meanlog = 2.004 and sdlog = 0.0256 on log scale,
-  # m <- 6.16
-  # s <- 0.15
-  # sigma2  <- log(1 + (s^2 / m^2))
-  # sdlog   <- sqrt(sigma2)              # 0.02434704
-  # meanlog <- log(m) - sigma2/2         # 1.81778039
-  # c(meanlog = meanlog, sdlog = sdlog)
-  # double the sd to make it wider
-  prior(lognormal(1.81778039, 2*0.02434704), class = "shape"),
+## Priors of Full Model (4M) ----
+prior_precsd_4m <- c(
+  prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
   
   # Random effects regularization
   prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
-  prior(lkj(2), class = "cor") # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  prior(lkj(2), class = "cor"), # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
   # supported, improving computational stability in random-slope models
+  
+  prior(exponential(0.5), class = "shape") # shape parameter of gamma distribution
 )
 
-## Full Model ----
-full_rq1_precsd <- brm(
-  precsd_visd ~ 0 + folder + position + (1 + position | group_id),
-  data   = df_tot,
-  sample_prior = "yes",
+## Full Model (4M) ----
+full_precsd_4m <- brm(
+  precsd_visd ~ 0 + condition + position + (1 + position | group_id),
+  data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "4M"),
   family = Gamma(link="log"),
-  prior  = prior_rq1_precsd,
+  prior  = prior_precsd_4m,
   chains = 4, iter = 4000, warmup = 2000,
+  sample_prior = "yes",
+  seed = 123,
+)
+
+## Priors of Full Model (6-18M) ----
+prior_precsd_6to18m <- c(
+  prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
+  prior(lkj(2), class = "cor"), # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  # supported, improving computational stability in random-slope models
+  
+  prior(exponential(0.5), class = "shape") # shape parameter of gamma distribution
+)
+
+## Full Model (6-18M) ----
+full_precsd_6to18m <- brm(
+  precsd_visd ~ 0 + condition + position + (1 + position | group_id),
+  data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "6to18M"),
+  family = Gamma(link="log"),
+  prior  = prior_precsd_6to18m,
+  chains = 4, iter = 4000, warmup = 2000,
+  sample_prior = "yes",
   seed = 123
 )
 
-## Define Priors of Reduced Model----
-# With Gamma(link="log"), coefficients are on the log-mean scale.
-prior_rq1_precsd_red <- c(
-  # Position (should not be bigger than half of the difference between adults and 9ms,
-  # that is, -1.87 - (-1.61) = 0.26, so half of it is 0.13)
-  prior(normal(0, 0.13), class = "b", coef = "positionbot_left"),
-  prior(normal(0, 0.13), class = "b", coef = "positionbot_right"),
-  prior(normal(0, 0.13), class = "b", coef = "positionbottom"),
-  # prior(normal(0, 0.13), class = "b", coef = "positioncenter"), # center is the reference level
-  prior(normal(0, 0.13), class = "b", coef = "positiontop"),
-  prior(normal(0, 0.13), class = "b", coef = "positiontop_left"),
-  prior(normal(0, 0.13), class = "b", coef = "positiontop_right"),
-  
-  # Gamma shape (estimate = 6.16 and est. error = 0.15 on a natural scale,
-  # which translates to meanlog = 2.004 and sdlog = 0.0256 on log scale,
-  # m <- 6.16
-  # s <- 0.15
-  # sigma2  <- log(1 + (s^2 / m^2))
-  # sdlog   <- sqrt(sigma2)              # 0.02434704
-  # meanlog <- log(m) - sigma2/2         # 1.81778039
-  # c(meanlog = meanlog, sdlog = sdlog)
-  # double the sd to make it wider
-  prior(lognormal(1.81778039, 2*0.02434704), class = "shape"),
+## Define Priors of Reduced Model (4M) ----
+prior_precsd_red_4m <- c(
+  prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
   
   # Random effects regularization
   prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
-  prior(lkj(2), class = "cor") # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  prior(lkj(2), class = "cor"), # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
   # supported, improving computational stability in random-slope models
+  
+  prior(exponential(0.5), class = "shape") # shape parameter of gamma distribution
 )
 
-## Reduced Model ----
-red_rq1_precsd <- brm(
+## Reduced Model (4M) ----
+red_precsd_4m <- brm(
   precsd_visd ~ position + (1 + position | group_id),
-  data   = df_tot,
-  sample_prior = "yes",
+  data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "4M"),
   family = Gamma(link="log"),
-  prior  = prior_rq1_precsd_red,
+  prior  = prior_precsd_red_4m,
   chains = 4, iter = 4000, warmup = 2000,
+  sample_prior = "yes",
   seed = 123
 )
 
-## Model Comparison ----
-loo_full_precsd <- loo(full_rq1_precsd)
-loo_red_precsd <- loo(red_rq1_precsd)
-loo_compare(loo_full_precsd, loo_red_precsd)
+## Define Priors of Reduced Model (6-18M) ----
+prior_precsd_red_6to18m <- c(
+  prior(normal(0, 3), class = "b"), # all fixed effects: normal(0, 3) on log-mean scale is a wide prior 
+  
+  # Random effects regularization
+  prior(exponential(2), class = "sd"), # enforces positivity but allows inter-individual heterogeneity
+  prior(lkj(2), class = "cor"), # mildly favors correlations near zero and reduces the probability of extreme ±1 correlations unless strongly 
+  # supported, improving computational stability in random-slope models
+  
+  prior(exponential(0.5), class = "shape") # shape parameter of gamma distribution
+)
 
-## Contrasts ----
-groups <- levels(df_tot$folder)
+## Reduced Model (6-18M) ----
+red_precsd_6to18m <- brm(
+  precsd_visd ~ position + (1 + position | group_id),
+  data   = df_tot |> filter(!is.na(position)) |> filter(age_group == "6to18M"),
+  family = Gamma(link="log"),
+  prior  = prior_precsd_red_6to18m,
+  chains = 4, iter = 4000, warmup = 2000,
+  sample_prior = "yes",
+  seed = 123
+)
+
+## Model Comparison (4M) ----
+loo_full_precsd_4m <- loo(full_precsd_4m)
+loo_red_precsd_4m <- loo(red_precsd_4m)
+loo_compare(loo_full_precsd_4m, loo_red_precsd_4m)
+
+## Model Comparison (6-18M) ----
+loo_full_precsd_6to18m <- loo(full_precsd_6to18m)
+loo_red_precsd_6to18m <- loo(red_precsd_6to18m)
+loo_compare(loo_full_precsd_6to18m, loo_red_precsd_6to18m)
+
+## Contrasts (4M) ----
+groups <- unique(df_tot$condition)
 precsd_contr_all <- brms_group_effects_response(
-  fit   = full_rq1_precsd,
+  fit   = full_precsd_4m,
   groups = groups,
-  group_prefix = "folder",
+  group_prefix = "condition",
   type  = "contrasts",
   ref   = NULL,          # => all pairwise
   link  = "log",
   contrast_scale = "ratio"
 )
 
-precsd_contr_all
 precsd_contr_all |> 
   arrange(desc(ratio_median)) |> 
-  print(n=30)
+  print(n = 30)
 
-## Posterior Probability Comparisons ----
-draws <- as_draws_df(full_rq1_precsd)
-groups <- c("folder4m", "folder6m", "folder9m", "folder18m", "folderadults", "folderchimps")
+## Contrasts (6-18M) ----
+groups <- unique(df_tot$condition)
+precsd_contr_all <- brms_group_effects_response(
+  fit   = full_precsd_6to18m,
+  groups = groups,
+  group_prefix = "condition",
+  type  = "contrasts",
+  ref   = NULL,          # => all pairwise
+  link  = "log",
+  contrast_scale = "ratio"
+)
+
+precsd_contr_all |> 
+  arrange(desc(ratio_median)) |> 
+  print(n = 30)
+
+## Posterior Probability Comparisons (4M) ----
+draws <- as_draws_df(full_precsd_4m)
+groups <- c("conditionown", "conditionadult", "conditioninfant")
 pairs <- t(combn(groups, 2)) |> as.data.frame()
 colnames(pairs) <- c("g1", "g2")
 
-results_rq1_precsd <- pairs |> 
+results_precsd_4m <- pairs |> 
   rowwise() |> 
   do(get_prob(.$g1, .$g2, draws)) |> 
   ungroup()
 
-results_rq1_precsd |> 
+results_precsd_4m |> 
   mutate(
     contrast = gsub("folder", "", contrast),
     prob_g1_greater = round(prob_g1_greater, 3),
@@ -1108,66 +1189,97 @@ results_rq1_precsd |>
     hi = round(hi, 2)
   )
 
-## Model Fit: Posterior Predictive Check ----
+## Posterior Probability Comparisons (6-18M) ----
+draws <- as_draws_df(full_precsd_6to18m)
+groups <- c("conditionown", "conditionadult", "conditioninfant")
+pairs <- t(combn(groups, 2)) |> as.data.frame()
+colnames(pairs) <- c("g1", "g2")
+
+results_precsd_6to18m <- pairs |> 
+  rowwise() |> 
+  do(get_prob(.$g1, .$g2, draws)) |> 
+  ungroup()
+
+results_precsd_6to18m |> 
+  mutate(
+    contrast = gsub("folder", "", contrast),
+    prob_g1_greater = round(prob_g1_greater, 3),
+    prob_g2_greater = round(prob_g2_greater, 3),
+    median = round(median, 2),
+    lo = round(lo, 2),
+    hi = round(hi, 2)
+  )
+
+## Model Fit: Posterior Predictive Check (4M) ----
 # Check whether model is "match to the data"
-png(here("exp3", "img", "rq1_precsd_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
-pp_check(full_rq1_precsd, ndraws = 100) 
+
+png(here("exp3", "img", "precsd_4m_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_precsd_4m, ndraws = 100)
 #pp_check(full_rq1_precsd, type = "hist")
 dev.off()
 
-png(here("exp3", "img", "rq1_precsd_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
-pp_check(full_rq1_precsd, type = "intervals_grouped", group = "folder") # might exceed memory limits
+png(here("exp3", "img", "precsd_4m_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_precsd_4m, type = "intervals_grouped", group = "condition")
 dev.off()
 
-## Posterior Distribution ----
-# Preparation
-folder_order  <- c("4m","6m","9m","18m","adults","chimps")
-folder_labels <- c(
-  "4m"="4 Months","6m"="6 Months","9m"="9 Months","18m"="18 Months",
-  "adults"="Adults","chimps"="Chimpanzees"
-)
+## Model Fit: Posterior Predictive Check (6-18M) ----
+# Check whether model is "match to the data"
 
-# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
-# pos_labels <- c(
-#   "center"="Center",
-#   "top_right"="Top Right",
-#   "bot_right"="Bottom Right",
-#   "bottom"="Bottom",
-#   "top_left"="Top Left",
-#   "bot_left"="Bottom Left",
-#   "top"="Top"
-# )
+png(here("exp3", "img", "precsd_6to18m_ppc.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_precsd_6to18m, ndraws = 100)
+#pp_check(full_rq1_precsd, type = "hist")
+dev.off()
+
+png(here("exp3", "img", "precsd_6to18m_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+pp_check(full_precsd_6to18m, type = "intervals_grouped", group = "condition")
+dev.off()
+
+## Posterior Distribution (4M) ----
+# Preparation
+condition_order  <- c("own", "infant", "adult")
+condition_labels <- c("own"= "Own 5-Point Calibration", "infant" = "Infant 9-Point Calibration", "adult" = "Adult 9-Point Calibration")
+
+pos_order <- c("center","topright","botright","bottom","topleft","botleft","top")
+pos_labels <- c(
+  "center"="Center",
+  "topright"="Top Right",
+  "botright"="Bottom Right",
+  "bottom"="Bottom",
+  "topleft"="Top Left",
+  "botleft"="Bottom Left",
+  "top"="Top"
+)
 
 # Create Newdata Grid
 nd_pos <- tidyr::expand_grid(
-  folder   = factor(folder_order, levels = folder_order),
+  condition   = factor(condition_order, levels = condition_order),
   position = factor(pos_order, levels = pos_order)
 ) |>
-  mutate(position = factor(position, levels = levels(full_rq1_precsd$data$position))) |>
+  mutate(position = factor(position, levels = levels(full_precsd_4m$data$position))) |>
   filter(!is.na(position))
 
 # Create Predictions
-ep_precsd   <- posterior_epred(full_rq1_precsd, newdata = nd_pos, re_formula = NA)
+ep_precsd   <- posterior_epred(full_precsd_4m, newdata = nd_pos, re_formula = NA)
 precsd_long <- epred_to_long(ep_precsd, nd_pos)
 
 # Create Plot
-posterior_plot_rq1_precsd <- ggplot(
+posterior_plot_precsd_4m <- ggplot(
   precsd_long,
   aes(x = .epred,
-      y = factor(folder, levels = rev(folder_order)),
+      y = factor(condition, levels = rev(condition_order)),
       # fill = position,
       # colour = position
-      )
+  )
 ) +
   stat_halfeye(
     point_interval = "median_qi", # median_hdi
     position = position_dodge(width = 0.80),
     .width = c(0, 0.95),
     alpha = 0.65,
-    height = 1.05,
+    height = 1.05, 
     adjust = 1.0
   ) +
-  scale_y_discrete(labels = folder_labels) +
+  scale_y_discrete(labels = condition_labels) +
   # scale_fill_discrete(name = "Position", labels = pos_labels) +
   # scale_colour_discrete(name = "Position", labels = pos_labels) +
   labs(x = "Predicted Precision (SD)", y = NULL) +
@@ -1177,71 +1289,134 @@ posterior_plot_rq1_precsd <- ggplot(
   #       legend.direction = "horizontal") +
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
-png(here("exp3", "img", "rq1_precsd_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
-posterior_plot_rq1_precsd
-dev.off() 
 
-## Posterior Versus Prior Plots ----
-png(here("exp3", "img", "rq1_precsd_posteriorprior_4m.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder4m", "prior_b_folder4m"), facet_label = "4-Month-Olds")
+png(here("exp3", "img", "precsd_4m_posterior_withoutposition.png"), width = 2480/2, height = 3508/2.5, res = 250)
+posterior_plot_precsd_4m
 dev.off()
 
-png(here("exp3", "img", "rq1_precsd_posteriorprior_6m.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder6m", "prior_b_folder6m"), facet_label = "6-Month-Olds")
+## Posterior Distribution (6-18M) ----
+# Preparation
+condition_order  <- c("own", "infant", "adult")
+condition_labels <- c("own"= "Own 5-Point Calibration", "infant" = "Infant 9-Point Calibration", "adult" = "Adult 9-Point Calibration")
+
+pos_order <- c("center","topright","botright","bottom","topleft","botleft","top")
+pos_labels <- c(
+  "center"="Center",
+  "topright"="Top Right",
+  "botright"="Bottom Right",
+  "bottom"="Bottom",
+  "topleft"="Top Left",
+  "botleft"="Bottom Left",
+  "top"="Top"
+)
+
+# Create Newdata Grid
+nd_pos <- tidyr::expand_grid(
+  condition   = factor(condition_order, levels = condition_order),
+  position = factor(pos_order, levels = pos_order)
+) |>
+  mutate(position = factor(position, levels = levels(full_precsd_6to18m$data$position))) |>
+  filter(!is.na(position))
+
+# Create Predictions
+ep_precsd   <- posterior_epred(full_precsd_6to18m, newdata = nd_pos, re_formula = NA)
+precsd_long <- epred_to_long(ep_precsd, nd_pos)
+
+# Create Plot
+posterior_plot_precsd_6to18m <- ggplot(
+  precsd_long,
+  aes(x = .epred,
+      y = factor(condition, levels = rev(condition_order)),
+      # fill = position,
+      # colour = position
+  )
+) +
+  stat_halfeye(
+    point_interval = "median_qi", # median_hdi
+    position = position_dodge(width = 0.80),
+    .width = c(0, 0.95),
+    alpha = 0.65,
+    height = 1.05, 
+    adjust = 1.0
+  ) +
+  scale_y_discrete(labels = condition_labels) +
+  # scale_fill_discrete(name = "Position", labels = pos_labels) +
+  # scale_colour_discrete(name = "Position", labels = pos_labels) +
+  labs(x = "Predicted Precision (SD)", y = NULL) +
+  theme_bw(base_size = 14) +
+  # theme(legend.position = "bottom",
+  #       legend.box = "horizontal",
+  #       legend.direction = "horizontal") +
+  guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
+
+
+png(here("exp3", "img", "precsd_6to18m_posterior_withoutposition.png"), width = 2480/2, height = 3508/2.5, res = 250)
+posterior_plot_precsd_6to18m
 dev.off()
 
-png(here("exp3", "img", "rq1_precsd_posteriorprior_9m.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder9m", "prior_b_folder9m"), facet_label = "9-Month-Olds")
+## Posterior Versus Prior Plots (4M) ----
+png(here("exp3", "img", "precsd_4m_posteriorprior_own.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_precsd_4m, pars = c("b_conditionown", "prior_b"), facet_label = "Own 5-Point Calibration")
 dev.off()
 
-png(here("exp3", "img", "rq1_precsd_posteriorprior_18m.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folder18m", "prior_b_folder18m"), facet_label = "18-Month-Olds")
+png(here("exp3", "img", "precsd_4m_posteriorprior_adult.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_precsd_4m, pars = c("b_conditionadult", "prior_b"), facet_label = "Adult 9-Point Calibration")
 dev.off()
 
-png(here("exp3", "img", "rq1_precsd_posteriorprior_adults.png"), width = 2480/2, height = 3508/3, res = 300)
-plot_prior_vs_poster(full_rq1_precsd, pars = c("b_folderadults", "prior_b_folderadults"), facet_label = "Adults")
+png(here("exp3", "img", "precsd_4m_posteriorprior_peer.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_precsd_4m, pars = c("b_conditioninfant", "prior_b"), facet_label = "Peer 9-Point Calibration")
+dev.off()
+
+## Posterior Versus Prior Plots (6-18M) ----
+png(here("exp3", "img", "precsd_6to18m_posteriorprior_own.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_precsd_6to18m, pars = c("b_conditionown", "prior_b"), facet_label = "Own 5-Point Calibration")
+dev.off()
+
+png(here("exp3", "img", "precsd_6to18m_posteriorprior_adult.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_precsd_6to18m, pars = c("b_conditionadult", "prior_b"), facet_label = "Adult 9-Point Calibration")
+dev.off()
+
+png(here("exp3", "img", "precsd_6to18m_posteriorprior_peer.png"), width = 2480/2, height = 3508/3, res = 300)
+plot_prior_vs_poster(full_precsd_6to18m, pars = c("b_conditioninfant", "prior_b"), facet_label = "Peer 9-Point Calibration")
 dev.off()
 
 ## Descriptives ----
 df_tot |> 
-  group_by(folder, group_id) |> 
+  group_by(age_group, condition, id) |> 
   summarize(precsd_visd = mean(precsd_visd, na.rm = T)) |> 
-  group_by(folder) |> 
+  group_by(age_group, condition) |> 
   summarize(mean_precsd_visd = mean(precsd_visd, na.rm = T),
             sd_precsd_visd = sd(precsd_visd, na.rm = T)) |> 
   ungroup() |> 
-  arrange(mean_precsd_visd)
-
-## Others ----
-# Calculate posterior probability that precision (SD) in A is higher than in B
-mean(post_samples_rq1_precsd$b_folderadults < post_samples_rq1_precsd$b_folder9m) # 1
-mean(post_samples_rq1_precsd$b_folder9m < post_samples_rq1_precsd$b_folder18m) # 0.4295
-mean(post_samples_rq1_precsd$b_folder18m < post_samples_rq1_precsd$b_folder6m) # 0.99975
-mean(post_samples_rq1_precsd$b_folder6m < post_samples_rq1_precsd$b_folderchimps) # 0.98575
-mean(post_samples_rq1_precsd$b_folderchimps < post_samples_rq1_precsd$b_folder4m) # 0.61275
+  slice(3,1,2,6,4,5)
 
 ## Paper Plot ----
-
-# Aggregate to subject level (mean over time/trials)
+# Aggregate to subject level (mean over trials)
 df_subj <- df_tot |>
-  filter(!is.na(folder), !is.na(group_id), !is.na(time), !is.na(precsd_visd)) |>
-  group_by(folder, group_id) |>
+  filter(!is.na(precsd_visd)) |>
+  group_by(condition, age_group, id) |>
   summarise(
     precsd_visd = mean(precsd_visd, na.rm = TRUE),
     .groups = "drop"
   ) |>
   mutate(
     Group = factor(
-      folder,
-      levels = c("4m", "6m", "9m", "18m", "adults", "chimps"),
-      labels = c("4 Months", "6 Months", "9 Months", "18 Months", "Adults", "Chimpanzees")
-      # labels = c("4M", "6M", "9M", "18M", "Adults", "Chimpanzees")
+      age_group,
+      levels = c("4M", "6to18M"),
+      labels = c("4 Months", "6 to 18 Months")
+    ),
+    Condition = factor(
+      condition,
+      levels = c("own", "adult", "infant"),
+      labels = c("Own 5-Point Calibration", 
+                 "Adult 9-Point Calibration", 
+                 "Infant 9-Point Calibration")
     )
   )
 
-# Mean + 95% CI across subjects (per group)
+# Mean + 95% CI across subjects (per group & condition)
 sum_df <- df_subj |>
-  group_by(Group) |>
+  group_by(Group, Condition) |>
   summarise(
     n = n(),
     mean = mean(precsd_visd),
@@ -1253,59 +1428,52 @@ sum_df <- df_subj |>
     .groups = "drop"
   )
 
-p_precsd <- ggplot(df_subj, aes(x = Group, y = precsd_visd)) +
-  geom_violin(trim = FALSE, alpha = 0.25) +
+pd <- position_dodge(width = 0.8)
+pd_jitter <- position_jitterdodge(jitter.width = 0.15, dodge.width = 0.8)
+
+p_acc <- ggplot(df_subj, aes(x = Group, y = precsd_visd, group = interaction(Group, Condition))) +
+  geom_violin(trim = FALSE, color = "black", fill = NA, position = pd) +
+  
   geom_point(
-    aes(color = Group),
-    position = position_jitter(width = 0.12, height = 0),
+    aes(color = Condition),
+    position = pd_jitter,
     size = 0.5,
-    show.legend = FALSE
+    alpha = 0.7
   ) +
+  
   geom_errorbar(
     data = sum_df,
-    aes(x = Group, ymin = ci_low, ymax = ci_high),
-    width = 0.12,
+    aes(x = Group, ymin = ci_low, ymax = ci_high, group = Condition),
+    width = 0.15,
     linewidth = 0.5,
+    color = "black",
+    position = pd,
     inherit.aes = FALSE
   ) +
+  
   geom_point(
     data = sum_df,
-    aes(x = Group, y = mean),
-    size = 0.5,
+    aes(x = Group, y = mean, group = Condition),
+    size = 1.5,
+    color = "black",
+    position = pd,
     inherit.aes = FALSE
   ) +
+  
   labs(
     x = "Group",
-    y = "Precision (SD)\nin visual degrees"
+    y = "Precision (SD)\nin visual degrees",
+    color = "Condition"
   ) +
+  
   theme_classic(base_size = 14) +
   theme(panel.grid = element_blank())
 
-png(here("exp3", "img", "rq1_precsd_paperplot.png"), width = 2480/2, height = 3508/4, res = 200)
-p_precsd
+png(here("exp3", "img", "precsdpaperplot.png"), width = 2480, height = 3508/4, res = 200)
+p_acc
 dev.off()
 
-# RQ1 (Robustness) ----------------------------------------------------------
-# Preregistered Model:
-# Dependent variables: accuracy, precision RMS, precision SD, and robustness (in separate GLMMs).
-# Fixed effect variables of interest: group (4-, 6-, 9-, 18-month-old human infants, human adults, chimpanzees)
-# Fixed control variables: stimulus position on screen
-# Random intercept: subject id
-# Random slopes: maximal random effect structure
-# 
-# Full model: data quality ~ group + position on screen + random effects
-# Reduced model: data quality ~ position on screen + random effects
-
-# Robustness definition (proportion):
-# robustness = mean length of consecutively valid samples
-# Therefore: 0 < 53466
-
-# Model choice:
-# We use a Beta likelihood with a logit link.
-# With Beta(link="logit") and 0 + folder, folder coefficients are on the logit-mean scale:
-#   mu = inv_logit( b_folder* + ... )
-# Note: Beta() requires outcomes strictly in (0, 1). If exact 0 or 1 occur,
-# clamp slightly or use zero_one_inflated_beta().
+# Robustness --------------------------------------------------------------
 
 ## Define Priors of Full Model ----
 mu0 <- qlogis(0.05)

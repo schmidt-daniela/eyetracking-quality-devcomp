@@ -410,3 +410,84 @@ plot_rq3_all <- function(
   
   invisible(list(plot = p, data = df_subj, path = out_path, x_mode = x_mode_eff))
 }
+
+plot_rq3_posterior <- function(draws, group_order, group_labels,
+			       predictor_order, predictor_labels) {
+	slope_rq3 <- draws %>%
+		rename(
+		    `4m_acc_visd`              = `b_folder4m:acc_visd`,
+		    `6m_acc_visd`              = `b_folder6m:acc_visd`,
+		    `9m_acc_visd`              = `b_folder9m:acc_visd`,
+		    `18m_acc_visd`             = `b_folder18m:acc_visd`,
+		    `adults_acc_visd`          = `b_folderadults:acc_visd`,
+
+		    `4m_precrms_visd`          = `b_folder4m:precrms_visd`,
+		    `6m_precrms_visd`          = `b_folder6m:precrms_visd`,
+		    `9m_precrms_visd`          = `b_folder9m:precrms_visd`,
+		    `18m_precrms_visd`         = `b_folder18m:precrms_visd`,
+		    `adults_precrms_visd`      = `b_folderadults:precrms_visd`,
+
+		    `4m_precsd_visd`          = `b_folder4m:precsd_visd`,
+		    `6m_precsd_visd`          = `b_folder6m:precsd_visd`,
+		    `9m_precsd_visd`          = `b_folder9m:precsd_visd`,
+		    `18m_precsd_visd`         = `b_folder18m:precsd_visd`,
+		    `adults_precsd_visd`      = `b_folderadults:precsd_visd`,
+
+		    `4m_robustness_prop_2`     = `b_folder4m:robustness_prop_2`,
+		    `6m_robustness_prop_2`     = `b_folder6m:robustness_prop_2`,
+		    `9m_robustness_prop_2`     = `b_folder9m:robustness_prop_2`,
+		    `18m_robustness_prop_2`    = `b_folder18m:robustness_prop_2`,
+		    `adults_robustness_prop_2` = `b_folderadults:robustness_prop_2`,
+		    )
+	if("b_folderchimps:acc_visd" %in% colnames(slope_rq3)) {
+		slope_rq3 <- slope_rq3 %>%
+			rename(
+			    `chimps_acc_visd`          = `b_folderchimps:acc_visd`,
+			    `chimps_precrms_visd`      = `b_folderchimps:precrms_visd`,
+			    `chimps_precsd_visd`      = `b_folderchimps:precsd_visd`,
+			    `chimps_robustness_prop_2` = `b_folderchimps:robustness_prop_2`
+			       )
+	}
+	slope_rq3 <- slope_rq3 %>%
+		mutate(.draw = row_number()) %>%
+		  pivot_longer(
+		    cols = -.draw,
+		    names_to = c("group", "predictor"),
+		    names_pattern = "^(4m|6m|9m|18m|adults|chimps)_(.*)$",
+		    values_to = "slope"
+		  ) |>
+		  mutate(
+		    group = factor(group, levels = group_order),
+		    predictor = factor(predictor, levels = predictor_order)
+		  )
+
+	plot <- ggplot(
+	  slope_rq3,
+	  aes(
+	    x = slope,
+	    y = factor(group, levels = rev(group_order))
+	  )
+	) +
+	  geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
+	  stat_halfeye(
+	    point_interval = "median_hdi",
+	    .width = c(0, 0.95),
+	    alpha = 0.65,
+	    height = 1.05,
+	    adjust = 1.0,
+	    fill = "grey70"
+	  ) +
+	  facet_wrap(
+	    ~ predictor,
+	    ncol = 4,
+	    scales = "free_x",
+	    labeller = labeller(predictor = predictor_labels)
+	  ) +
+	  scale_y_discrete(labels = group_labels) +
+	  labs(
+	    x = "Slope Estimate",
+	    y = NULL
+	  ) +
+	  theme_bw(base_size = 14)
+	return(plot)
+}

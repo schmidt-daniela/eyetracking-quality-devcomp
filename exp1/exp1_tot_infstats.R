@@ -3432,7 +3432,7 @@ for(outcome in outcomes) {
 				  sep="")
 		prior <- c(rq3_group_priors[[outcome]],
 			   rq3_slope_priors[[outcome]][[measure]],
-			   rq3_ranef_sd_prior, ranef_correl_prior)
+			   rq3_ranef_sd_prior, rq3_ranef_correl_prior)
 		model_full <- brm(as.formula(str_form),
 			data   = df_rq3,
 			family = families[[outcome]],

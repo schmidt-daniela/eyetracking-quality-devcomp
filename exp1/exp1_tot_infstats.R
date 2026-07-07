@@ -3237,6 +3237,25 @@ as_draws_df(full_rq2_precsd_chi_2) |>
 
 # RQ3  -------------------------------------------------
 
+## Prepare data
+
+df_rq3 <- df_tot |>
+  group_by(folder, group_id) |>
+  summarise(
+    mean_fixation_duration = mean(mean_fixation_duration, na.rm = TRUE),
+    mean_fixation_number   = mean(mean_fixation_number, na.rm = TRUE),
+    latencies              = mean(latencies, na.rm = TRUE),
+    rel_gaze_in_aoi        = mean(rel_gaze_in_aoi, na.rm = TRUE),
+    acc_visd               = mean(acc_visd, na.rm = TRUE),
+    precrms_visd           = mean(precrms_visd, na.rm = TRUE),
+    precsd_visd            = mean(precsd_visd, na.rm = TRUE),
+    robustness_prop_2      = mean(robustness_prop_2, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    robustness_prop_2 = ifelse(is.nan(robustness_prop_2), NA, robustness_prop_2)
+  )
+
 ## Fit all models
 
 ### Define priors

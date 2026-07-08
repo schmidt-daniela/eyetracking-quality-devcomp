@@ -3467,7 +3467,7 @@ for(outcome in outcomes) {
 
 	# Reduced model, just one per outcome
 	str_form <- paste(outcome, " ~ 0 + folder + (1 | group_id)", sep="")
-	prior <- c(rq3_group_priorspriors[[outcome]],
+	prior <- c(rq3_group_priors[[outcome]],
 		   rq3_ranef_sd_prior)
 	model_red <- brm(as.formula(str_form),
 		data   = df_rq3,

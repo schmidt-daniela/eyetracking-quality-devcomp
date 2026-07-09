@@ -1,6 +1,8 @@
 # Local scripts 
 exp1/human_0_anonymize_data.R
 exp1/chimp_0_merge_sessions.R
+z_analysis.R
+exp2/method_values.R
 
 # Data folder
 exp1/data/raw_1/
@@ -8,13 +10,14 @@ exp2/data/raw_1/
 exp3/data/raw_1/
 exp1/data/raw_2/
 exp2/data/raw_2/
-exp3/data/raw_1/
+exp3/data/raw_2/
 exp1/data/raw_clean/
 exp2/data/raw_clean/
 exp3/data/raw_clean/
 exp1/data/raw_clean_blink/
 exp2/data/raw_clean_blink/
 exp3/data/raw_clean_blink/
+exp3/data/raw_included/
 
 # Doc folder
 exp1/doc/4m/
@@ -28,9 +31,12 @@ exp2/doc/alex_calibration_5p
 exp2/doc/ape_calibration_2p
 exp2/doc/human_calibration_9p
 exp2/doc/blink_check
+exp3/doc/blink_check
 
 # Local files
 exp1/doc/protocol_decoded.xlsx
+exp3/doc/final_sample_information_4mo.xlsx
+exp3/doc/final_sample_information_6to18mo.xlsx
 
 # macOS Finder files
 .DS_Store

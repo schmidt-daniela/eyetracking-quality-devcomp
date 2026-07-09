@@ -66,9 +66,11 @@ df_tot |>
   group_by(group_id, folder) |> 
   count() |> 
   group_by(folder) |> 
-  summarize(mean_valid_trials = mean(n),
+  summarize(min = min(n), max = max(n),
+            mean_valid_trials = mean(n),
             sd_valid_trials = sd(n)) |>
-  ungroup()
+  ungroup() |> 
+  select(folder, mean_valid_trials, sd_valid_trials, min, max)
 
 ## Precision (RMS & SD) & Robustness ----
 variable <- "precsd_visd" # precrms_visd or precsd_visd
@@ -81,10 +83,12 @@ df_tot |>
   count() |>
   group_by(folder) |>
   summarize(
+    min = min(n), max = max(n),
     mean_valid_trials = mean(n),
     sd_valid_trials = sd(n)
   ) |>
-  ungroup()
+  ungroup() |> 
+  select(folder, mean_valid_trials, sd_valid_trials, min, max)
 
 # Chimps Adult versus Non-Adult Plot --------------------------------------
 ## Accuracy ----
@@ -365,16 +369,16 @@ folder_labels <- c(
   "alex_calibration_5p"="Conspecific\n5-Point\nCalibration"
 )
 
-pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
-pos_labels <- c(
-  "center"="Center",
-  "top_right"="Top Right",
-  "bot_right"="Bottom Right",
-  "bottom"="Bottom",
-  "top_left"="Top Left",
-  "bot_left"="Bottom Left",
-  "top"="Top"
-)
+# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
+# pos_labels <- c(
+#   "center"="Center",
+#   "top_right"="Top Right",
+#   "bot_right"="Bottom Right",
+#   "bottom"="Bottom",
+#   "top_left"="Top Left",
+#   "bot_left"="Bottom Left",
+#   "top"="Top"
+# )
 
 # Create Newdata Grid
 nd_pos <- tidyr::expand_grid(
@@ -393,12 +397,13 @@ posterior_plot_rq1_acc <- ggplot(
   acc_long,
   aes(x = .epred,
       y = factor(folder, levels = rev(folder_order)),
-      fill = position,
-      colour = position)
+      #fill = position,
+      #colour = position
+      )
 ) +
   stat_halfeye(
     point_interval = "median_qi", # median_hdi
-    position = position_dodge(width = 0.80),
+    #position = position_dodge(width = 0.80),
     .width = c(0, 0.95),
     alpha = 0.65,
     height = 1.05, 
@@ -409,12 +414,12 @@ posterior_plot_rq1_acc <- ggplot(
   scale_colour_discrete(name = "Position", labels = pos_labels) +
   labs(x = "Predicted Accuracy", y = NULL) +
   theme_bw(base_size = 14) +
-  theme(legend.position = "bottom",
-        legend.box = "horizontal",
-        legend.direction = "horizontal") +
+  # theme(legend.position = "bottom",
+  #       legend.box = "horizontal",
+  #       legend.direction = "horizontal") +
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
-png(here("exp2", "img", "acc_posterior.png"),  width = 2480/1.5, height = 3508/2.2, res = 210)
+png(here("exp2", "img", "acc_posterior_2.png"),  width = 2480/1.5, height = 3508/2.2, res = 210)
 posterior_plot_rq1_acc
 dev.off()
 
@@ -641,16 +646,16 @@ folder_labels <- c(
   "alex_calibration_5p"="Conspecific\n5-Point\nCalibration"
 )
 
-pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
-pos_labels <- c(
-  "center"="Center",
-  "top_right"="Top Right",
-  "bot_right"="Bottom Right",
-  "bottom"="Bottom",
-  "top_left"="Top Left",
-  "bot_left"="Bottom Left",
-  "top"="Top"
-)
+# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
+# pos_labels <- c(
+#   "center"="Center",
+#   "top_right"="Top Right",
+#   "bot_right"="Bottom Right",
+#   "bottom"="Bottom",
+#   "top_left"="Top Left",
+#   "bot_left"="Bottom Left",
+#   "top"="Top"
+# )
 
 # Create Newdata Grid
 nd_pos <- tidyr::expand_grid(
@@ -669,20 +674,21 @@ posterior_plot_precrms <- ggplot(
   precrms_long,
   aes(x = .epred,
       y = factor(folder, levels = rev(folder_order)), 
-      fill = position,
-      colour = position)
+      #fill = position,
+      #colour = position
+      )
 ) +
   stat_halfeye(
     point_interval = "median_qi", # median_hdi
-    position = position_dodge(width = 0.80),
+    #position = position_dodge(width = 0.80),
     .width = c(0, 0.95),
     alpha = 0.65,
     height = 1.05,
     adjust = 1.0
   ) +
   scale_y_discrete(labels = folder_labels) +
-  scale_fill_discrete(name = "Position", labels = pos_labels) +
-  scale_colour_discrete(name = "Position", labels = pos_labels) +
+  #scale_fill_discrete(name = "Position", labels = pos_labels) +
+  #scale_colour_discrete(name = "Position", labels = pos_labels) +
   labs(x = "Predicted Precision (RMS)", y = NULL) +
   theme_bw(base_size = 14) +
   theme(legend.position = "bottom",
@@ -691,7 +697,7 @@ posterior_plot_precrms <- ggplot(
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1)) +
   xlim(0,0.9)
 
-png(here("exp2", "img", "precrms_posterior.png"),  width = 2480/1.5, height = 3508/2.2, res = 210)
+png(here("exp2", "img", "precrms_posterior_2.png"),  width = 2480/1.5, height = 3508/2.2, res = 210)
 posterior_plot_precrms
 dev.off() 
 
@@ -898,16 +904,16 @@ folder_labels <- c(
   "alex_calibration_5p"="Conspecific\n5-Point\nCalibration"
 )
 
-pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
-pos_labels <- c(
-  "center"="Center",
-  "top_right"="Top Right",
-  "bot_right"="Bottom Right",
-  "bottom"="Bottom",
-  "top_left"="Top Left",
-  "bot_left"="Bottom Left",
-  "top"="Top"
-)
+# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
+# pos_labels <- c(
+#   "center"="Center",
+#   "top_right"="Top Right",
+#   "bot_right"="Bottom Right",
+#   "bottom"="Bottom",
+#   "top_left"="Top Left",
+#   "bot_left"="Bottom Left",
+#   "top"="Top"
+# )
 
 # Create Newdata Grid
 nd_pos <- tidyr::expand_grid(
@@ -926,8 +932,9 @@ posterior_plot_precsd <- ggplot(
   precsd_long,
   aes(x = .epred,
       y = factor(folder, levels = rev(folder_order)),
-      fill = position,
-      colour = position)
+      # fill = position,
+      # colour = position
+      )
 ) +
   stat_halfeye(
     point_interval = "median_qi", # median_hdi
@@ -938,16 +945,16 @@ posterior_plot_precsd <- ggplot(
     adjust = 1.0
   ) +
   scale_y_discrete(labels = folder_labels) +
-  scale_fill_discrete(name = "Position", labels = pos_labels) +
-  scale_colour_discrete(name = "Position", labels = pos_labels) +
+  # scale_fill_discrete(name = "Position", labels = pos_labels) +
+  # scale_colour_discrete(name = "Position", labels = pos_labels) +
   labs(x = "Predicted Precision (SD)", y = NULL) +
   theme_bw(base_size = 14) +
-  theme(legend.position = "bottom",
-        legend.box = "horizontal",
-        legend.direction = "horizontal") +
+  # theme(legend.position = "bottom",
+  #       legend.box = "horizontal",
+  #       legend.direction = "horizontal") +
   guides(fill = guide_legend(nrow = 1), colour = guide_legend(nrow = 1))
 
-png(here("exp2", "img", "precsd_posterior.png"),  width = 2480/1.5, height = 3508/2.2, res = 210)
+png(here("exp2", "img", "precsd_posterior_2.png"),  width = 2480/1.5, height = 3508/2.2, res = 210)
 posterior_plot_precsd
 dev.off() 
 
@@ -1168,6 +1175,9 @@ posterior_plot_rob <- ggplot(
   theme_bw(base_size = 14)
 
 # Save
+png(here("exp2", "img", "rob_posterior_2.png"),  width = 2480/1.5, height = 3508/2.2, res = 210)
+posterior_plot_rob
+dev.off() 
 
 ## Posterior Versus Prior Plots ----
 

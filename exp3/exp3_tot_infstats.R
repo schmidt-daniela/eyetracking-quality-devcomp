@@ -67,8 +67,6 @@ df_tot |>
             max = max(n, na.rm = T),
             M = mean(n, na.rm = T),
             SD = sd (n, na.rm = T)) |> 
-  # summarize(mean_valid_trials = mean(n, na.rm = T),
-  #           sd_valid_trials = sd(n, na.rm = T)) |>
   ungroup() |> 
   slice(3,2,1,6,5,4)
 
@@ -82,8 +80,6 @@ df_tot |>
             max = max(n, na.rm = T),
             M = mean(n, na.rm = T),
             SD = sd (n, na.rm = T)) |> 
-  # summarize(mean_valid_trials = mean(n, na.rm = T),
-  #           sd_valid_trials = sd(n, na.rm = T)) |>
   ungroup() |> 
   slice(3,2,1,6,5,4)
 
@@ -97,8 +93,6 @@ df_tot |>
             max = max(n, na.rm = T),
             M = mean(n, na.rm = T),
             SD = sd (n, na.rm = T)) |> 
-  # summarize(mean_valid_trials = mean(n, na.rm = T),
-  #           sd_valid_trials = sd(n, na.rm = T)) |>
   ungroup() |> 
   slice(3,2,1,6,5,4)
 

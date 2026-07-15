@@ -3536,7 +3536,7 @@ for(outcome in outcomes) {
 			control = control
 			)
 		write_rds(model_full,
-			  paste(here("exp1", "models", "full_rq3_", outcome, "_", measure, ".rds", sep=""))
+			  paste(here("exp1", "models", "full_rq3_", outcome, "_", measure, ".rds", sep="")))
 	}
 
 	# Reduced model, just one per outcome

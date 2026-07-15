@@ -12,6 +12,7 @@ library(bayesplot)
 library(ggdist)
 library(ggforce)
 library(bayestestR)
+library(tools)
 
 # Load Functions ----------------------------------------------------------
 source(here("exp1", "R", "descriptives.R"))
@@ -62,12 +63,6 @@ df_tot <- df_tot |>
     time_1 = as.numeric(time_1)          # convert to numeric
   )
 
-df_tot <- df_tot |> 
-  mutate(
-    time_2 = if_else(grepl("_", time), sub("^.*_", "", time), time), # remove everything until including _
-    time_2 = as.numeric(time_2)
-  )
-
 # Order levels of position (in order to make "center" the reference category)
 position_levels <- c("center", "top_left", "top_right", "bot_left", "bot_right", "top", "bottom")
 
@@ -90,6 +85,28 @@ df_tot <- df_tot |>
 
 df_tot <- df_tot |> 
   mutate(time_3 = if_else(folder == "chimps", as.numeric(day), as.numeric(time)))
+
+# Add trial within day
+df_tot <- df_tot |> 
+  mutate(trial = as.numeric(trial)) |> 
+  arrange(group_id, day, session, trial) |> 
+  group_by(group_id, day) |>
+  mutate(time_2 = if_else(is.na(day) | is.na(session), NA_integer_, row_number())) |> 
+  ungroup()
+
+# Descriptives trials chimps
+# df_tot |> 
+#   filter(folder == "chimps") |> 
+#   # filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")) |> 
+#   select(group_id, day, time_2) |> 
+#   distinct() |> 
+#   drop_na(day) |> 
+#   group_by(group_id, day) |> 
+#   count() |> 
+#   group_by(group_id) |> 
+#   summarize(min = min(n), max = max(n), M_trial = mean(n)) |> 
+#   ungroup() |> 
+#   summarize(SD_trial = sd(M_trial), M_trial = mean(M_trial), min = min(min), max = max(max))
 
 # Legend for time:
 # In chimps: time_1 = session, time_2 = trial within session, time_3 = day
@@ -126,7 +143,6 @@ df_tot |>
   ) |>
   ungroup() |>
   slice(c(3, 4, 5, 2, 6, 1))
-
 
 # Chimps Adult versus Non-Adult Plot --------------------------------------
 ## Accuracy ----
@@ -409,8 +425,30 @@ acc_contr_all_pos |>
   arrange(desc(ratio_median))
 
 ## Posterior Probability Comparisons ----
+# Group
 draws <- as_draws_df(full_rq1_acc)
 groups <- c("folder4m", "folder6m", "folder9m", "folder18m", "folderadults", "folderchimps")
+pairs <- t(combn(groups, 2)) |> as.data.frame()
+colnames(pairs) <- c("g1", "g2")
+
+results_rq1_acc <- pairs |> 
+  rowwise() |> 
+  do(get_prob(.$g1, .$g2, draws)) |> 
+  ungroup()
+
+results_rq1_acc |> 
+  mutate(
+    contrast = gsub("folder", "", contrast),
+    prob_g1_greater = round(prob_g1_greater, 3),
+    prob_g2_greater = round(prob_g2_greater, 3),
+    median = round(median, 2),
+    lo = round(lo, 2),
+    hi = round(hi, 2)
+  )
+
+# Position
+draws <- as_draws_df(full_rq1_acc)
+groups <- c("positiontop", "positionbot_left", "positionbot_right", "positionbottom", "positiontop_left", "positiontop_right")
 pairs <- t(combn(groups, 2)) |> as.data.frame()
 colnames(pairs) <- c("g1", "g2")
 
@@ -1739,7 +1777,6 @@ priors_rq2_acc_chi <- c(
 )
 
 priors_rq2_acc_chi_2 <- c(
-  
   # Gamma shape (estimate = 2.39 and est. error = 0.06 on a natural scale,
   # which translates to meanlog = 0.87097834 and sdlog = 0.02510065 on log scale,
   # m <- 2.39
@@ -1785,7 +1822,8 @@ full_rq2_acc_hum <- brm(
 
 full_rq2_acc_chi <- brm(
   acc_visd ~ time_3 + position + (1 + time_3 + position | group_id),
-  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1) |> 
+    filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")),
   family = hurdle_gamma(link="log"),
   prior  = priors_rq2_acc_chi,
   sample_prior = "yes",
@@ -1795,7 +1833,8 @@ full_rq2_acc_chi <- brm(
 
 full_rq2_acc_chi_2 <- brm(
   acc_visd ~ time_2 + position + (1 + time_2 + position | group_id),
-  data   = df_tot |> filter(folder == "chimps") |> mutate(time_2 = time_2 - 1),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_2 = time_2 - 1) |> 
+    filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")),
   family = hurdle_gamma(link="log"),
   prior  = priors_rq2_acc_chi_2,
   sample_prior = "yes",
@@ -1910,7 +1949,8 @@ red_rq2_acc_hum <- brm(
 
 red_rq2_acc_chi <- brm(
   acc_visd ~ position + (1 + time_3 + position | group_id),
-  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1) |> 
+    filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")),
   family = hurdle_gamma(link="log"),
   prior  = priors_rq2_acc_chi_red,
   sample_prior = "yes",
@@ -1920,7 +1960,8 @@ red_rq2_acc_chi <- brm(
 
 red_rq2_acc_chi_2 <- brm(
   acc_visd ~ position + (1 + time_2 + position | group_id),
-  data   = df_tot |> filter(folder == "chimps") |> mutate(time_2 = time_2 - 1),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_2 = time_2 - 1) |>  
+    filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")),
   family = hurdle_gamma(link="log"),
   prior  = priors_rq2_acc_chi_2_red,
   sample_prior = "yes",
@@ -1932,17 +1973,17 @@ red_rq2_acc_chi_2 <- brm(
 # Humans
 loo_full_acc_rq2_hum <- loo(full_rq2_acc_hum)
 loo_red_acc_rq2_hum <- loo(red_rq2_acc_hum)
-loo_compare(loo_full_acc_rq2_hum, loo_red_acc_rq2_hum)  # full_rq2_acc_hum -1.4       1.8
+loo_compare(loo_full_acc_rq2_hum, loo_red_acc_rq2_hum)
 
 # Chimps I
 loo_full_acc_rq2_chi <- loo(full_rq2_acc_chi)
 loo_red_acc_rq2_chi <- loo(red_rq2_acc_chi)
-loo_compare(loo_full_acc_rq2_chi, loo_red_acc_rq2_chi)  # full_rq2_acc_chi -0.1       0.7 
+loo_compare(loo_full_acc_rq2_chi, loo_red_acc_rq2_chi)
 
 # Chimps II
 loo_full_acc_rq2_chi_2 <- loo(full_rq2_acc_chi_2)
 loo_red_acc_rq2_chi_2 <- loo(red_rq2_acc_chi_2)
-loo_compare(loo_full_acc_rq2_chi_2, loo_red_acc_rq2_chi_2)  # full_rq2_acc_chi_2 -0.6       0.2
+loo_compare(loo_full_acc_rq2_chi_2, loo_red_acc_rq2_chi_2)
 
 ## Model Fit: Posterior Predictive Check ----
 # Check whether model is "match to the data"
@@ -1959,9 +2000,9 @@ png(here("exp1", "img", "rq2_acc_chi2_ppc.png"), width = 2480/2, height = 3508/2
 pp_check(full_rq2_acc_chi_2, ndraws = 100)
 dev.off()
 
-png(here("exp1", "img", "rq2_acc_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
-pp_check(full_rq2_acc_hum, type = "intervals_grouped", group = "folder") # might exceed memory limits
-dev.off()
+# png(here("exp1", "img", "rq2_acc_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+# pp_check(full_rq2_acc_hum, type = "intervals_grouped", group = "folder") # might exceed memory limits
+# dev.off()
 
 ## Posterior Distribution ----
 ## Preparation
@@ -2091,6 +2132,10 @@ dev.off()
 
 ## Descriptives ----
 df_tot |> 
+  filter(folder == "chimps") |> 
+  # filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08") &
+  #          folder == "chimps") |> # only for chimps (excluding repetition trials)
+  # mutate(time_3 = if_else(group_id == "hope" & time_3 == 5, 4, time_3)) |> # only for chimps (hope has 5 testing days; converting 5th day to 4th to make it numerically the last testing day)
   group_by(folder, group_id, time_3) |> # or time_1 or time_2 or time_3
   summarize(acc_visd = mean(acc_visd, na.rm = T)) |> 
   group_by(folder, time_3) |> # or time_1 or time_2 or time_3
@@ -2111,14 +2156,15 @@ plot_rq2(df = df_tot, png_name = "rq2_acc_session_all.png", out_dir = here::here
                          xmax_chimps = 8, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 3, ymax_chimps = 5,
                          ytitle = "Accuracy\nin visual degrees", x_label = "Time\n(trials in humans; sessions in apes)")
 
-plot_rq2(df = df_tot, png_name = "rq2_acc_trial_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+plot_rq2(df = df_tot |> filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")), 
+         png_name = "rq2_acc_trial_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
                          group_var = "folder", x_var   = "time_2", y_var = "acc_visd",
-                         xmax_chimps = 11, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 3, ymax_chimps = 5,
+                         xmax_chimps = 21, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 3, ymax_chimps = 5,
                          ytitle = "Accuracy\nin visual degrees", x_label = "Time\n(trials in humans; trials within sessions in apes)")
 
-plot_rq2(df = df_tot, png_name = "rq2_acc_day_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+plot_rq2(df = df_tot, png_name = "rq2_acc_day_all_2.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
                          group_var = "folder", x_var   = "time_3", y_var = "acc_visd",
-                         xmax_chimps = 7, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 3, ymax_chimps = 5,
+                         xmax_chimps = 12, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 3, ymax_chimps = 5,
                          ytitle = "Accuracy\nin visual degrees", x_label = "Time\n(trials in humans; days in apes)")
 
 ## Supp Plots Per Chimp ----
@@ -2308,7 +2354,8 @@ full_rq2_precrms_hum <- brm(
 
 full_rq2_precrms_chi <- brm(
   precrms ~ time_3 + position + (1 + time_3 + position | group_id),
-  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1) |> 
+    filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")),
   family = Gamma(link = "log"),
   prior  = priors_rq2_precrms_chi,
   sample_prior = "yes",
@@ -2318,7 +2365,8 @@ full_rq2_precrms_chi <- brm(
 
 full_rq2_precrms_chi_2 <- brm(
   precrms ~ time_2 + position + (1 + time_2 + position | group_id),
-  data   = df_tot |> filter(folder == "chimps") |> mutate(time_2 = time_2 - 1),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_2 = time_2 - 1) |>  
+    filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")),
   family = Gamma(link = "log"),
   prior  = priors_rq2_precrms_chi_2,
   sample_prior = "yes",
@@ -2403,7 +2451,8 @@ red_rq2_precrms_hum <- brm(
 
 red_rq2_precrms_chi <- brm(
   precrms ~ position + (1 + time_3 + position | group_id),
-  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1) |> 
+    filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")),
   family = Gamma(link = "log"),
   prior  = priors_rq2_precrms_chi_red,
   sample_prior = "yes",
@@ -2413,7 +2462,8 @@ red_rq2_precrms_chi <- brm(
 
 red_rq2_precrms_chi_2 <- brm(
   precrms ~ position + (1 + time_2 + position | group_id),
-  data   = df_tot |> filter(folder == "chimps") |> mutate(time_2 = time_2 - 1),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_2 = time_2 - 1) |> 
+    filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")),
   family = Gamma(link = "log"),
   prior  = priors_rq2_precrms_chi_2_red,
   sample_prior = "yes",
@@ -2451,9 +2501,9 @@ png(here("exp1", "img", "rq2_precrms_chi2_ppc.png"), width = 2480/2, height = 35
 pp_check(full_rq2_precrms_chi_2, ndraws = 100)
 dev.off()
 
-png(here("exp1", "img", "rq2_precrms_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
-pp_check(full_rq2_precrms_hum, type = "intervals_grouped", group = "folder") # might exceed memory limits
-dev.off()
+# png(here("exp1", "img", "rq2_precrms_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+# pp_check(full_rq2_precrms_hum, type = "intervals_grouped", group = "folder") # might exceed memory limits
+# dev.off()
 
 ## Posterior Distribution ----
 ## Preparation
@@ -2583,6 +2633,9 @@ dev.off()
 
 ## Descriptives ----
 df_tot |> 
+  filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08") &
+           folder == "chimps") |> # only for chimps (excluding repetition trials)
+  mutate(time_3 = if_else(group_id == "hope" & time_3 == 5, 4, time_3)) |> # only for chimps (hope has 5 testing days; converting 5th day to 4th to make it numerically the last testing day)
   group_by(folder, group_id, time_3) |> # or time_1 or time_2 or time_3
   summarize(precrms_visd = mean(precrms_visd, na.rm = T)) |> 
   group_by(folder, time_3) |> # or time_1 or time_2 or time_3
@@ -2602,9 +2655,10 @@ plot_rq2(df = df_tot, png_name = "rq2_precrms_session_all.png", out_dir = here::
                          xmax_chimps = 8, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 0, ymax_chimps = 2,
                          ytitle = "Precision (RMS)\nin visual degrees", x_label = "Time\n(trials in humans; sessions in apes)")
 
-plot_rq2(df = df_tot, png_name = "rq2_precrms_trial_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+plot_rq2(df = df_tot |> filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")), 
+         png_name = "rq2_precrms_trial_all_2.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
                          group_var = "folder", x_var   = "time_2", y_var = "precrms_visd",
-                         xmax_chimps = 11, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 0, ymax_chimps = 2,
+                         xmax_chimps = 21, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 2, ymin_chimps = 0, ymax_chimps = 2,
                          ytitle = "Precision (RMS)\nin visual degrees", x_label = "Time\n(trials in humans; trials within sessions in apes)")
 
 plot_rq2(df = df_tot, png_name = "rq2_precrms_day_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
@@ -2823,7 +2877,8 @@ full_rq2_precsd_hum <- brm(
 
 full_rq2_precsd_chi <- brm(
   precsd ~ time_3 + position + (1 + time_3 + position | group_id),
-  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1) |> 
+    filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")),
   family = Gamma(link = "log"),
   prior  = priors_rq2_precsd_chi,
   sample_prior = "yes",
@@ -2833,7 +2888,8 @@ full_rq2_precsd_chi <- brm(
 
 full_rq2_precsd_chi_2 <- brm(
   precsd ~ time_2 + position + (1 + time_2 + position | group_id),
-  data   = df_tot |> filter(folder == "chimps") |> mutate(time_2 = time_2 - 1),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_2 = time_2 - 1) |> 
+    filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")),
   family = Gamma(link = "log"),
   prior  = priors_rq2_precsd_chi_2,
   sample_prior = "yes",
@@ -2942,7 +2998,8 @@ red_rq2_precsd_hum <- brm(
 
 red_rq2_precsd_chi <- brm(
   precsd ~ position + (1 + time_3 + position | group_id),
-  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_3 = time_3 - 1) |> 
+    filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")),
   family = Gamma(link = "log"),
   prior  = priors_rq2_precsd_chi_red,
   sample_prior = "yes",
@@ -2952,7 +3009,8 @@ red_rq2_precsd_chi <- brm(
 
 red_rq2_precsd_chi_2 <- brm(
   precsd ~ position + (1 + time_2 + position | group_id),
-  data   = df_tot |> filter(folder == "chimps") |> mutate(time_2 = time_2 - 1),
+  data   = df_tot |> filter(folder == "chimps") |> mutate(time_2 = time_2 - 1) |> 
+    filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")),
   family = Gamma(link = "log"),
   prior  = priors_rq2_precsd_chi_2_red,
   sample_prior = "yes",
@@ -2990,9 +3048,9 @@ png(here("exp1", "img", "rq2_precsd_chi2_ppc.png"), width = 2480/2, height = 350
 pp_check(full_rq2_precsd_chi_2, ndraws = 100)
 dev.off()
 
-png(here("exp1", "img", "rq2_precsd_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
-pp_check(full_rq2_precsd_hum, type = "intervals_grouped", group = "folder") # might exceed memory limits
-dev.off()
+# png(here("exp1", "img", "rq2_precsd_hum_ppc_grouped.png"), width = 2480/2, height = 3508/2, res = 200)
+# pp_check(full_rq2_precsd_hum, type = "intervals_grouped", group = "folder") # might exceed memory limits
+# dev.off()
 
 ## Posterior Distribution ----
 ## Preparation
@@ -3122,6 +3180,9 @@ dev.off()
 
 ## Descriptives ----
 df_tot |> 
+  filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08") &
+           folder == "chimps") |> # only for chimps (excluding repetition trials)
+  mutate(time_3 = if_else(group_id == "hope" & time_3 == 5, 4, time_3)) |> # only for chimps (hope has 5 testing days; converting 5th day to 4th to make it numerically the last testing day)
   group_by(folder, group_id, time_3) |> # or time_1 or time_2 or time_3
   summarize(precsd_visd = mean(precsd_visd, na.rm = T)) |> 
   group_by(folder, time_3) |> # or time_1 or time_2 or time_3
@@ -3141,9 +3202,10 @@ plot_rq2(df = df_tot, png_name = "rq2_precsd_session_all.png", out_dir = here::h
                          xmax_chimps = 8, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 1.5, ymin_chimps = 0, ymax_chimps = 1.5,
                          ytitle = "Precision (SD)\nin visual degrees", x_label = "Time\n(trials in humans; sessions in apes)")
 
-plot_rq2(df = df_tot, png_name = "rq2_precsd_trial_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
+plot_rq2(df = df_tot |> filter(session %in% c("session01", "session02", "session03", "session04", "session05", "session06", "session07", "session08")), 
+         png_name = "rq2_precsd_trial_all_2.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
                          group_var = "folder", x_var   = "time_2", y_var = "precsd_visd",
-                         xmax_chimps = 11, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 1.5, ymin_chimps = 0, ymax_chimps = 1.5,
+                         xmax_chimps = 21, filter_chimps_time_gt = TRUE, ymin_humans = 0, ymax_humans = 1.5, ymin_chimps = 0, ymax_chimps = 1.5,
                          ytitle = "Precision (SD)\nin visual degrees", x_label = "Time\n(trials in humans; trials within sessions in apes)")
 
 plot_rq2(df = df_tot, png_name = "rq2_precsd_day_all.png", out_dir = here::here("exp1", "img"), width = 2480*1.5, height = 3508, res = 300,
@@ -3237,8 +3299,18 @@ as_draws_df(full_rq2_precsd_chi_2) |>
 
 # RQ3  -------------------------------------------------
 
-## Prepare data
+# Read models
+rds_files <- list.files(path = here("exp1", "models"), pattern = "\\.rds$", full.names = TRUE)
+model_list <- lapply(rds_files, readRDS)
+names(model_list) <- file_path_sans_ext(basename(rds_files))
 
+list2env(model_list, envir = .GlobalEnv)
+for (nm in names(model_list)) {
+  assign(nm, model_list[[nm]], envir = .GlobalEnv)
+}
+rm(model_list)
+
+## Prepare Data ----
 df_rq3 <- df_tot |>
   group_by(folder, group_id) |>
   summarise(
@@ -3256,7 +3328,7 @@ df_rq3 <- df_tot |>
     robustness_prop_2 = ifelse(is.nan(robustness_prop_2), NA, robustness_prop_2)
   )
 
-## Fit all models
+## Define Priors & Fit (Full and Reduced) Models ----
 
 ### Define priors
 #### These two are shared almost everywhere
@@ -3266,6 +3338,7 @@ rq3_ranef_sd_prior <- prior(exponential(2), class = "sd")
 rq3_ranef_correl_prior <- prior(lkj(2), class = "cor")
 # Gamma shape prior:
 # We keep a very broad gamma(0.01, 0.01) prior on the shape parameter.
+# Gamma priors are not defined in the script as gamma(0.01, 0.01) is the default.
 # This is intentionally weakly informative and only enforces positivity.
 
 rq3_group_priors = list()
@@ -3284,7 +3357,7 @@ rq3_slope_priors = list()
 # On the log scale, this corresponds roughly to a broad center around 6.
 # We use the same prior for all groups because we do not have
 # group-specific prior expectations.
-rq3_group_priors[["mean_fixation_duration"]] <- c(
+ rq3_group_priors[["mean_fixation_duration"]] <- c(
 	prior(normal(6, 0.7), class = "b", coef = "folder4m"),
 	prior(normal(6, 0.7), class = "b", coef = "folder6m"),
 	prior(normal(6, 0.7), class = "b", coef = "folder9m"),
@@ -3438,6 +3511,7 @@ families = list(
   rel_gaze_in_aoi=Beta(link = "logit")
 )
 
+## Run Models ----
 for(outcome in outcomes) {
 	# Full models, one per quality measure
 	if(outcome == "mean_fixation_number") {
@@ -3485,7 +3559,7 @@ for(outcome in outcomes) {
 ## Save model comparison results to PDF
 rmarkdown::render("exp1_tot_infstats_rq3.Rmd", "pdf_document", clean=FALSE)
 
-## Plots
+## Plots ----
 outcomes_short <- list(mean_fixation_duration="fixdur",
 		       mean_fixation_number="fixnum",
 		       latencies="latencies",
@@ -3521,7 +3595,7 @@ for(outcome in outcomes) {
 	### Create dataframe of posterior draws
 	first <- TRUE
 	for(measure in quality_measures) {
-		model <- read_rds(paste("full_rq3_", paste(outcome, measure, sep="_"), ".rds", sep=""))
+		model <- read_rds(here("exp1", "models", paste("full_rq3_", paste(outcome, measure, sep="_"), ".rds", sep="")))
 		my_draws <- as_draws_df(model) %>%
 			select(contains("b_")) %>%
 			select(-contains("prior")) %>%
@@ -3536,24 +3610,22 @@ for(outcome in outcomes) {
 	posterior_plot_rq3 <- plot_rq3_posterior(draws,
 						 group_order, group_labels,
 						 predictor_order, predictor_labels)
-	filename <- paste("rq3_", outcome_short, "_posterior_4c.png", sep="")
+	filename <- paste("xrq3_", outcome_short, "_posterior_4c.png", sep="")
 	filename <- here("exp1", "img", filename)
 	ggsave(filename, plot=posterior_plot_rq3, width = 2480, height = 3508 / 4, units="px", dpi = 250)
 
 	for(measure in quality_measures) {
 		measure_short <- quality_measures_short[[measure]]
-		model <- read_rds(paste("full_rq3_",
-					paste(outcome, measure, sep="_"),
-					".rds", sep=""))
+		model <- read_rds(here("exp1", "models", paste("full_rq3_", paste(outcome, measure, sep="_"), ".rds", sep="")))
 
 		## Raw data
 		plot_rq3(df=df_tot, x_var=measure, y_var=outcome,
 			 width = 2480, height = 3508/2, res = 250,
-		         png_name = paste("rq3_", measure, "_",
+		         png_name = paste("xrq3_", measure, "_",
 					  outcome_short, ".png", sep=""))
 
 		## Posterior predictive checks
-		filename <- paste("rq3_", outcome_short, "_ppc.png")
+		filename <- paste("xrq3_", outcome_short, "_ppc.png")
 		filename <- here("exp1", "img", filename)
 		pp_plot <- pp_check(model, ndraws = 100)
 		ggsave(filename, plot=pp_plot, width = 2480/2, height = 3508/2, units="px", dpi = 300)
@@ -3562,7 +3634,7 @@ for(outcome in outcomes) {
 		folders <- c("4m", "6m", "9m", "18m", "adults", "chimps")
 		for(folder in folders) {
 			if(outcome == "latencies" & folder == "chimps") { next }
-			filename <- paste("rq3_", outcome_short, "_posteriorprior_", folder, "_", measure_short, ".png", sep="")
+			filename <- paste("xrq3_", outcome_short, "_posteriorprior_", folder, "_", measure_short, ".png", sep="")
 			filename <- here("exp1", "img", filename)
 			if(str_ends(folder, "m")) {
 				folder_pretty <- paste(str_sub(folder, 1, 1), "-month olds", sep="")

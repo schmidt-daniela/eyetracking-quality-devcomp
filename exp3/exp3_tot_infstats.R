@@ -502,6 +502,18 @@ df_tot |>
   ungroup() |> 
   slice(3,1,2,6,4,5)
 
+df_tot |> 
+  filter(age_group == "4M") |> 
+  group_by(condition, group_id) |> 
+  summarize(acc_visd = mean(acc_visd, na.rm = T)) |> 
+  ungroup() |> 
+  pivot_wider(names_from = condition, values_from = acc_visd) |>
+  mutate(
+    diff_own_peer = own - infant,
+    diff_own_adult = own - adult
+  )
+
+
 ## Paper Plot ----
 # Aggregate to subject level (mean over trials)
 df_subj <- df_tot |>

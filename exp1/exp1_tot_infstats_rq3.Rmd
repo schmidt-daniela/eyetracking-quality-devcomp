@@ -1,6 +1,6 @@
 ---
 title: "FACET RQ3"
-author: "Luke Maurits <<luke_maurits@eva.mpg.de>>"
+author: "blinded for review"
 date: "`r Sys.Date()`"
 output:
   word_document: default

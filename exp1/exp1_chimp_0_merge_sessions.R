@@ -1,6 +1,5 @@
 ## This script merges all single sessions files of one ape to one file.
 ## It requires data located in the "raw_1" folder.
-## Nov 14 – Daniela Schmidt
 
 # General -----------------------------------------------------------------
 rm(list = ls())

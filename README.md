@@ -9,7 +9,7 @@
 ## 📖 About The Project
 
 This repository contains the analysis pipeline and preprocessed data for the upcoming paper:  
-**Schmidt, Visser, Maurits & Thiele et al. (in prep).**
+**[blinded for review].**
 
 In the spirit of **Open Science**, the primary goal of this repository is to make our analysis fully transparent and reproducible. The project investigates eye-tracking data quality across different human (4-, 6-, 9-, 18-month-olds, and adults) and non-human (chimpanzees) samplesthrough three distinct experiments:
 * **Experiment 1:** Includes chimpanzee (`chimp`) and human (`human`) samples.  

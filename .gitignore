@@ -38,6 +38,9 @@ exp1/doc/protocol_decoded.xlsx
 exp3/doc/final_sample_information_4mo.xlsx
 exp3/doc/final_sample_information_6to18mo.xlsx
 
+# Saved models
+exp1/models
+
 # macOS Finder files
 .DS_Store
 **/.DS_Store

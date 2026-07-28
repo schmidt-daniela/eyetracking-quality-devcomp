@@ -3,7 +3,6 @@
 ## The identification of eye blink is based on their characteristic of
 ## having a pronounced drop in the pupillary signal, followed by a full loss of signal. 
 # (https://link.springer.com/article/10.3758/s13428-017-1008-1)
-## June 12 – Daniela Schmidt
 
 # Clear Workspace ---------------------------------------------------------
 rm(list = ls())

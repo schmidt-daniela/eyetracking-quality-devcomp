@@ -1,7 +1,6 @@
 ## This script anonymizes eye-tracking data from exp3/data/raw.
 ## It requires data located in the "raw_1" folder,
 ## which is not included in the GitHub repository for data protection reasons.
-## June 11 2026 – Daniela Schmidt
 
 # General -----------------------------------------------------------------
 rm(list = ls())

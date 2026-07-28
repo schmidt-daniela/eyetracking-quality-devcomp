@@ -1,7 +1,6 @@
 ## This script merges all single sessions files of one ape to one file.
 ## It requires data located in the folder "raw_1" and a subfolder 
 # "alex_calibration_5p" or"human_calibration_9p".
-## Jan 07 – Daniela Schmidt
 
 # General -----------------------------------------------------------------
 rm(list = ls())

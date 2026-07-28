@@ -3299,7 +3299,8 @@ as_draws_df(full_rq2_precsd_chi_2) |>
 
 # RQ3  -------------------------------------------------
 
-# Read models
+## Read models ----
+# Only works if you have saved rds-models in exp1 -> models.
 rds_files <- list.files(path = here("exp1", "models"), pattern = "\\.rds$", full.names = TRUE)
 model_list <- lapply(rds_files, readRDS)
 names(model_list) <- file_path_sans_ext(basename(rds_files))
@@ -3504,6 +3505,7 @@ outcomes <- c("mean_fixation_duration", "mean_fixation_number",
 	      "latencies", "rel_gaze_in_aoi")
 quality_measures <- c("acc_visd", "precrms_visd", "precsd_visd", "robustness_prop_2")
 
+
 families = list(
   mean_fixation_duration=Gamma(link = "log"),
   mean_fixation_number=Gamma(link = "log"), #???
@@ -3512,6 +3514,12 @@ families = list(
 )
 
 ## Run Models ----
+# Check if models folder exists, if not, it's created
+models_dir <- here("exp1", "models")
+if (!dir.exists(models_dir)) {
+  dir.create(models_dir, recursive = TRUE)
+}
+
 for(outcome in outcomes) {
 	# Full models, one per quality measure
 	if(outcome == "mean_fixation_number") {
@@ -3556,8 +3564,93 @@ for(outcome in outcomes) {
 		  paste("red_rq3_", outcome, ".rds", sep=""))
 }
 
+## Model Comparison ----
+# Fixation Duration
+loo_full_acc_fixdur_rq3 <- loo(full_rq3_mean_fixation_duration_acc_visd)
+loo_red_fixdur_rq3 <- loo(red_rq3_mean_fixation_duration)
+loo_compare(loo_full_acc_fixdur_rq3, loo_red_fixdur_rq3)
+
+loo_full_precrms_fixdur_rq3 <- loo(full_rq3_mean_fixation_duration_precrms_visd)
+loo_red_fixdur_rq3 <- loo(red_rq3_mean_fixation_duration)
+loo_compare(loo_full_precrms_fixdur_rq3, loo_red_fixdur_rq3)
+
+loo_full_precsd_fixdur_rq3 <- loo(full_rq3_mean_fixation_duration_precsd_visd)
+loo_red_fixdur_rq3 <- loo(red_rq3_mean_fixation_duration)
+loo_compare(loo_full_precsd_fixdur_rq3, loo_red_fixdur_rq3)
+
+loo_full_rob_fixdur_rq3 <- loo(full_rq3_mean_fixation_duration_robustness_prop_2)
+loo_red_fixdur_rq3 <- loo(red_rq3_mean_fixation_duration)
+loo_compare(loo_full_rob_fixdur_rq3, loo_red_fixdur_rq3)
+
+# Fixation Number
+loo_full_acc_fixnum_rq3 <- loo(full_rq3_mean_fixation_number_acc_visd)
+loo_red_fixnum_rq3 <- loo(red_rq3_mean_fixation_number)
+loo_compare(loo_full_acc_fixnum_rq3, loo_red_fixnum_rq3)
+
+loo_full_precrms_fixnum_rq3 <- loo(full_rq3_mean_fixation_number_precrms_visd)
+loo_red_fixnum_rq3 <- loo(red_rq3_mean_fixation_number)
+loo_compare(loo_full_precrms_fixnum_rq3, loo_red_fixnum_rq3)
+
+loo_full_precsd_fixnum_rq3 <- loo(full_rq3_mean_fixation_number_precsd_visd)
+loo_red_fixnum_rq3 <- loo(red_rq3_mean_fixation_number)
+loo_compare(loo_full_precsd_fixnum_rq3, loo_red_fixnum_rq3)
+
+loo_full_rob_fixnum_rq3 <- loo(full_rq3_mean_fixation_number_robustness_prop_2)
+loo_red_fixnum_rq3 <- loo(red_rq3_mean_fixation_number)
+loo_compare(loo_full_rob_fixnum_rq3, loo_red_fixnum_rq3)
+
+# Latencies
+loo_full_acc_lat_rq3 <- loo(full_rq3_latencies_acc_visd)
+loo_red_lat_rq3 <- loo(red_rq3_latencies)
+loo_compare(loo_full_acc_lat_rq3, loo_red_lat_rq3)
+
+loo_full_precrms_lat_rq3 <- loo(full_rq3_latencies_precrms_visd)
+loo_red_lat_rq3 <- loo(red_rq3_latencies)
+loo_compare(loo_full_precrms_lat_rq3, loo_red_lat_rq3)
+
+loo_full_precsd_lat_rq3 <- loo(full_rq3_latencies_precsd_visd)
+loo_red_lat_rq3 <- loo(red_rq3_latencies)
+loo_compare(loo_full_precsd_lat_rq3, loo_red_lat_rq3)
+
+loo_full_rob_lat_rq3 <- loo(full_rq3_latencies_robustness_prop_2)
+loo_red_lat_rq3 <- loo(red_rq3_latencies)
+loo_compare(loo_full_rob_lat_rq3, loo_red_lat_rq3)
+
+# Relative LT
+loo_full_acc_rellt_rq3 <- loo(full_rq3_rel_gaze_in_aoi_acc_visd)
+loo_red_rellt_rq3 <- loo(red_rq3_rel_gaze_in_aoi)
+loo_compare(loo_full_acc_rellt_rq3, loo_red_rellt_rq3)
+
+loo_full_precrms_rellt_rq3 <- loo(full_rq3_rel_gaze_in_aoi_precrms_visd)
+loo_red_rellt_rq3 <- loo(red_rq3_rel_gaze_in_aoi)
+loo_compare(loo_full_precrms_rellt_rq3, loo_red_rellt_rq3)
+
+loo_full_precsd_rellt_rq3 <- loo(full_rq3_rel_gaze_in_aoi_precsd_visd)
+loo_red_rellt_rq3 <- loo(red_rq3_rel_gaze_in_aoi)
+loo_compare(loo_full_precsd_rellt_rq3, loo_red_rellt_rq3)
+
+loo_full_rob_rellt_rq3 <- loo(full_rq3_rel_gaze_in_aoi_robustness_prop_2)
+loo_red_rellt_rq3 <- loo(red_rq3_rel_gaze_in_aoi)
+loo_compare(loo_full_rob_rellt_rq3, loo_red_rellt_rq3)
+
+## Posterior Probability / Directional Certainty ----
+full_model <- full_rq3_mean_fixation_number_precsd_visd
+
+as_draws_df(full_model) |>
+  select(contains(":")) |>
+  select(!contains("prior")) |>
+  pivot_longer(cols=everything(), names_to="param", values_to="x") |>
+  group_by(param) |>
+  summarise(posterior_mean = mean(x),
+            dir_cert = mean(sign(x) == sign(posterior_mean))) |>
+  mutate(slope = str_split_i(param, ":", 2),
+         folder = str_split_i(param, ":", 1)) |>
+  arrange(slope, folder) |>
+  select(-slope, -folder)
+print(model$formula)
+
 ## Save model comparison results to PDF
-rmarkdown::render("exp1_tot_infstats_rq3.Rmd", "pdf_document", clean=FALSE)
+# rmarkdown::render("exp1_tot_infstats_rq3.Rmd", "pdf_document", clean=FALSE)
 
 ## Plots ----
 outcomes_short <- list(mean_fixation_duration="fixdur",
@@ -3567,11 +3660,11 @@ outcomes_short <- list(mean_fixation_duration="fixdur",
 quality_measures_short <- list(acc_visd="acc",
 			       precrms_visd="precrms",
 			       precsd_visd="precsd",
-			       robustness_prop2="robustness")
+			       robustness_prop_2="robustness")
 quality_measures_pretty <- list(acc_visd="Accuracy",
 			        precrms_visd="Precision (RMS)",
 			        precsd_visd="Precision (SD)",
-			        robustness_prop2="Robustness")
+			        robustness_prop_2="Robustness")
 predictor_order <- c("acc_visd", "precrms_visd", "precsd_visd", "robustness_prop_2")
 predictor_labels <- c("acc_visd"="Accuracy",
                       "precrms_visd"="Precision (RMS)",
@@ -3584,9 +3677,7 @@ group_labels <- c(
   "9m"           = "9 Months",
   "18m"          = "18 Months",
   "adults"       = "Adults",
-  "chimp_days"   = "Chimpanzees (days)",
-  "chimp_trials" = "Chimpanzees (trials)"
-)
+  "chimps"   = "Chimpanzees")
 for(outcome in outcomes) {
 	outcome_short <- outcomes_short[[outcome]]
 
@@ -3610,7 +3701,7 @@ for(outcome in outcomes) {
 	posterior_plot_rq3 <- plot_rq3_posterior(draws,
 						 group_order, group_labels,
 						 predictor_order, predictor_labels)
-	filename <- paste("xrq3_", outcome_short, "_posterior_4c.png", sep="")
+	filename <- paste("rq3_", outcome_short, "_posterior_4c.png", sep="")
 	filename <- here("exp1", "img", filename)
 	ggsave(filename, plot=posterior_plot_rq3, width = 2480, height = 3508 / 4, units="px", dpi = 250)
 
@@ -3621,11 +3712,11 @@ for(outcome in outcomes) {
 		## Raw data
 		plot_rq3(df=df_tot, x_var=measure, y_var=outcome,
 			 width = 2480, height = 3508/2, res = 250,
-		         png_name = paste("xrq3_", measure, "_",
+		         png_name = paste("rq3_", measure, "_",
 					  outcome_short, ".png", sep=""))
 
 		## Posterior predictive checks
-		filename <- paste("xrq3_", outcome_short, "_ppc.png")
+		filename <- paste("rq3_", outcome_short, "_ppc.png")
 		filename <- here("exp1", "img", filename)
 		pp_plot <- pp_check(model, ndraws = 100)
 		ggsave(filename, plot=pp_plot, width = 2480/2, height = 3508/2, units="px", dpi = 300)
@@ -3634,14 +3725,15 @@ for(outcome in outcomes) {
 		folders <- c("4m", "6m", "9m", "18m", "adults", "chimps")
 		for(folder in folders) {
 			if(outcome == "latencies" & folder == "chimps") { next }
-			filename <- paste("xrq3_", outcome_short, "_posteriorprior_", folder, "_", measure_short, ".png", sep="")
+			filename <- paste("rq3_", outcome_short, "_posteriorprior_", folder, "_", measure_short, ".png", sep="")
 			filename <- here("exp1", "img", filename)
-			if(str_ends(folder, "m")) {
-				folder_pretty <- paste(str_sub(folder, 1, 1), "-month olds", sep="")
-			} else if(folder=="chimps") {
-				folder_pretty <- "Chimpanzees"
+			if (str_ends(folder, "m")) {
+			  months <- str_remove(folder, "m$") 
+			  folder_pretty <- paste(months, "-month olds", sep="")
+			} else if (folder == "chimps") {
+			  folder_pretty <- "Chimpanzees"
 			} else {
-				folder_pretty <- "Adults"
+			  folder_pretty <- "Adults"
 			}
 			measure_pretty <- quality_measures_pretty[[measure]]
 			print(paste("Saving image", filename))

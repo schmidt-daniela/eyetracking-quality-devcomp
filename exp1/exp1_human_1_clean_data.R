@@ -2,7 +2,6 @@
 ## A trial is not valid, if an individual didn't look in the stimulus AOI for at least one fixation. 
 ## Furthermore, trials with latencies shorter than 100 ms (only applies for human infants) and more than 3 SD
 ## of the individual mean will be excluded from the latency analyses (only applied for humans) (Daum & Gredebäck, 2011).
-## Dec 01 2025 – Daniela Schmidt
 
 # General -----------------------------------------------------------------
 rm(list = ls())

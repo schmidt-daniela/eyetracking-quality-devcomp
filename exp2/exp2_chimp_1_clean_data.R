@@ -1,6 +1,5 @@
 ## This script excludes invalid trials.
 ## A trial is not valid, if an individual didn't look in the stimulus AOI for at least one fixation. 
-## Jan 08 2025 – Daniela Schmidt
 
 # General -----------------------------------------------------------------
 rm(list = ls())

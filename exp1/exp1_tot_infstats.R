@@ -114,9 +114,8 @@ df_tot <- df_tot |>
 # Trial Contribution ------------------------------------------------------
 
 ## Accuracy ----
-df_tot |> 
+df_tot |>
   select(folder, group_id, excluded_fixation, acc_visd) |>
-  #filter(excluded_fixation == "included") |> 
   drop_na(acc_visd) |> 
   group_by(group_id, folder) |> 
   count() |> 
@@ -128,7 +127,7 @@ df_tot |>
   slice(c(3,4,5,2,6,1))
 
 ## Precision (RMS & SD) & Robustness ----
-variable <- "precsd_visd" # precrms_visd or precsd_visd
+variable <- "precrms_visd" # precrms_visd or precsd_visd
 
 df_tot |>
   select(folder, group_id, time, all_of(variable)) |>
@@ -1443,7 +1442,7 @@ red_rq1_rob <- brm(
 ## Model Comparison ----
 loo_full_rob <- loo(full_rq1_rob)
 loo_red_rob <- loo(red_rq1_rob)
-loo_compare(loo_full_rob, loo_red_rob) # red_rq1_rob  -31.3       5.5 
+loo_compare(loo_full_rob, loo_red_rob) # red_rq1_rob  -32.1       5.5 
 
 ## Contrasts ----
 groups <- levels(df_tot$folder)
@@ -1521,7 +1520,7 @@ posterior_plot_rq1_rob <- ggplot(
   theme_bw(base_size = 14)
 
 # Save
-png(here("exp1", "img", "rq1_rob_posterior_2.png"), width = 2480/2, height = 3508/2.5, res = 250)
+png(here("exp1", "img", "rq1_rob_posterior_3.png"), width = 2480/2, height = 3508/2.5, res = 250)
 #png(here::here("exp1", "img", "rq1_rob_posterior.png"), width = 2480, height = 3508/3.5, res = 250)
 posterior_plot_rq1_rob
 dev.off()
@@ -2250,6 +2249,13 @@ as_draws_df(full_rq2_acc_chi_2) |>
          folder = str_split_i(param, ":", 1)) |>
   arrange(slope, folder) |>
   select(-slope, -folder)
+
+## Additional Analysis: Marginal Effects ----
+avg_comparisons(full_rq2_acc_hum, variable=list(time_3="minmax"),
+                  by="folder", re_formula=NA,
+                  newdata=expand_grid(folder=unique(full_rq2_acc_hum$data$folder),
+                                      position=unique(full_rq2_acc_hum$data$position),
+                                      time_3=c(0,78))) 
 
 # RQ2 (Precision RMS) -----------------------------------------------------
 # RQ2: (How) does eye-tracking data quality change over time,
@@ -3508,7 +3514,7 @@ quality_measures <- c("acc_visd", "precrms_visd", "precsd_visd", "robustness_pro
 
 families = list(
   mean_fixation_duration=Gamma(link = "log"),
-  mean_fixation_number=Gamma(link = "log"), #???
+  mean_fixation_number=Gamma(link = "log"),
   latencies=Gamma(link = "log"),
   rel_gaze_in_aoi=Beta(link = "logit")
 )
@@ -3544,7 +3550,7 @@ for(outcome in outcomes) {
 			control = control
 			)
 		write_rds(model_full,
-			  paste(here("exp1", "models", "full_rq3_", outcome, "_", measure, ".rds", sep="")))
+			  here::here("exp1", "models", paste0("full_rq3_", outcome, "_", measure, ".rds", sep="")))
 	}
 
 	# Reduced model, just one per outcome
@@ -3560,8 +3566,50 @@ for(outcome in outcomes) {
 		seed = 123,
 		control = list(adapt_delta = 0.99, max_treedepth = 11)
 		)
-	write_rds(model_red,
-		  paste("red_rq3_", outcome, ".rds", sep=""))
+	write_rds(model_full,
+	          here::here("exp1", "models", paste0("red_rq3_", outcome, "_", ".rds", sep="")))
+}
+
+# Robustness models showed some warnings
+# This is why I increased the number of iterations and the max_treedepth
+outcome <- "rel_gaze_in_aoi" # "mean_fixation_duration" or "mean_fixation_number" or "latencies" or "rel_gaze_in_aoi"
+measure <- "robustness_prop_2"
+prior <- c(rq3_group_priors[[outcome]],
+           rq3_slope_priors[[outcome]][[measure]],
+           rq3_ranef_sd_prior, rq3_ranef_correl_prior)
+str_form <- paste(outcome, " ~ 0 + folder + folder:", measure, " + (1 + ", measure, " | group_id)" , sep="")
+
+model <- brm(as.formula(str_form),
+             data   = df_rq3,
+             family = families[[outcome]],
+             prior = prior,
+             chains = 4, cores = 4, iter = 20000, warmup = 5000,
+             sample_prior = "yes",
+             seed = 123,
+             control = list(adapt_delta = 0.99, max_treedepth = 15))
+
+if(outcome == "mean_fixation_duration"){
+  full_rq3_mean_fixation_duration_robustness_prop_2 <- model
+  write_rds(full_rq3_mean_fixation_duration_robustness_prop_2,
+            here::here("exp1", "models", paste0("full_rq3_", outcome, "_", measure, ".rds")))
+}
+
+if(outcome == "mean_fixation_number"){
+  full_rq3_mean_fixation_number_robustness_prop_2 <- model
+  write_rds(full_rq3_mean_fixation_number_robustness_prop_2,
+            here::here("exp1", "models", paste0("full_rq3_", outcome, "_", measure, ".rds")))
+}
+
+if(outcome == "latencies"){
+  full_rq3_latencies_robustness_prop_2 <- model
+  write_rds(full_rq3_latencies_robustness_prop_2,
+            here::here("exp1", "models", paste0("full_rq3_", outcome, "_", measure, ".rds")))
+}
+
+if(outcome == "rel_gaze_in_aoi"){
+  full_rq3_rel_gaze_in_aoi_robustness_prop_2 <- model
+  write_rds(full_rq3_rel_gaze_in_aoi_robustness_prop_2,
+            here::here("exp1", "models", paste0("full_rq3_", outcome, "_", measure, ".rds")))
 }
 
 ## Model Comparison ----
@@ -3634,7 +3682,7 @@ loo_red_rellt_rq3 <- loo(red_rq3_rel_gaze_in_aoi)
 loo_compare(loo_full_rob_rellt_rq3, loo_red_rellt_rq3)
 
 ## Posterior Probability / Directional Certainty ----
-full_model <- full_rq3_mean_fixation_number_precsd_visd
+full_model <- full_rq3_mean_fixation_number_precrms_visd
 
 as_draws_df(full_model) |>
   select(contains(":")) |>
@@ -3646,8 +3694,8 @@ as_draws_df(full_model) |>
   mutate(slope = str_split_i(param, ":", 2),
          folder = str_split_i(param, ":", 1)) |>
   arrange(slope, folder) |>
-  select(-slope, -folder)
-print(model$formula)
+  select(-slope, -folder) |> 
+  slice(2,3,4,1,5,6)
 
 ## Save model comparison results to PDF
 # rmarkdown::render("exp1_tot_infstats_rq3.Rmd", "pdf_document", clean=FALSE)
@@ -3666,10 +3714,14 @@ quality_measures_pretty <- list(acc_visd="Accuracy",
 			        precsd_visd="Precision (SD)",
 			        robustness_prop_2="Robustness")
 predictor_order <- c("acc_visd", "precrms_visd", "precsd_visd", "robustness_prop_2")
-predictor_labels <- c("acc_visd"="Accuracy",
-                      "precrms_visd"="Precision (RMS)",
-                      "precsd_visd"="Precision (SD)",
-                      "robustness_prop_2"="Robustness")
+predictor_labels <- c("acc_visd"="Accuracy\n(in visual degrees)",
+                      "precrms_visd"="Precision (RMS)\n(in visual degrees)",
+                      "precsd_visd"="Precision (SD)\n(in visual degrees)",
+                      "robustness_prop_2"="Robustness\n(in %)")
+outcome_labels <- c("mean_fixation_duration"="Mean Fixation Duration\n(in ms)",
+                      "mean_fixation_number"="Mean Fixation Number",
+                      "latencies"="Latencies\n(in ms)",
+                      "rel_gaze_in_aoi"="Relative Looking Time")
 group_order <- c("4m", "6m", "9m", "18m", "adults", "chimps")
 group_labels <- c(
   "4m"           = "4 Months",
@@ -3690,14 +3742,19 @@ for(outcome in outcomes) {
 		my_draws <- as_draws_df(model) %>%
 			select(contains("b_")) %>%
 			select(-contains("prior")) %>%
-			select(contains(":"))
+			select(contains(":")) |> 
+		  mutate(row_id = row_number())
 		if(first) {
 			draws <- my_draws
 			first <- FALSE
 		} else {
-			draws <- bind_cols(my_draws, draws)
+		  draws <- full_join(my_draws, draws, by = "row_id") # full_join instead of bind_cols to allow different row numbers 
+		                                                     # (i.e., different numbers of iterations)
 		}
 	}
+	
+	draws <- draws |> select(-row_id) 
+	
 	posterior_plot_rq3 <- plot_rq3_posterior(draws,
 						 group_order, group_labels,
 						 predictor_order, predictor_labels)
@@ -3710,8 +3767,10 @@ for(outcome in outcomes) {
 		model <- read_rds(here("exp1", "models", paste("full_rq3_", paste(outcome, measure, sep="_"), ".rds", sep="")))
 
 		## Raw data
-		plot_rq3(df=df_tot, x_var=measure, y_var=outcome,
-			 width = 2480, height = 3508/2, res = 250,
+		plot_rq3(df=df_tot, x_var=measure, y_var=outcome, 
+		         x_lab = predictor_labels[measure][1] |> as.vector(), 
+		         y_lab = outcome_labels[outcome][1] |> as.vector(),
+		         width = 2480, height = 3508/2, res = 250,
 		         png_name = paste("rq3_", measure, "_",
 					  outcome_short, ".png", sep=""))
 
@@ -3744,11 +3803,31 @@ for(outcome in outcomes) {
 								 measure_pretty,
 								 sep=", ")
 					     )
-			ggsave(filename, plot=pvp_plot, width = 2480/2, height = 3508/2, units="px", dpi = 300)
+			ggsave(filename, plot=pvp_plot, width = 2480/2, height = 3508/3, units="px", dpi = 300)
 		}
-
 	}
 }
+
+## Descriptives ----
+# mean_fixation_duration, mean_fixation_number, latencies, rel_gaze_in_aoi
+df_tot |> 
+  select(group_id, folder, trial, robustness_prop_2, rel_gaze_in_aoi) |> 
+  group_by(group_id, folder) |> 
+  summarize(
+    robustness_prop_2 = mean(robustness_prop_2, na.rm = T)
+  ) |> 
+  group_by(folder) |> 
+  summarize(
+    sd = sd(robustness_prop_2, na.rm = T), 
+    mean = mean(robustness_prop_2, na.rm = T)
+  ) |> 
+  mutate(
+    mean = sprintf("%.3f", mean),
+    sd = sprintf("%.3f", sd)
+  ) |> 
+  select(folder, mean, sd) |> 
+  slice(3,4,5,2,6,1) |> 
+  ungroup()
 
 # Exploratory Analyses ----------------------------------------------------
 

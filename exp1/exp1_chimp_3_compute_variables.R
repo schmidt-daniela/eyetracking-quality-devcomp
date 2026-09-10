@@ -561,7 +561,7 @@ for (i in c(1:17)) {
   # mean duration of usable data, the more robust the data. Robustness values are bounded between 0 (no usable data) and the total recording
   # duration considered.
   df_robustness_tot <- calculate_robustness(
-    df,
+    df |> filter(!is.na(trial)),
     trial_col             = "session_trial",
     gaze_x_col            = "gaze_point_x",
     gaze_y_col            = "gaze_point_y",
@@ -583,7 +583,7 @@ for (i in c(1:17)) {
     drop_na(stimulus)
 
   df_robustness_tot_2 <- calculate_robustness_2(
-    df,
+    df |> filter(!is.na(trial)),
     trial_col               = "trial",
     gaze_x_col              = "gaze_point_x",
     gaze_y_col              = "gaze_point_y",

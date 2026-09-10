@@ -168,7 +168,7 @@ df_tot |>
   slice(-c(2,3,11,13,16))
 
 ## Precision (SD) ----
-condition <- folders[3]
+condition <- folders[2]
 
 df_plot_chimpadults_precsd <- df_tot |>  
   filter(folder == condition) |> 
@@ -196,7 +196,7 @@ p_chimpadult_precsd
 dev.off()
 
 ## Robustness ----
-condition <- folders[3]
+condition <- folders[2]
 
 df_chimp_agegroup <- df_tot |>
   filter(folder == condition) |>
@@ -369,16 +369,16 @@ folder_labels <- c(
   "alex_calibration_5p"="Conspecific\n5-Point\nCalibration"
 )
 
-# pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
-# pos_labels <- c(
-#   "center"="Center",
-#   "top_right"="Top Right",
-#   "bot_right"="Bottom Right",
-#   "bottom"="Bottom",
-#   "top_left"="Top Left",
-#   "bot_left"="Bottom Left",
-#   "top"="Top"
-# )
+pos_order <- c("center","top_right","bot_right","bottom","top_left","bot_left","top")
+pos_labels <- c(
+  "center"="Center",
+  "top_right"="Top Right",
+  "bot_right"="Bottom Right",
+  "bottom"="Bottom",
+  "top_left"="Top Left",
+  "bot_left"="Bottom Left",
+  "top"="Top"
+)
 
 # Create Newdata Grid
 nd_pos <- tidyr::expand_grid(

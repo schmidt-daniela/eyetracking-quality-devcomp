@@ -13,7 +13,7 @@ source(here("exp2", "R", "eyetracking_outcomes.R"))
 source(here("exp2", "R", "utils.R"))
 
 # Adjust Parameter --------------------------------------------------------
-folder <- "human_calibration_9p" # alex_calibration_5p or human_calibration_9p or ape_calibration_2p
+folder <- "ape_calibration_2p" # alex_calibration_5p or human_calibration_9p or ape_calibration_2p
 # 136304 (ape_calibration_2p), 191734 (human_calibration_9p), 13698 (alex_calibration_5p)
 filenames <- list.files(path = here("exp2", "data", "raw_clean", folder))
 

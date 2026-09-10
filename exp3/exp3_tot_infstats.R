@@ -1769,7 +1769,8 @@ df_tot |>
   summarize(mean_robustness_prop_2 = mean(robustness_prop_2, na.rm = T),
             sd_robustness_prop_2 = sd(robustness_prop_2, na.rm = T)) |> 
   ungroup() |> 
-  slice(3,1,2,6,4,5)
+  slice(3,1,2,6,4,5) |> 
+  arrange(mean_robustness_prop_2)
 
 ## Paper Plot ----
 # Aggregate to subject level (mean over trials)

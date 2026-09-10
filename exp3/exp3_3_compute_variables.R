@@ -11,9 +11,9 @@ source(here("exp3", "R", "eyetracking_data_quality.R"))
 source(here("exp3", "R", "utils.R"))
 
 # Adjust Parameter --------------------------------------------------------
-sample_size <- 24 # if 4mo, sample_size <- 24; if 6-to-18-month, sample_size <- 32
+sample_size <- 32 # if 4mo, sample_size <- 24; if 6-to-18-month, sample_size <- 32
 for (i in c(1:sample_size)) {
-  folder <- "4mo" # "4mo", "6to18mo"
+  folder <- "6to18mo" # "4mo", "6to18mo"
   filenames <- list.files(path = here("exp3", "data", "raw_clean_blink", folder))
   n <- i
   filename <- filenames[n]
